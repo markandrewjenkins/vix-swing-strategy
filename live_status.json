@@ -1,0 +1,59 @@
+{
+  "generated_utc": "2026-06-11T00:22:41+00:00",
+  "market": {
+    "vix_spot": 22.22,
+    "vix1m_used": 22.22,
+    "curve": {
+      "vix9d": 25.67,
+      "vix9d_date": "2026-06-10",
+      "vix1m": 19.87,
+      "vix1m_date": "2026-06-09",
+      "vix3m": 22.89,
+      "vix3m_date": "2026-06-10",
+      "vix6m": 24.13,
+      "vix6m_date": "2026-06-10",
+      "vix1y": 24.6,
+      "vix1y_date": "2026-06-10"
+    },
+    "quotes": {
+      "vix": {
+        "price": 22.22,
+        "prev_close": 18.92,
+        "change_pct": 0.174419,
+        "time": "2026-06-10T20:15:01+00:00"
+      },
+      "svxy": {
+        "price": 52.39,
+        "prev_close": 53.87,
+        "change_pct": -0.027474,
+        "time": "2026-06-10T20:00:00+00:00"
+      },
+      "uvxy": {
+        "price": 33.27,
+        "prev_close": 30.54,
+        "change_pct": 0.089391,
+        "time": "2026-06-10T20:00:00+00:00"
+      },
+      "spy": {
+        "price": 725.43,
+        "prev_close": 737.05,
+        "change_pct": -0.015766,
+        "time": "2026-06-10T20:00:00+00:00"
+      }
+    }
+  },
+  "derived": {
+    "contango": 0.030153,
+    "backend_slope": 0.054172,
+    "vdelta": -3.45,
+    "regime": "contango"
+  },
+  "official": {
+    "date": "2026-06-10",
+    "position": "CASH",
+    "signal": "CASH",
+    "open_pnl": 0.0,
+    "equity": 17759411.11
+  },
+  "note": "Term structure is CBOE end-of-day; VIX spot & ETF quotes are Yahoo intraday (~15-min delayed). The strategy evaluates once daily on confirmed closes at 15:45 ET \u2014 no intraday repaint."
+}

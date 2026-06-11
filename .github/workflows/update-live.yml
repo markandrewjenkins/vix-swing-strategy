@@ -1,0 +1,51 @@
+name: Update live market status
+
+# Regenerates live_status.json from public market data on a schedule.
+# It does NOT run the strategy backtest — backtest_results.json is produced
+# privately and pushed manually, keeping the optimized params off this repo.
+
+on:
+  schedule:
+    # Every 5 minutes during US market hours (13:00–21:00 UTC covers 9:30–16:00
+    # ET across both EST and EDT), Monday–Friday. NOTE: GitHub schedules are
+    # best-effort and frequently delayed 5–15 min under load.
+    - cron: "*/5 13-21 * * 1-5"
+  workflow_dispatch: {}   # allow manual runs from the Actions tab
+
+# Avoid overlapping runs piling up if one is delayed.
+concurrency:
+  group: update-live
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --quiet pandas
+
+      - name: Generate live_status.json
+        run: python update_live.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git status --porcelain live_status.json | grep -q .; then
+            git add live_status.json
+            git commit -m "chore: refresh live_status.json [skip ci]"
+            git push
+          else
+            echo "No change in live_status.json — nothing to commit."
+          fi
