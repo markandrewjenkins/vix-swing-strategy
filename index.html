@@ -396,7 +396,7 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
         <div id="cdl-info" class="cdl-info">Hover the chart for details</div>
         <div id="candle-chart" style="width:100%;height:430px"></div>
         <div class="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span></div>
-        <div id="pos-band" style="width:100%;height:34px"></div>
+        <div id="pos-band" style="width:100%;height:30px"></div>
       </div>
     </div>
     <div class="panel" style="margin-top:12px">
@@ -1225,7 +1225,6 @@ async function loadLive(){
         if(today && last && today>last.time){
           const nc={time:today,open:px,high:px,low:px,close:px};
           CANDLES.push(nc); candleSeries.update(nc);
-          if(posSeries) posSeries.update({time:today,value:1,color:posColorOf('CASH')});
         }else if(last){
           const nc={time:last.time,open:last.open,high:Math.max(last.high,px),low:Math.min(last.low,px),close:px};
           CANDLES[CANDLES.length-1]=nc; candleSeries.update(nc);
@@ -1255,17 +1254,18 @@ function renderSummary(){
     (evByDate[t.entry_date]=evByDate[t.entry_date]||[]).push({kind:'ENTER',sv,t});
     (evByDate[t.exit_date]=evByDate[t.exit_date]||[]).push({kind:'EXIT',sv,t}); });
 
+  const SV_COL=TEAL, UV_COL=CORAL;
   const markers=[];
-  DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER';
-    markers.push({time:t.entry_date,position:'belowBar',color:sv?TEAL:CORAL,shape:'arrowUp',text:sv?'+SVXY':'+UVXY'});
-    markers.push({time:t.exit_date,position:'aboveBar',color:sv?TEAL:CORAL,shape:'arrowDown',text:(t.pnl_pct>=0?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'}); });
+  DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar'; const mc=sv?SV_COL:UV_COL;
+    markers.push({time:t.entry_date,position:mp,color:mc,shape:'arrowUp',text:sv?'+SVXY':'+UVXY'});
+    markers.push({time:t.exit_date,position:mp,color:mc,shape:'arrowDown',text:(t.pnl_pct>=0?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'}); });
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0);
 
   const el=document.getElementById('candle-chart'); el.innerHTML='';
   sumMain=LC.createChart(el,{ width:el.clientWidth||900, height:430,
-    layout:{background:{color:'transparent'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
+    layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
-    rightPriceScale:{borderColor:'#443714'},
+    rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.22,bottom:0.22}},
     timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.4},
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),
       vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},
@@ -1273,8 +1273,9 @@ function renderSummary(){
   candleSeries=sumMain.addCandlestickSeries({upColor:TEAL,downColor:CORAL,borderUpColor:TEAL,borderDownColor:CORAL,wickUpColor:TEAL,wickDownColor:CORAL});
   candleSeries.setData(CANDLES); candleSeries.setMarkers(markers);
 
+  // Position bar below the chart (per-session bars)
   const pel=document.getElementById('pos-band'); pel.innerHTML='';
-  sumPos=LC.createChart(pel,{ width:pel.clientWidth||900, height:34,
+  sumPos=LC.createChart(pel,{ width:pel.clientWidth||900, height:30,
     layout:{background:{color:'transparent'},textColor:'rgba(0,0,0,0)',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{visible:false},horzLines:{visible:false}},
     rightPriceScale:{visible:false},leftPriceScale:{visible:false},
