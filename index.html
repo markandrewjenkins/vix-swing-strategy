@@ -7,6 +7,7 @@
 <title>VIX Swing Strategy</title>
 <link href="https://fonts.googleapis.com/css2?family=Saira:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root {
   /* Deus Ex: HR — brighter pass: near-black cards, vivid aug colors */
@@ -53,11 +54,10 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
   flex-wrap: wrap;
 }
+/* Sticky top bar: header + live strip pin together on scroll */
+.topbar { position: sticky; top: 0; z-index: 100; }
 .hdr-title {
   font-family: 'Saira', sans-serif;
   font-size: 1.3rem;
@@ -315,6 +315,18 @@ tr:hover td { background: #1f1a10 }
 .live-val.pos-cash { color: var(--dim, #909090) }
 .live-updated { margin-left: auto; color: var(--dim, #909090); font-size: 0.64rem; }
 
+/* Summary page */
+.cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
+.cdl-info b { color:var(--yellow); }
+.pos-band-label { font-size:0.64rem; color:var(--dim); letter-spacing:0.05em; margin:10px 0 3px; text-transform:uppercase; }
+table.sig-mon { width:100%; border-collapse:collapse; font-size:0.8rem; }
+table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
+table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; white-space:nowrap; }
+table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
+.sig-ind { font-weight:700; }
+.sig-svxy { color:var(--teal); } .sig-uvxy { color:var(--coral); } .sig-neu { color:var(--dim); }
+
 /* ── Loading ──────────────────────────────────────────────────────── */
 #loading { display: flex; align-items: center; justify-content: center; min-height: 60vh; flex-direction: column; gap: 16px }
 .spinner { width: 32px; height: 32px; border: 2px solid var(--border2); border-top-color: var(--pink); border-radius: 50%; animation: spin .8s linear infinite }
@@ -325,13 +337,15 @@ tr:hover td { background: #1f1a10 }
 </head>
 <body>
 
+<div class="topbar">
 <div class="hdr">
   <div>
     <div class="hdr-title">VIX SWING STRATEGY</div>
     <div class="hdr-meta" id="hdr-meta">Loading...</div>
   </div>
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('analytics')">Analytics</button>
+    <button class="tab active" onclick="switchTab('summary')">Live Chart w/ Signals</button>
+    <button class="tab" onclick="switchTab('analytics')">Analytics</button>
     <button class="tab" onclick="switchTab('overview')">Overview</button>
     <button class="tab" onclick="switchTab('trades')">Trades</button>
     <button class="tab" onclick="switchTab('monthly')">Monthly</button>
@@ -353,18 +367,19 @@ tr:hover td { background: #1f1a10 }
   <span class="live-item"><span class="live-lbl">Position</span><span class="live-val" id="lv-pos">—</span></span>
   <span class="live-updated" id="lv-updated">connecting…</span>
 </div>
+</div>
 
 <div id="loading">
   <div class="spinner"></div>
-  <div style="color:var(--dim);font-family:Arial,Helvetica,sans-serif;font-size:0.75rem;letter-spacing:0.1em">Loading backtest_results.json ...</div>
+  <div style="color:var(--dim);font-family:'Saira', sans-serif;font-size:0.75rem;letter-spacing:0.1em">Loading backtest_results.json ...</div>
 </div>
 
 <div id="error-state">
-  <div style="font-family:Arial,Helvetica,sans-serif;color:var(--coral);font-size:1rem;margin-bottom:10px">&#9888; backtest_results.json not found</div>
-  <div id="err-detail" style="color:var(--amber);font-size:0.8rem;font-family:Arial,Helvetica,sans-serif;margin-bottom:12px"></div>
+  <div style="font-family:'Saira', sans-serif;color:var(--coral);font-size:1rem;margin-bottom:10px">&#9888; backtest_results.json not found</div>
+  <div id="err-detail" style="color:var(--amber);font-size:0.8rem;font-family:'Saira', sans-serif;margin-bottom:12px"></div>
   <div style="color:var(--dim);font-size:0.85rem;line-height:2">
     Run the backtest first, then serve this folder:<br>
-    <code style="background:var(--panel);padding:6px 14px;border-radius:4px;display:inline-block;margin-top:8px;color:var(--cyan);font-family:Arial,Helvetica,sans-serif">
+    <code style="background:var(--panel);padding:6px 14px;border-radius:4px;display:inline-block;margin-top:8px;color:var(--cyan);font-family:'Saira', sans-serif">
       python backtest.py --start 2011-01-01<br>
       python -m http.server 8000
     </code>
@@ -374,7 +389,23 @@ tr:hover td { background: #1f1a10 }
 <div id="main-content" class="body">
 
   <!-- ══ ANALYTICS TAB ══════════════════════════════════════════════ -->
-  <div id="tab-analytics">
+  <div id="tab-summary">
+    <div class="panel">
+      <div class="ph"><span>Live Chart</span><span id="cdl-live" style="color:var(--dim);font-weight:400">scroll to pan · wheel to zoom</span></div>
+      <div class="pb">
+        <div id="cdl-info" class="cdl-info">Hover the chart for details</div>
+        <div id="candle-chart" style="width:100%;height:430px"></div>
+        <div class="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span></div>
+        <div id="pos-band" style="width:100%;height:34px"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <div class="ph"><span>Live Signal Monitor</span><span id="sig-asof" style="color:var(--dim);font-weight:400"></span></div>
+      <div class="pb" style="overflow-x:auto"><table id="signal-monitor" class="sig-mon"></table></div>
+    </div>
+  </div>
+
+  <div id="tab-analytics" style="display:none">
     <div class="kpi-grid" id="kpi-strip"></div>
 
     <!-- Combined equity + position chart -->
@@ -385,10 +416,6 @@ tr:hover td { background: #1f1a10 }
       </div>
       <div class="pb" style="position:relative;height:320px">
         <canvas id="eqChart"></canvas>
-      </div>
-      <div class="pos-strip-wrap">
-        <div class="pos-strip-label">POSITION TIMELINE — <span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span></div>
-        <div style="position:relative;height:32px"><canvas id="posChart"></canvas></div>
       </div>
     </div>
 
@@ -443,7 +470,7 @@ tr:hover td { background: #1f1a10 }
         <span>All closed trades</span>
         <div style="display:flex;gap:8px;align-items:center">
           <label style="font-size:0.7rem;color:var(--dim)">Filter:</label>
-          <select id="tfilter" onchange="renderTrades()" style="font-size:0.8rem;background:var(--panel2);color:var(--text);border:1px solid var(--border2);border-radius:3px;padding:4px 10px;font-family:Arial,Helvetica,sans-serif">
+          <select id="tfilter" onchange="renderTrades()" style="font-size:0.8rem;background:var(--panel2);color:var(--text);border:1px solid var(--border2);border-radius:3px;padding:4px 10px;font-family:'Saira', sans-serif">
             <option value="ALL">All</option><option value="SVXY">SVXY</option>
             <option value="UVXY">UVXY</option><option value="WIN">Wins</option><option value="LOSS">Losses</option>
           </select>
@@ -518,7 +545,7 @@ tr:hover td { background: #1f1a10 }
     <div class="panel">
       <div class="ph">
         <span>Simulated SVIX/UVIX trade log</span>
-        <select id="alt-tfilter" onchange="renderAltTrades()" style="font-size:0.8rem;background:var(--panel2);color:var(--text);border:1px solid var(--border2);border-radius:3px;padding:4px 10px;font-family:Arial,Helvetica,sans-serif">
+        <select id="alt-tfilter" onchange="renderAltTrades()" style="font-size:0.8rem;background:var(--panel2);color:var(--text);border:1px solid var(--border2);border-radius:3px;padding:4px 10px;font-family:'Saira', sans-serif">
           <option value="ALL">All</option><option value="SVIX">SVIX</option>
           <option value="UVIX">UVIX</option><option value="WIN">Wins</option><option value="LOSS">Losses</option>
         </select>
@@ -543,10 +570,16 @@ const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
+let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null;
 
 // ── Formatters ────────────────────────────────────────────────────────────
-const fmtK    = v => v==null||isNaN(v)?'N/A':'$'+Math.round(v).toLocaleString('en-US');
-const fmtPct  = (v,dp=1) => v==null||isNaN(v)?'N/A':(v>=0?'+':'')+(v*100).toFixed(dp)+'%';
+const abbrev  = v => { if(v==null||isNaN(v))return 'N/A'; const a=Math.abs(v);
+                       if(a>=1e9)return +(v/1e9).toFixed(1)+'B';
+                       if(a>=1e6)return +(v/1e6).toFixed(1)+'M';
+                       if(a>=1e3)return +(v/1e3).toFixed(1)+'K';
+                       return Math.round(v).toLocaleString('en-US'); };
+const fmtK    = v => v==null||isNaN(v)?'N/A':'$'+abbrev(v);
+const fmtPct  = (v,dp=1) => v==null||isNaN(v)?'N/A':(v>=0?'+':'')+(v*100).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp})+'%';
 const fmtNum  = (v,dp=2) => v==null||isNaN(v)?'N/A':parseFloat(v).toFixed(dp);
 const fmtPrice= v => v==null||isNaN(v)?'—':'$'+parseFloat(v).toFixed(2);
 const ebClass = r => r==='TP'?'eb-tp':r==='SL'||r==='TRAIL'||r==='TIMESTOP'?'eb-sl':
@@ -558,6 +591,7 @@ async function load(){
     const r=await fetch('backtest_results.json?v='+Date.now());
     if(!r.ok)throw new Error('HTTP '+r.status);
     DATA=await r.json();
+    try{ const ro=await fetch('svxy_ohlc.json?v='+Date.now()); if(ro.ok) OHLC=await ro.json(); }catch(_){}
     document.getElementById('loading').style.display='none';
     document.getElementById('main-content').style.display='flex';
     computeAltSim();
@@ -624,7 +658,7 @@ function buildPositionState(){
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
-const TABS=['analytics','overview','trades','monthly','conditions','vix','alt'];
+const TABS=['summary','analytics','overview','trades','monthly','conditions','vix','alt'];
 function switchTab(n){
   TABS.forEach(t=>{document.getElementById('tab-'+t).style.display=t===n?'':'none';});
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABS[i]===n));
@@ -645,6 +679,7 @@ function render(){
     m.start_date+' — '+m.end_date+'  ·  '+m.trading_days.toLocaleString()+' trading days  ·  SVXY / UVXY';
   renderAnalytics();renderMetrics();buildEqOverview();
   renderSigPerf();renderSigDist();renderExitReasons();renderTrades();
+  renderSummary();
 }
 
 // ══ ANALYTICS ══════════════════════════════════════════════════════════════
@@ -702,36 +737,17 @@ function renderAnalytics(){
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{
         filter:i=>i.datasetIndex!==0,  // hide position bg from tooltip
-        callbacks:{label:c=>c.datasetIndex===3?' DD: '+c.parsed.y.toFixed(1)+'%':' $'+c.parsed.y.toFixed(1)+'k'}
+        callbacks:{label:c=>c.datasetIndex===3?' DD: '+c.parsed.y.toFixed(1)+'%':' $'+abbrev(c.parsed.y*1000)}
       }},
       scales:{
         x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:13,family:FONT}},grid:{color:GRID}},
-        y:{position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+v+'k'},grid:{color:GRID}},
-        y2:{position:'right',reverse:true,min:-90,max:5,ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>v+'%'},grid:{display:false}},
+        y:{position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+abbrev(v*1000)},grid:{color:GRID}},
+        y2:{position:'right',reverse:true,min:-90,max:5,ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>Math.round(v)+'%'},grid:{display:false}},
         y3:{display:false,min:0,max:1},
       }
     }
   });
 
-  // Position timeline strip
-  mkChart('posChart',{
-    type:'bar',
-    data:{labels,datasets:[{
-      data:labels.map(()=>1),
-      backgroundColor:labels.map(d=>{
-        const st=posMap[d]||'CASH';
-        if(st==='SVXY')return '#00ffb3';
-        if(st==='UVXY')return '#ff3e5c';
-        return '#2a1a45';
-      }),
-      borderWidth:0,
-      barPercentage:1,categoryPercentage:1,
-    }]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{enabled:false}},
-      scales:{x:{display:false},y:{display:false,min:0,max:1}}
-    }
-  });
 
   // Profit structure
   const gP=DATA.trades.filter(t=>t.pnl_pct>0).reduce((a,t)=>a+t.pnl_dollar,0);
@@ -743,7 +759,7 @@ function renderAnalytics(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>' '+fmtK(c.parsed.y)}}},
       scales:{x:{ticks:{color:TICK,font:{size:13,family:FONT}},grid:{display:false}},
-        y:{ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+Math.round(v/1000)+'k'},grid:{color:GRID}}}}
+        y:{ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+abbrev(v)},grid:{color:GRID}}}}
   });
 
   // ROI distribution
@@ -774,8 +790,8 @@ function renderAnalytics(){
   ].map(([c,l,n,p])=>`<div style="display:flex;align-items:center;gap:7px;font-size:0.82rem">
     <span style="width:10px;height:10px;border-radius:2px;background:${c};flex-shrink:0"></span>
     <span style="color:var(--dim);flex:1">${l}</span>
-    <span style="font-family:Arial,Helvetica,sans-serif;color:var(--white)">${n}</span>
-    <span style="font-family:Arial,Helvetica,sans-serif;color:${c};font-size:0.72rem">${p}</span>
+    <span style="font-family:'Saira', sans-serif;color:var(--white)">${n}</span>
+    <span style="font-family:'Saira', sans-serif;color:${c};font-size:0.72rem">${p}</span>
   </div>`).join('');
 
   // Risk metrics
@@ -794,9 +810,9 @@ function renderAnalytics(){
     ['Max consec. losses',s2.max_consec_losses,'neg'],
     ['Avg hold (days)',s2.avg_hold_days,'neu'],
     ['Max hold (days)',s2.max_hold_days,'neu'],
-  ].map(([k,v,c,tag])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(52,21,85,0.5)">
+  ].map(([k,v,c,tag])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
     <span style="font-size:0.82rem;color:var(--dim)">${k}${tag==='calmar'?`<span class="info-badge" data-tip="${calmarTip}">?</span>`:''}</span>
-    <span style="font-family:Arial,Helvetica,sans-serif;font-size:0.88rem" class="${c}">${v}</span>
+    <span style="font-family:'Saira', sans-serif;font-size:0.88rem" class="${c}">${v}</span>
   </div>`).join('');
 
   // Run-up / drawdown
@@ -812,7 +828,7 @@ function renderAnalytics(){
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toFixed(1)+'%'}}},
       scales:{x:{ticks:{color:TICK,maxTicksLimit:10,font:{size:13,family:FONT}},grid:{color:GRID}},
-        y:{ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>v+'%'},grid:{color:GRID}}}}
+        y:{ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>Math.round(v)+'%'},grid:{color:GRID}}}}
   });
 }
 
@@ -855,10 +871,10 @@ function buildEqOverview(){
       {type:'bar',label:'Drawdown',data:ddV,backgroundColor:'rgba(255,62,92,0.22)',borderWidth:0,yAxisID:'y2',barPercentage:1,categoryPercentage:1},
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.datasetIndex===2?' DD: '+c.parsed.y.toFixed(1)+'%':' $'+c.parsed.y.toFixed(1)+'k'}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.datasetIndex===2?' DD: '+c.parsed.y.toFixed(1)+'%':' $'+abbrev(c.parsed.y*1000)}}},
       scales:{x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:13,family:FONT}},grid:{color:GRID}},
-        y:{position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+v+'k'},grid:{color:GRID}},
-        y2:{position:'right',reverse:true,min:-90,max:5,ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>v+'%'},grid:{display:false}}}}
+        y:{position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+abbrev(v*1000)},grid:{color:GRID}},
+        y2:{position:'right',reverse:true,min:-90,max:5,ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>Math.round(v)+'%'},grid:{display:false}}}}
   });
 }
 function renderSigPerf(){
@@ -868,13 +884,13 @@ function renderSigPerf(){
     {l:'UVXY',pill:'pill-uvxy',cnt:s.uvxy_trades,wr:(s.uvxy_win_rate*100).toFixed(0)+'%',avg:fmtPct(s.uvxy_avg_return),pnl:fmtK(s.uvxy_total_pnl),col:CORAL},
   ];
   document.getElementById('sig-perf').innerHTML=rows.map(r=>
-    `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(52,21,85,.5)">
+    `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
       <span class="pill ${r.pill}">${r.l}</span>
       <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px">
-        <div><div style="font-size:0.68rem;color:var(--dim)">Trades</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.9rem;color:var(--white)">${r.cnt}</div></div>
-        <div><div style="font-size:0.68rem;color:var(--dim)">Win rate</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.9rem;color:${parseFloat(r.wr)>=50?TEAL:CORAL}">${r.wr}</div></div>
-        <div><div style="font-size:0.68rem;color:var(--dim)">Avg return</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.9rem;color:${r.avg.startsWith('+')?TEAL:CORAL}">${r.avg}</div></div>
-        <div><div style="font-size:0.68rem;color:var(--dim)">Total P&L</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.9rem;color:${r.pnl.startsWith('-')?CORAL:TEAL}">${r.pnl}</div></div>
+        <div><div style="font-size:0.68rem;color:var(--dim)">Trades</div><div style="font-family:'Saira', sans-serif;font-size:0.9rem;color:var(--white)">${r.cnt}</div></div>
+        <div><div style="font-size:0.68rem;color:var(--dim)">Win rate</div><div style="font-family:'Saira', sans-serif;font-size:0.9rem;color:${parseFloat(r.wr)>=50?TEAL:CORAL}">${r.wr}</div></div>
+        <div><div style="font-size:0.68rem;color:var(--dim)">Avg return</div><div style="font-family:'Saira', sans-serif;font-size:0.9rem;color:${r.avg.startsWith('+')?TEAL:CORAL}">${r.avg}</div></div>
+        <div><div style="font-size:0.68rem;color:var(--dim)">Total P&L</div><div style="font-family:'Saira', sans-serif;font-size:0.9rem;color:${r.pnl.startsWith('-')?CORAL:TEAL}">${r.pnl}</div></div>
       </div>
     </div>`).join('')+
     `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
@@ -888,7 +904,7 @@ function renderSigDist(){
   const uv=(sc['HOLD_UVXY']||0)+(sc['EXIT_UVXY']||0)+(sc['LONG_UVXY']||0);
   const ca=sc['CASH']||0;
   mkChart('sigDistChart',{type:'doughnut',
-    data:{labels:['In SVXY','In UVXY','Cash'],datasets:[{data:[sv,uv,ca],backgroundColor:[TEAL,CORAL,'rgba(160,130,210,.7)'],borderWidth:0,hoverOffset:4}]},
+    data:{labels:['In SVXY','In UVXY','Cash'],datasets:[{data:[sv,uv,ca],backgroundColor:[TEAL,CORAL,'rgba(131,116,72,.75)'],borderWidth:0,hoverOffset:4}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' days'}}}}
   });
 }
@@ -901,7 +917,7 @@ function renderExitReasons(){
     return `<div style="margin-bottom:9px">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px">
         <span style="font-size:0.8rem;color:var(--dim)">${lm[r]||r}</span>
-        <span style="font-size:0.8rem;font-family:Arial,Helvetica,sans-serif;color:${col}">${c} (${p}%)</span>
+        <span style="font-size:0.8rem;font-family:'Saira', sans-serif;color:${col}">${c} (${p}%)</span>
       </div>
       <div style="background:rgba(255,255,255,.05);border-radius:3px;height:5px">
         <div style="width:${p}%;height:100%;background:${col};border-radius:3px"></div>
@@ -941,14 +957,14 @@ function renderMonthly(){
       backgroundColor:md.map(d=>d.ret>=0?'rgba(1,232,176,.6)':'rgba(255,107,107,.6)'),borderWidth:0,borderRadius:3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.y/100)}}},
       scales:{x:{ticks:{color:TICK,font:{size:13,family:FONT},autoSkip:true,maxTicksLimit:22,maxRotation:45},grid:{color:GRID}},
-        y:{ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>v+'%'},grid:{color:GRID}}}}
+        y:{ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>Math.round(v)+'%'},grid:{color:GRID}}}}
   });
   const wins=md.filter(d=>d.ret>0).length;
   document.getElementById('monthly-table').innerHTML=
     `<thead><tr><th>Month</th><th style="text-align:right">Return</th><th>Direction</th></tr></thead><tbody>`+
     [...md].reverse().map(d=>`<tr>
-      <td style="font-family:Arial,Helvetica,sans-serif">${d.month}</td>
-      <td style="text-align:right;font-family:Arial,Helvetica,sans-serif;color:${d.ret>=0?TEAL:CORAL};font-weight:600">${fmtPct(d.ret)}</td>
+      <td style="font-family:'Saira', sans-serif">${d.month}</td>
+      <td style="text-align:right;font-family:'Saira', sans-serif;color:${d.ret>=0?TEAL:CORAL};font-weight:600">${fmtPct(d.ret)}</td>
       <td><span style="font-size:0.78rem;color:${d.ret>=0?TEAL:CORAL}">${d.ret>=0?'▲ Positive':'▼ Negative'}</span></td>
     </tr>`).join('')+
     `</tbody><tfoot><tr><td colspan="3" style="font-size:0.75rem;color:var(--dim);padding-top:10px">${wins} positive / ${md.length-wins} negative months</td></tr></tfoot>`;
@@ -988,7 +1004,7 @@ function renderVIX(){
     return `<div class="vbar">
       <div class="vbar-top">
         <span style="font-size:0.78rem;color:var(--dim)">${v.l}</span>
-        <span style="font-family:Arial,Helvetica,sans-serif;font-size:0.95rem;color:${ok?TEAL:CORAL};font-weight:700">${fmtNum(v.v)}</span>
+        <span style="font-family:'Saira', sans-serif;font-size:0.95rem;color:${ok?TEAL:CORAL};font-weight:700">${fmtNum(v.v)}</span>
       </div>
       <div class="vbar-track">
         <div class="vbar-zone" style="left:${lo}%;width:${hi-lo}%"></div>
@@ -999,12 +1015,12 @@ function renderVIX(){
   }).join('')+
   `<div class="sep"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-    <div><div style="font-size:0.68rem;color:var(--dim)">Contango</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.95rem;color:${last.contango>0.05?TEAL:CORAL}">${last.contango!=null?fmtPct(last.contango):'N/A'}</div></div>
-    <div><div style="font-size:0.68rem;color:var(--dim)">VDelta</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.95rem;color:${last.vdelta>0?TEAL:CORAL}">${last.vdelta!=null?fmtNum(last.vdelta):'N/A'}</div></div>
-    <div><div style="font-size:0.68rem;color:var(--dim)">1M:3M ratio</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.95rem;color:${last.ratio_1m_3m<0.91?TEAL:CORAL}">${last.ratio_1m_3m!=null?fmtNum(last.ratio_1m_3m,3):'N/A'}</div></div>
-    <div><div style="font-size:0.68rem;color:var(--dim)">MOVE/VIX</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.95rem;color:${last.move_vix_ratio>2&&last.move_vix_ratio<11?TEAL:CORAL}">${last.move_vix_ratio!=null?fmtNum(last.move_vix_ratio):'N/A'}</div></div>
-    <div><div style="font-size:0.68rem;color:var(--dim)">SVXY</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.95rem;color:var(--teal)">${last.svxy_price!=null?fmtPrice(last.svxy_price):'N/A'}</div></div>
-    <div><div style="font-size:0.68rem;color:var(--dim)">UVXY</div><div style="font-family:Arial,Helvetica,sans-serif;font-size:0.95rem;color:var(--coral)">${last.uvxy_price!=null?fmtPrice(last.uvxy_price):'N/A'}</div></div>
+    <div><div style="font-size:0.68rem;color:var(--dim)">Contango</div><div style="font-family:'Saira', sans-serif;font-size:0.95rem;color:${last.contango>0.05?TEAL:CORAL}">${last.contango!=null?fmtPct(last.contango):'N/A'}</div></div>
+    <div><div style="font-size:0.68rem;color:var(--dim)">VDelta</div><div style="font-family:'Saira', sans-serif;font-size:0.95rem;color:${last.vdelta>0?TEAL:CORAL}">${last.vdelta!=null?fmtNum(last.vdelta):'N/A'}</div></div>
+    <div><div style="font-size:0.68rem;color:var(--dim)">1M:3M ratio</div><div style="font-family:'Saira', sans-serif;font-size:0.95rem;color:${last.ratio_1m_3m<0.91?TEAL:CORAL}">${last.ratio_1m_3m!=null?fmtNum(last.ratio_1m_3m,3):'N/A'}</div></div>
+    <div><div style="font-size:0.68rem;color:var(--dim)">MOVE/VIX</div><div style="font-family:'Saira', sans-serif;font-size:0.95rem;color:${last.move_vix_ratio>2&&last.move_vix_ratio<11?TEAL:CORAL}">${last.move_vix_ratio!=null?fmtNum(last.move_vix_ratio):'N/A'}</div></div>
+    <div><div style="font-size:0.68rem;color:var(--dim)">SVXY</div><div style="font-family:'Saira', sans-serif;font-size:0.95rem;color:var(--teal)">${last.svxy_price!=null?fmtPrice(last.svxy_price):'N/A'}</div></div>
+    <div><div style="font-size:0.68rem;color:var(--dim)">UVXY</div><div style="font-family:'Saira', sans-serif;font-size:0.95rem;color:var(--coral)">${last.uvxy_price!=null?fmtPrice(last.uvxy_price):'N/A'}</div></div>
   </div>`;
 
   const step=Math.max(1,Math.floor(DATA.bar_history.length/140));
@@ -1026,8 +1042,8 @@ function renderVIX(){
   document.getElementById('bar-log').innerHTML=
     `<thead><tr><th>Date</th><th>Signal</th><th>VIX9D</th><th>VIX1M</th><th>VIX3M</th><th>1M:3M</th><th>Contango</th><th>VDelta</th><th>Open P&L</th><th>SVXY</th><th>UVXY</th></tr></thead><tbody>`+
     l30.map(b=>`<tr>
-      <td style="font-family:Arial,Helvetica,sans-serif">${b.date}</td>
-      <td><span style="font-size:0.75rem;color:${sc(b.signal)};font-family:Arial,Helvetica,sans-serif">${b.signal}</span></td>
+      <td style="font-family:'Saira', sans-serif">${b.date}</td>
+      <td><span style="font-size:0.75rem;color:${sc(b.signal)};font-family:'Saira', sans-serif">${b.signal}</span></td>
       <td style="text-align:right">${b.vix9d??'—'}</td>
       <td style="text-align:right">${b.vix1m??'—'}</td>
       <td style="text-align:right">${b.vix3m??'—'}</td>
@@ -1078,27 +1094,27 @@ function renderAlt(){
       {type:'bar',label:'DD',data:aDV,backgroundColor:'rgba(255,62,92,0.22)',borderWidth:0,yAxisID:'y2',barPercentage:1,categoryPercentage:1},
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.datasetIndex===3?' DD: '+c.parsed.y.toFixed(1)+'%':' $'+c.parsed.y.toFixed(1)+'k'}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.datasetIndex===3?' DD: '+c.parsed.y.toFixed(1)+'%':' $'+abbrev(c.parsed.y*1000)}}},
       scales:{x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:13,family:FONT}},grid:{color:GRID}},
-        y:{position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+v+'k'},grid:{color:GRID}},
-        y2:{position:'right',reverse:true,min:-130,max:5,ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>v+'%'},grid:{display:false}}}}
+        y:{position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+abbrev(v*1000)},grid:{color:GRID}},
+        y2:{position:'right',reverse:true,min:-130,max:5,ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>Math.round(v)+'%'},grid:{display:false}}}}
   });
 
   const cr=(label,ov,sv,fmt,hi)=>{
     const b=hi?(sv>ov):(sv<ov),same=Math.abs(sv-ov)<0.0001;
     const badge=same?'<span class="cmp-badge cmp-neutral">same</span>':
       `<span class="cmp-badge ${b?'cmp-better':'cmp-worse'}">${b?'▲ better':'▼ worse'}</span>`;
-    return `<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid rgba(52,21,85,.5)">
+    return `<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
       <span style="flex:2;font-size:0.82rem;color:var(--dim)">${label}</span>
-      <span style="flex:1;font-family:Arial,Helvetica,sans-serif;font-size:0.82rem;color:var(--cyan);text-align:right">${fmt(ov)}</span>
-      <span style="flex:1;font-family:Arial,Helvetica,sans-serif;font-size:0.82rem;color:var(--pink);text-align:right">${fmt(sv)}</span>
+      <span style="flex:1;font-family:'Saira', sans-serif;font-size:0.82rem;color:var(--cyan);text-align:right">${fmt(ov)}</span>
+      <span style="flex:1;font-family:'Saira', sans-serif;font-size:0.82rem;color:var(--pink);text-align:right">${fmt(sv)}</span>
       <span style="flex:1;text-align:right">${badge}</span></div>`;
   };
   document.getElementById('alt-comparison').innerHTML=
     `<div style="display:flex;padding:6px 0;border-bottom:1px solid var(--border2)">
       <span style="flex:2;font-size:0.7rem;color:var(--dim)">Metric</span>
-      <span style="flex:1;font-size:0.7rem;color:var(--cyan);text-align:right;font-family:Arial,Helvetica,sans-serif">SVXY/UVXY</span>
-      <span style="flex:1;font-size:0.7rem;color:var(--pink);text-align:right;font-family:Arial,Helvetica,sans-serif">SVIX/UVIX</span>
+      <span style="flex:1;font-size:0.7rem;color:var(--cyan);text-align:right;font-family:'Saira', sans-serif">SVXY/UVXY</span>
+      <span style="flex:1;font-size:0.7rem;color:var(--pink);text-align:right;font-family:'Saira', sans-serif">SVIX/UVIX</span>
       <span style="flex:1"></span></div>`+
     cr('Total return',o.total_return,s.total_return,v=>fmtPct(v,1),true)+
     cr('CAGR',o.cagr,s.cagr,v=>fmtPct(v,2),true)+
@@ -1127,8 +1143,8 @@ function renderAlt(){
   ].map(([c,l,n,p])=>`<div style="display:flex;align-items:center;gap:7px;font-size:0.82rem">
     <span style="width:10px;height:10px;border-radius:2px;background:${c};flex-shrink:0"></span>
     <span style="color:var(--dim);flex:1">${l}</span>
-    <span style="font-family:Arial,Helvetica,sans-serif;color:var(--white)">${n}</span>
-    <span style="font-family:Arial,Helvetica,sans-serif;color:${c};font-size:0.72rem">${p}</span>
+    <span style="font-family:'Saira', sans-serif;color:var(--white)">${n}</span>
+    <span style="font-family:'Saira', sans-serif;color:${c};font-size:0.72rem">${p}</span>
   </div>`).join('');
   renderAltTrades();
 }
@@ -1198,11 +1214,158 @@ async function loadLive(){
         Math.round(ageMin/60)+'h ago';
     document.getElementById('lv-updated').textContent =
         'feed '+ago+(o.date?(' · official '+o.date):'');
+
+    LIVE=L;
+    if(window._sigMonReady) renderSignalMonitor();
+    if(candleSeries && CANDLES && L.market && L.market.quotes && L.market.quotes.svxy){
+      const px=L.market.quotes.svxy.price;
+      if(px!=null){
+        const today=(L.generated_utc||'').slice(0,10);
+        const last=CANDLES[CANDLES.length-1];
+        if(today && last && today>last.time){
+          const nc={time:today,open:px,high:px,low:px,close:px};
+          CANDLES.push(nc); candleSeries.update(nc);
+          if(posSeries) posSeries.update({time:today,value:1,color:posColorOf('CASH')});
+        }else if(last){
+          const nc={time:last.time,open:last.open,high:Math.max(last.high,px),low:Math.min(last.low,px),close:px};
+          CANDLES[CANDLES.length-1]=nc; candleSeries.update(nc);
+        }
+      }
+    }
   }catch(e){
     strip.classList.add('stale');
     document.getElementById('lv-updated').textContent = 'live feed unavailable';
   }
 }
+
+
+// Summary: SVXY candlesticks + trade overlay + signal monitor
+function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : 'rgba(131,116,72,.55)'; }
+function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVXY' : 'CASH'; }
+
+function renderSummary(){
+  if(!OHLC || !window.LightweightCharts || !document.getElementById('candle-chart')) return;
+  const LC=LightweightCharts;
+  CANDLES = OHLC.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
+
+  const posByDate={}; DATA.bar_history.forEach(b=>{posByDate[b.date]=b.position;});
+  const startCap=DATA.meta.start_capital;
+  const evByDate={};
+  DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER';
+    (evByDate[t.entry_date]=evByDate[t.entry_date]||[]).push({kind:'ENTER',sv,t});
+    (evByDate[t.exit_date]=evByDate[t.exit_date]||[]).push({kind:'EXIT',sv,t}); });
+
+  const markers=[];
+  DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER';
+    markers.push({time:t.entry_date,position:'belowBar',color:sv?TEAL:CORAL,shape:'arrowUp',text:sv?'+SVXY':'+UVXY'});
+    markers.push({time:t.exit_date,position:'aboveBar',color:sv?TEAL:CORAL,shape:'arrowDown',text:(t.pnl_pct>=0?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'}); });
+  markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0);
+
+  const el=document.getElementById('candle-chart'); el.innerHTML='';
+  sumMain=LC.createChart(el,{ width:el.clientWidth||900, height:430,
+    layout:{background:{color:'transparent'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
+    grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
+    rightPriceScale:{borderColor:'#443714'},
+    timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.4},
+    crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),
+      vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},
+      horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
+  candleSeries=sumMain.addCandlestickSeries({upColor:TEAL,downColor:CORAL,borderUpColor:TEAL,borderDownColor:CORAL,wickUpColor:TEAL,wickDownColor:CORAL});
+  candleSeries.setData(CANDLES); candleSeries.setMarkers(markers);
+
+  const pel=document.getElementById('pos-band'); pel.innerHTML='';
+  sumPos=LC.createChart(pel,{ width:pel.clientWidth||900, height:34,
+    layout:{background:{color:'transparent'},textColor:'rgba(0,0,0,0)',fontFamily:"'Saira', sans-serif"},
+    grid:{vertLines:{visible:false},horzLines:{visible:false}},
+    rightPriceScale:{visible:false},leftPriceScale:{visible:false},
+    timeScale:{visible:false,borderVisible:false},
+    handleScroll:false,handleScale:false,
+    crosshair:{horzLine:{visible:false},vertLine:{visible:false}} });
+  posSeries=sumPos.addHistogramSeries({priceScaleId:'right',priceFormat:{type:'volume'},base:0});
+  posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf(posByDate[c.time]||'CASH')})));
+  sumPos.priceScale('right').applyOptions({scaleMargins:{top:0,bottom:0}});
+
+  let _sync=false;
+  sumMain.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(r&&!_sync){_sync=true;try{sumPos.timeScale().setVisibleLogicalRange(r);}catch(_){} _sync=false;} });
+  sumMain.timeScale().fitContent();
+
+  const money=v=>(v>=0?'+$':'-$')+abbrev(Math.abs(v));
+  const info=document.getElementById('cdl-info');
+  sumMain.subscribeCrosshairMove(param=>{
+    const sd=param.seriesData&&candleSeries?param.seriesData.get(candleSeries):null;
+    if(!param.time||!sd){ info.innerHTML='Hover the chart for details'; return; }
+    const d=param.time, pos=posByDate[d]||'CASH', pn=posNameOf(pos);
+    const pcls=pn==='SVXY'?'sig-svxy':pn==='UVXY'?'sig-uvxy':'sig-neu';
+    let html=`<b>${d}</b> &nbsp; O ${sd.open.toFixed(2)} &middot; H ${sd.high.toFixed(2)} &middot; L ${sd.low.toFixed(2)} &middot; C ${sd.close.toFixed(2)}`
+            +` &nbsp;|&nbsp; Position: <b class="${pcls}">${pn}</b>`;
+    const evs=evByDate[d];
+    if(evs) evs.forEach(e=>{ const t=e.t;
+      if(e.kind==='ENTER'){ html+=` &nbsp;|&nbsp; <b>Enter ${e.sv?'SVXY':'UVXY'}</b> @ $${t.entry_price.toFixed(2)}`; }
+      else{ const cumD=t.equity_after-startCap, cumP=t.equity_after/startCap-1;
+        html+=` &nbsp;|&nbsp; <b>Exit ${e.sv?'SVXY':'UVXY'}</b> (${t.exit_reason}) &mdash; Trade: <span class="${t.pnl_pct>=0?'pos':'neg'}">${fmtPct(t.pnl_pct,2)} / ${money(t.pnl_dollar)}</span>`
+              +` &nbsp; Cumulative: <span class="${cumD>=0?'pos':'neg'}">${fmtPct(cumP,1)} / ${money(cumD)}</span>`; }
+    });
+    info.innerHTML=html;
+  });
+
+  if(!window._sumResize){ window.addEventListener('resize',()=>{
+    if(sumMain&&el.clientWidth) sumMain.applyOptions({width:el.clientWidth});
+    if(sumPos&&pel.clientWidth) sumPos.applyOptions({width:pel.clientWidth}); }); window._sumResize=true; }
+
+  renderSignalMonitor();
+}
+
+function renderSignalMonitor(){
+  if(!document.getElementById('signal-monitor')) return;
+  const b=DATA.bar_history[DATA.bar_history.length-1];
+  const L=LIVE;
+  const contango = (L&&L.derived&&L.derived.contango!=null)?L.derived.contango:b.contango;
+  const vdelta   = (L&&L.derived&&L.derived.vdelta!=null)?L.derived.vdelta:b.vdelta;
+  const cv = (L&&L.market&&L.market.curve)?L.market.curve:{};
+  const vix9d = cv.vix9d!=null?cv.vix9d:null;
+  const vix1m = (L&&L.market&&L.market.vix1m_used!=null)?L.market.vix1m_used:null;
+  const ratio13=b.ratio_1m_3m, movevix=b.move_vix_ratio;
+  const P={ct:0.033,ch:0.146,bvd:0.32,xvd:-2.43,b9lo:14.8,b9hi:31.0,b1lo:8.0,b1hi:22.8,br13:0.932,xr13:1.096};
+  const tag=(k)=>k==='SVXY'?'<span class="sig-ind sig-svxy">SVXY</span>':k==='UVXY'?'<span class="sig-ind sig-uvxy">UVXY</span>':'<span class="sig-ind sig-neu">Neutral</span>';
+  const num=(v,d=2)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v).toFixed(d);
+  const pct=(v,d=1)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v>=0?'+':'')+(v*100).toFixed(d)+'%';
+
+  const spike=b.spike_9d||b.spike_1m, crush=b.crush_9d||b.crush_1m;
+  let rows=[
+    ['Contango (VIX3M/VIX1M)','Term-structure carry. Positive &amp; rising favours short-vol (SVXY).',
+      '&ge; +3.3% rising, or &ge; +14.6%','&le; 0% (backwardation)', pct(contango,1),
+      contango>=P.ct?'SVXY':contango<0?'UVXY':'NEU'],
+    ['VDelta (VIX1M &minus; VIX9D)','Front-end fear gauge. Deeply negative = acute near-term fear.',
+      '&gt; +0.32','&le; &minus;2.43', num(vdelta,2),
+      vdelta>P.bvd?'SVXY':vdelta<=P.xvd?'UVXY':'NEU'],
+    ['VIX9D level','9-day implied vol. In-zone = calm enough to sell vol.',
+      'in 14.8 &ndash; 31.0','&ge; 31 or &lt; 14.8', num(vix9d,2),
+      (vix9d!=null&&vix9d>=P.b9lo&&vix9d<P.b9hi)?'SVXY':(vix9d!=null?'UVXY':'NEU')],
+    ['VIX1M level','1-month implied vol zone.',
+      'in 8.0 &ndash; 22.8','&ge; 22.8', num(vix1m,2),
+      (vix1m!=null&&vix1m>=P.b1lo&&vix1m<P.b1hi)?'SVXY':(vix1m!=null?'UVXY':'NEU')],
+    ['VIX1M / VIX3M ratio','Slope of the near curve.',
+      '&lt; 0.932 (contango)','&ge; 1.096 (inverted)', num(ratio13,3),
+      ratio13<P.br13?'SVXY':(ratio13>=P.xr13?'UVXY':'NEU')],
+    ['Spike / Crush','Sudden &ge;35% 1-day move in VIX9D or VIX1M.',
+      'Crush &rarr; SVXY','Spike &rarr; UVXY',
+      spike?'<span class="neg">SPIKE</span>':(crush?'<span class="pos">CRUSH</span>':'<span style="color:var(--dim)">none</span>'),
+      spike?'UVXY':(crush?'SVXY':'NEU')],
+    ['MOVE / VIX ratio','Bond vol vs equity vol stress.',
+      '&lt; 2','&gt; 11', num(movevix,2),
+      (movevix!=null&&movevix>11)?'UVXY':((movevix!=null&&movevix<2)?'SVXY':'NEU')],
+  ];
+
+  const head='<thead><tr><th>Signal</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th>Current</th><th>Indicated</th></tr></thead>';
+  const body='<tbody>'+rows.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
+    +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
+    +`<td>${r[4]}</td><td>${tag(r[5])}</td></tr>`).join('')+'</tbody>';
+  document.getElementById('signal-monitor').innerHTML=head+body;
+  const asof=document.getElementById('sig-asof');
+  if(asof) asof.textContent = LIVE?('live'+(LIVE.derived&&LIVE.derived.regime?' · '+LIVE.derived.regime:'')):('as of '+b.date);
+  window._sigMonReady=true;
+}
+
 
 load();
 loadLive();
