@@ -1278,17 +1278,29 @@ function renderSummary(){
   sumPos=LC.createChart(pel,{ width:pel.clientWidth||900, height:30,
     layout:{background:{color:'transparent'},textColor:'rgba(0,0,0,0)',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{visible:false},horzLines:{visible:false}},
-    rightPriceScale:{visible:false},leftPriceScale:{visible:false},
+    rightPriceScale:{visible:true,borderVisible:false},leftPriceScale:{visible:false},
     timeScale:{visible:false,borderVisible:false},
     handleScroll:false,handleScale:false,
-    crosshair:{horzLine:{visible:false},vertLine:{visible:false}} });
-  posSeries=sumPos.addHistogramSeries({priceScaleId:'right',priceFormat:{type:'volume'},base:0});
+    crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),horzLine:{visible:false},vertLine:{color:'#6a551f',labelVisible:false}} });
+  posSeries=sumPos.addHistogramSeries({priceScaleId:'right',priceFormat:{type:'volume'},base:0,lastValueVisible:false,priceLineVisible:false});
   posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf(posByDate[c.time]||'CASH')})));
   sumPos.priceScale('right').applyOptions({scaleMargins:{top:0,bottom:0}});
 
   let _sync=false;
   sumMain.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(r&&!_sync){_sync=true;try{sumPos.timeScale().setVisibleLogicalRange(r);}catch(_){} _sync=false;} });
   sumMain.timeScale().fitContent();
+
+  // Align the band's right gutter to the candle chart's price-scale width
+  const _alignBand=()=>{ try{ const w=sumMain.priceScale('right').width(); if(w) sumPos.priceScale('right').applyOptions({minimumWidth:w}); }catch(_){} };
+  _alignBand(); setTimeout(_alignBand,80); setTimeout(_alignBand,300);
+
+  // Hovering the bar shows the crosshair on the candle chart at the same date
+  const _ohlcByTime={}; CANDLES.forEach(c=>{_ohlcByTime[c.time]=c;});
+  sumPos.subscribeCrosshairMove(param=>{
+    if(param && param.time && _ohlcByTime[param.time]){
+      sumMain.setCrosshairPosition(_ohlcByTime[param.time].close, param.time, candleSeries);
+    } else { sumMain.clearCrosshairPosition(); }
+  });
 
   const money=v=>(v>=0?'+$':'-$')+abbrev(Math.abs(v));
   const info=document.getElementById('cdl-info');
@@ -1327,37 +1339,37 @@ function renderSignalMonitor(){
   const vix1m = (L&&L.market&&L.market.vix1m_used!=null)?L.market.vix1m_used:null;
   const ratio13=b.ratio_1m_3m, movevix=b.move_vix_ratio;
   const P={ct:0.033,ch:0.146,bvd:0.32,xvd:-2.43,b9lo:14.8,b9hi:31.0,b1lo:8.0,b1hi:22.8,br13:0.932,xr13:1.096};
-  const tag=(k)=>k==='SVXY'?'<span class="sig-ind sig-svxy">SVXY</span>':k==='UVXY'?'<span class="sig-ind sig-uvxy">UVXY</span>':'<span class="sig-ind sig-neu">Neutral</span>';
+  const tag=(k)=>k==='SVXY'?'<span class="sig-ind sig-svxy">SVXY</span>':k==='UVXY'?'<span class="sig-ind sig-uvxy">UVXY</span>':'<span class="sig-ind sig-neu">Cash</span>';
   const num=(v,d=2)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v).toFixed(d);
   const pct=(v,d=1)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v>=0?'+':'')+(v*100).toFixed(d)+'%';
 
   const spike=b.spike_9d||b.spike_1m, crush=b.crush_9d||b.crush_1m;
   let rows=[
-    ['Contango (VIX3M/VIX1M)','Term-structure carry. Positive &amp; rising favours short-vol (SVXY).',
+    ['Contango (VIX3M / VIX1M)','Term-structure carry. Positive &amp; rising favours short-vol (SVXY).',
       '&ge; +3.3% rising, or &ge; +14.6%','&le; 0% (backwardation)', pct(contango,1),
       contango>=P.ct?'SVXY':contango<0?'UVXY':'NEU'],
     ['VDelta (VIX1M &minus; VIX9D)','Front-end fear gauge. Deeply negative = acute near-term fear.',
       '&gt; +0.32','&le; &minus;2.43', num(vdelta,2),
       vdelta>P.bvd?'SVXY':vdelta<=P.xvd?'UVXY':'NEU'],
-    ['VIX9D level','9-day implied vol. In-zone = calm enough to sell vol.',
+    ['VIX9D Level','9-day implied vol. In-zone = calm enough to sell vol.',
       'in 14.8 &ndash; 31.0','&ge; 31 or &lt; 14.8', num(vix9d,2),
       (vix9d!=null&&vix9d>=P.b9lo&&vix9d<P.b9hi)?'SVXY':(vix9d!=null?'UVXY':'NEU')],
-    ['VIX1M level','1-month implied vol zone.',
+    ['VIX1M Level','1-month implied vol zone.',
       'in 8.0 &ndash; 22.8','&ge; 22.8', num(vix1m,2),
       (vix1m!=null&&vix1m>=P.b1lo&&vix1m<P.b1hi)?'SVXY':(vix1m!=null?'UVXY':'NEU')],
-    ['VIX1M / VIX3M ratio','Slope of the near curve.',
+    ['VIX1M / VIX3M Ratio','Slope of the near curve.',
       '&lt; 0.932 (contango)','&ge; 1.096 (inverted)', num(ratio13,3),
       ratio13<P.br13?'SVXY':(ratio13>=P.xr13?'UVXY':'NEU')],
     ['Spike / Crush','Sudden &ge;35% 1-day move in VIX9D or VIX1M.',
       'Crush &rarr; SVXY','Spike &rarr; UVXY',
-      spike?'<span class="neg">SPIKE</span>':(crush?'<span class="pos">CRUSH</span>':'<span style="color:var(--dim)">none</span>'),
+      spike?'<span class="neg">SPIKE</span>':(crush?'<span class="pos">CRUSH</span>':'N/A'),
       spike?'UVXY':(crush?'SVXY':'NEU')],
-    ['MOVE / VIX ratio','Bond vol vs equity vol stress.',
+    ['MOVE / VIX Ratio','Bond vol vs equity vol stress.',
       '&lt; 2','&gt; 11', num(movevix,2),
       (movevix!=null&&movevix>11)?'UVXY':((movevix!=null&&movevix<2)?'SVXY':'NEU')],
   ];
 
-  const head='<thead><tr><th>Signal</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th>Current</th><th>Indicated</th></tr></thead>';
+  const head='<thead><tr><th>Indicator</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th>Current</th><th>Signal</th></tr></thead>';
   const body='<tbody>'+rows.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +`<td>${r[4]}</td><td>${tag(r[5])}</td></tr>`).join('')+'</tbody>';
