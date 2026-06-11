@@ -5,28 +5,28 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>VIX Swing Strategy</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root {
-  /* Dark grey scheme — no purple, light yellow accent */
-  --bg:      #1c1c1c;   /* dark grey — lighter than before */
-  --panel:   #252525;   /* panel bg */
-  --panel2:  #2e2e2e;   /* slightly lighter panel */
-  --border:  #3a3a3a;   /* visible grey border */
-  --border2: #505050;   /* active/hover border */
-  --text:    #f2f2f2;   /* near-white */
-  --dim:     #909090;   /* secondary text — mid grey */
-  --white:   #ffffff;
-  --yellow:  #ffed80;   /* light yellow — derived from CP2077 #fce700, much paler */
-  --cyan:    #00d4ff;   /* electric cyan */
-  --pink:    #ff2a6d;   /* hot magenta */
-  --teal:    #00e5a0;   /* bright mint — wins / SVXY */
-  --purple:  #bd93f9;   /* kept as minor alt accent only */
-  --amber:   #ffb86c;   /* warm orange — warnings */
-  --coral:   #ff4560;   /* red-pink — losses */
-  --gray:    #666666;   /* chart neutral / SPY */
-  --cash:    #555555;   /* cash periods in timeline */
+  /* Deus Ex: HR — brighter pass: near-black cards, vivid aug colors */
+  --bg:      #100d09;
+  --panel:   #0c0a07;
+  --panel2:  #131009;
+  --border:  #443714;
+  --border2: #6a551f;
+  --text:    #f6ecc6;
+  --dim:     #b39a52;
+  --white:   #fdf4d6;
+  --yellow:  #e8b94f;
+  --cyan:    #54d2ef;
+  --pink:    #e8b94f;
+  --teal:    #52e6bd;
+  --purple:  #dba24f;
+  --amber:   #f0982f;
+  --coral:   #f2563a;
+  --gray:    #837448;
+  --cash:    #2a2415;
   --pos: var(--teal);
   --neg: var(--coral);
   --neu: var(--cyan);
@@ -36,7 +36,8 @@ html { font-size: 15px }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
+  font-weight: 400;
   font-size: 1rem;
   line-height: 1.5;
   min-height: 100vh;
@@ -45,7 +46,7 @@ body {
 
 /* ── Header ───────────────────────────────────────────────────────── */
 .hdr {
-  background: #181818;
+  background: #0e0c08;
   border-bottom: 2px solid var(--yellow);
   padding: 12px 20px;
   display: flex;
@@ -58,15 +59,15 @@ body {
   flex-wrap: wrap;
 }
 .hdr-title {
-  font-family: 'Space Mono', monospace;
-  font-size: 1.2rem;
+  font-family: 'Saira', sans-serif;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--yellow);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .hdr-meta {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   font-size: 0.76rem;
   color: var(--dim);
   margin-top: 3px;
@@ -79,7 +80,7 @@ body {
   padding: 6px 16px;
   border-radius: 3px;
   cursor: pointer;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -87,7 +88,7 @@ body {
 }
 .tab:hover { border-color: var(--cyan); color: var(--cyan); }
 .tab.active {
-  background: #2e2a14;
+  background: #2a2210;
   border-color: var(--yellow);
   color: var(--yellow);
   font-weight: 700;
@@ -110,14 +111,14 @@ body {
   border-bottom: 1px solid var(--border);
   font-size: 0.8rem;
   color: var(--dim);
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   font-weight: 600;
   display: flex;
   justify-content: space-between;
   align-items: center;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  background: #1e1e1e;
+  background: #0a0805;
 }
 .ph span { color: var(--yellow); font-weight: 700 }
 .pb { padding: 14px 16px }
@@ -135,13 +136,13 @@ body {
 .kpi-label {
   font-size: 0.72rem;
   color: var(--dim);
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .kpi-val {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   font-size: 1.55rem;
   font-weight: 700;
   margin-top: 5px;
@@ -156,8 +157,8 @@ body {
   border-radius: 6px;
   padding: 11px 13px;
 }
-.mc-label { font-size: 0.72rem; color: var(--dim); font-family: 'Space Mono', monospace; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em }
-.mc-value { font-family: 'Space Mono', monospace; font-size: 1.4rem; font-weight: 700; margin-top: 4px }
+.mc-label { font-size: 0.72rem; color: var(--dim); font-family: 'Saira', sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em }
+.mc-value { font-family: 'Saira', sans-serif; font-size: 1.4rem; font-weight: 700; margin-top: 4px }
 .mc-sub   { font-size: 0.76rem; color: var(--dim); margin-top: 3px }
 
 /* ── Color classes ────────────────────────────────────────────────── */
@@ -171,31 +172,31 @@ body {
   padding: 2px 8px;
   border-radius: 3px;
   font-size: 0.75rem;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   font-weight: 700;
   letter-spacing: 0.03em;
 }
-.pill-svxy  { background: #0a2018; color: var(--teal);   border: 1px solid var(--teal) }
-.pill-uvxy  { background: #28080e; color: var(--coral);  border: 1px solid var(--coral) }
-.pill-svix  { background: #082030; color: var(--cyan);   border: 1px solid var(--cyan) }
-.pill-uvix  { background: #18102a; color: var(--purple); border: 1px solid var(--purple) }
+.pill-svxy  { background: #0c211c; color: var(--teal);   border: 1px solid var(--teal) }
+.pill-uvxy  { background: #2a120c; color: var(--coral);  border: 1px solid var(--coral) }
+.pill-svix  { background: #0c1c28; color: var(--cyan);   border: 1px solid var(--cyan) }
+.pill-uvix  { background: #221608; color: var(--purple); border: 1px solid var(--purple) }
 
 /* ── Table ────────────────────────────────────────────────────────── */
-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-family: 'Space Mono', monospace }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-family: 'Saira', sans-serif }
 th {
   text-align: left;
   padding: 9px 10px;
   border-bottom: 1px solid var(--border2);
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   font-size: 0.75rem;
   color: var(--yellow);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: #1e1e1e;
+  background: #0a0805;
 }
 td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text) }
-tr:hover td { background: #2e2e2e }
+tr:hover td { background: #1f1a10 }
 
 /* ── Exit badges ──────────────────────────────────────────────────── */
 .eb {
@@ -203,37 +204,37 @@ tr:hover td { background: #2e2e2e }
   padding: 2px 7px;
   border-radius: 3px;
   font-size: 0.73rem;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-.eb-tp    { background: #0a2018; color: var(--teal);   border: 1px solid var(--teal) }
-.eb-sl    { background: #28080e; color: var(--coral);  border: 1px solid var(--coral) }
-.eb-move  { background: #28200a; color: var(--amber);  border: 1px solid var(--amber) }
-.eb-ratio { background: #082030; color: var(--cyan);   border: 1px solid var(--cyan) }
+.eb-tp    { background: #0c211c; color: var(--teal);   border: 1px solid var(--teal) }
+.eb-sl    { background: #2a120c; color: var(--coral);  border: 1px solid var(--coral) }
+.eb-move  { background: #2a2008; color: var(--amber);  border: 1px solid var(--amber) }
+.eb-ratio { background: #0c1c28; color: var(--cyan);   border: 1px solid var(--cyan) }
 
 /* ── VIX bars ─────────────────────────────────────────────────────── */
 .vbar { margin-bottom: 16px }
 .vbar-top { display: flex; justify-content: space-between; margin-bottom: 6px; align-items: center }
-.vbar-track { position: relative; height: 7px; background: #1e1e28; border-radius: 4px; overflow: visible; border: 1px solid var(--border) }
-.vbar-zone  { position: absolute; top: 0; height: 100%; background: #0a2018; border-radius: 4px }
+.vbar-track { position: relative; height: 7px; background: #0a0805; border-radius: 4px; overflow: visible; border: 1px solid var(--border) }
+.vbar-zone  { position: absolute; top: 0; height: 100%; background: #0c211c; border-radius: 4px }
 .vbar-dot   { position: absolute; top: -3.5px; width: 14px; height: 14px; border-radius: 50%; transform: translateX(-50%); border: 2px solid var(--panel); box-shadow: 0 0 8px currentColor }
 
 /* ── Condition bars ───────────────────────────────────────────────── */
 .cbar { display: flex; align-items: center; gap: 10px; margin-bottom: 9px }
-.cbar-label { font-size: 0.78rem; color: var(--dim); min-width: 175px; font-family: 'Space Mono', monospace; font-weight: 600 }
-.cbar-track { flex: 1; height: 6px; background: #1e1e28; border-radius: 3px; overflow: hidden; border: 1px solid var(--border) }
+.cbar-label { font-size: 0.78rem; color: var(--dim); min-width: 175px; font-family: 'Saira', sans-serif; font-weight: 600 }
+.cbar-track { flex: 1; height: 6px; background: #0a0805; border-radius: 3px; overflow: hidden; border: 1px solid var(--border) }
 .cbar-fill  { height: 100%; border-radius: 3px }
-.cbar-val   { font-family: 'Space Mono', monospace; font-size: 0.78rem; color: var(--text); min-width: 34px; text-align: right; font-weight: 700 }
+.cbar-val   { font-family: 'Saira', sans-serif; font-size: 0.78rem; color: var(--text); min-width: 34px; text-align: right; font-weight: 700 }
 
 .sep { height: 1px; background: var(--border2); margin: 10px 0 }
 
 /* ── Position timeline strip ──────────────────────────────────────── */
 .pos-strip-wrap { padding: 0 16px 12px; }
-.pos-strip-label { font-size: 0.72rem; color: var(--dim); font-family: 'Space Mono', monospace; font-weight: 600; letter-spacing: 0.03em; margin-bottom: 4px }
+.pos-strip-label { font-size: 0.72rem; color: var(--dim); font-family: 'Saira', sans-serif; font-weight: 600; letter-spacing: 0.03em; margin-bottom: 4px }
 
 /* ── Legend items ─────────────────────────────────────────────────── */
-.leg-item { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text); font-family: 'Space Mono', monospace }
+.leg-item { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text); font-family: 'Saira', sans-serif }
 .leg-swatch { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0 }
 
 /* ── Calmar tooltip ───────────────────────────────────────────────── */
@@ -246,7 +247,7 @@ tr:hover td { background: #2e2e2e }
   border: 1px solid var(--dim);
   color: var(--dim);
   font-size: 0.65rem;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   cursor: help;
   position: relative;
   margin-left: 5px;
@@ -263,7 +264,7 @@ tr:hover td { background: #2e2e2e }
   border: 1px solid var(--border2);
   color: var(--text);
   font-size: 0.76rem;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Saira', sans-serif;
   padding: 8px 12px;
   border-radius: 5px;
   min-width: 240px;
@@ -275,14 +276,14 @@ tr:hover td { background: #2e2e2e }
 }
 
 /* ── Comparison ───────────────────────────────────────────────────── */
-.cmp-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 0.75rem; font-family: 'Space Mono', monospace; padding: 2px 7px; border-radius: 3px; font-weight: 700 }
-.cmp-better  { background: #0a2018; color: var(--teal);   border: 1px solid var(--teal) }
-.cmp-worse   { background: #28080e; color: var(--coral);  border: 1px solid var(--coral) }
-.cmp-neutral { background: #082030; color: var(--cyan);   border: 1px solid var(--cyan) }
+.cmp-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 0.75rem; font-family: 'Saira', sans-serif; padding: 2px 7px; border-radius: 3px; font-weight: 700 }
+.cmp-better  { background: #0c211c; color: var(--teal);   border: 1px solid var(--teal) }
+.cmp-worse   { background: #2a120c; color: var(--coral);  border: 1px solid var(--coral) }
+.cmp-neutral { background: #0c1c28; color: var(--cyan);   border: 1px solid var(--cyan) }
 
 /* ── Note box ─────────────────────────────────────────────────────── */
 .note-box {
-  background: #272720;
+  background: #1f1a0e;
   border: 1px solid var(--yellow);
   border-radius: 6px;
   padding: 11px 15px;
@@ -297,7 +298,7 @@ tr:hover td { background: #2e2e2e }
   display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
   padding: 7px 18px; background: var(--panel2, #232323);
   border-bottom: 1px solid var(--border2, #333);
-  font-family: 'Space Mono', monospace; font-size: 0.72rem;
+  font-family: 'Saira', sans-serif; font-size: 0.72rem;
 }
 .live-badge { display: inline-flex; align-items: center; gap: 6px;
   color: var(--pink, #ff2a6d); font-weight: 700; letter-spacing: 0.12em; }
@@ -535,11 +536,11 @@ tr:hover td { background: #2e2e2e }
 
 <script>
 // ── Palette ───────────────────────────────────────────────────────────────
-const YELLOW='#ffed80', CYAN='#00d4ff', TEAL='#00e5a0', PURPLE='#bd93f9';
-const PINK='#ff2a6d', CORAL='#ff4560', AMBER='#ffb86c', GRAY='#666666';
-const DIM='#909090';
-const GRID='rgba(255,255,255,0.08)', TICK='#aaaaaa';
-const FONT="'Space Mono', monospace";
+const YELLOW='#e8b94f', CYAN='#54d2ef', TEAL='#52e6bd', PURPLE='#dba24f';
+const PINK='#e8b94f', CORAL='#f2563a', AMBER='#f0982f', GRAY='#837448';
+const DIM='#998544';
+const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
+const FONT="'Saira', sans-serif";
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
 
