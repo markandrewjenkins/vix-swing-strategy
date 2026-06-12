@@ -327,10 +327,12 @@ tr:hover td { background: #1f1a10 }
 .mkt-sessbar .reg { width:27.1%; background:rgba(82,230,189,0.7); }
 .mkt-sessbar .aft { width:16.7%; background:rgba(84,210,239,0.55); }
 .mkt-sessbar .c2 { width:16.6%; background:#2a2415; }
-.mkt-marker { position:absolute; top:-3px; height:12px; width:0; border-left:1.5px dashed var(--text); }
+.mkt-marker { position:absolute; top:-5px; height:16px; width:2px; background:repeating-linear-gradient(to bottom, var(--text) 0 2.5px, transparent 2.5px 5px); }
 #mkt-countdown { color:var(--dim); font-weight:400; }
 .mkt-block { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; width:214px; overflow:hidden; }
 #mkt-label { color:var(--pink, #ff2a6d); font-weight:700; letter-spacing:0.04em; }
+.cdl-toggle { background:rgba(40,33,16,0.6); color:var(--yellow); border:1px solid var(--border2); border-radius:4px; padding:2px 9px; font-family:'Saira',sans-serif; font-size:0.7rem; font-weight:600; letter-spacing:0.03em; cursor:pointer; }
+.cdl-toggle:hover { background:rgba(60,48,24,0.7); }
 #mkt-refresh { color:var(--dim); }
 /* Summary page */
 .cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
@@ -374,7 +376,6 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 
 <!-- ══ LIVE MARKET STRIP ═══════════════════════════════════════════════════ -->
 <div id="live-strip" title="Live market readings. The strategy evaluates once daily on confirmed closes at 15:45 ET — intraday values are indicative only.">
-  <span class="live-badge"><span class="live-dot"></span>LIVE</span>
   <span class="live-item"><span class="live-lbl">VIX</span><span class="live-val" id="lv-vix">—</span></span>
   <span class="live-item"><span class="live-lbl">Contango</span><span class="live-val" id="lv-cont">—</span></span>
   <span class="live-item"><span class="live-lbl">VDelta</span><span class="live-val" id="lv-vd">—</span></span>
@@ -382,7 +383,7 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
   <span class="live-item"><span class="live-lbl">SVXY</span><span class="live-val" id="lv-svxy">—</span></span>
   <span class="live-item"><span class="live-lbl">UVXY</span><span class="live-val" id="lv-uvxy">—</span></span>
   <span class="live-item"><span class="live-lbl">Position</span><span class="live-val" id="lv-pos">—</span></span>
-  <span class="live-updated" id="lv-updated">connecting…</span>
+  <span class="live-item" style="margin-left:auto;gap:8px"><span class="live-badge"><span class="live-dot"></span>LIVE</span><span class="live-lbl">Last refresh:</span><span class="live-val" id="lv-updated">—</span></span>
 </div>
 </div>
 
@@ -408,7 +409,7 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
   <!-- ══ ANALYTICS TAB ══════════════════════════════════════════════ -->
   <div id="tab-summary">
     <div class="panel">
-      <div class="ph"><span>Live Chart</span><span id="cdl-live" style="color:var(--dim);font-weight:400">scroll to pan · wheel to zoom</span></div>
+      <div class="ph"><span>Live Chart</span><span style="display:inline-flex;align-items:center;gap:12px"><button id="chart-mode-toggle" onclick="toggleChartMode()" class="cdl-toggle" title="Switch the instruments shown on the chart">SVXY / UVXY</button><span id="cdl-live" style="color:var(--dim);font-weight:400">scroll to pan · wheel to zoom</span></span></div>
       <div class="pb">
         <div id="mkt-row">
           <span class="mkt-block"><span id="mkt-dot"></span><span id="mkt-label">Market closed</span><span id="mkt-countdown"></span></span>
@@ -424,7 +425,7 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
       </div>
     </div>
     <div class="panel" style="margin-top:12px">
-      <div class="ph"><span>Live Signal Monitor</span><span id="sig-asof" style="color:var(--dim);font-weight:400"></span></div>
+      <div class="ph"><span>Live Signal Monitor</span></div>
       <div class="pb" style="overflow-x:auto"><table id="signal-monitor" class="sig-mon"></table></div>
     </div>
   </div>
@@ -1237,7 +1238,7 @@ async function loadLive(){
         ageMin<60 ? Math.round(ageMin)+'m ago' :
         Math.round(ageMin/60)+'h ago';
     document.getElementById('lv-updated').textContent =
-        'Last refresh: '+toEtClock(L.generated_utc)+' ET';
+        toEtClock(L.generated_utc)+' ET';
 
     LIVE=L;
     updateMarket();
@@ -1248,10 +1249,10 @@ async function loadLive(){
         const ro=await fetch('svxy_ohlc.json?v='+Date.now());
         if(ro.ok){
           const arr=await ro.json();
-          const ln=arr[arr.length-1], lc=(CANDLES&&CANDLES.length)?CANDLES[CANDLES.length-1]:null;
-          const changed=!lc||arr.length!==CANDLES.length||ln[0]!==lc.time||ln[4]!==lc.close;
+          const ln=arr[arr.length-1], lo=(OHLC&&OHLC.length)?OHLC[OHLC.length-1]:null;
+          const changed=!lo||arr.length!==OHLC.length||ln[0]!==lo[0]||ln[4]!==lo[4];
           if(changed){
-            OHLC=arr; CANDLES=arr.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
+            OHLC=arr; CANDLES=displayCandles();
             const vr=sumMain.timeScale().getVisibleLogicalRange();
             candleSeries.setData(CANDLES);
             if(MARKERS) candleSeries.setMarkers(MARKERS);
@@ -1262,7 +1263,7 @@ async function loadLive(){
       }catch(_){}
     }
     // Refine the forming candle's close with the latest live quote (never fabricate flat candles)
-    if(candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
+    if(CHART_MODE==='real' && candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
       const px=L.market.quotes.svxy.price, today=(L.generated_utc||'').slice(0,10), last=CANDLES[CANDLES.length-1];
       if(px!=null && last && today===last.time){
         const nc={time:last.time,open:last.open,high:Math.max(last.high,px),low:Math.min(last.low,px),close:px};
@@ -1292,7 +1293,27 @@ function updateMarket(){
   if(lab){ lab.textContent=label; }
   if(mk){ mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
   if(cd){ const np=_nextPhase(); cd.textContent=' \u00b7 '+np.verb+' in '+_fmtDur(np.secs); }
+  const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
 }
+let CHART_MODE='real'; const ALT_SV=2.0, ALT_UV=1.333;
+function displayCandles(){ if(!OHLC) return [];
+  if(CHART_MODE==='real') return OHLC.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
+  const m=ALT_SV, out=[]; let sim=null, prevC=null;
+  for(let i=0;i<OHLC.length;i++){ const a=OHLC[i];
+    if(i===0){ sim=a[4]; prevC=a[4]; out.push({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}); continue; }
+    const sr=x=>{ let v=(x/prevC-1)*m; return v<-0.95?-0.95:v; }; const o=sim*(1+sr(a[1])), c=sim*(1+sr(a[4])), h=sim*(1+sr(a[2])), l=sim*(1+sr(a[3]));
+    out.push({time:a[0],open:o,high:Math.max(o,h,c),low:Math.min(o,l,c),close:c}); sim=c; prevC=a[4]; }
+  return out; }
+function displayMarkers(){ const alt=CHART_MODE==='alt'; const markers=[];
+  DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar'; const mc=sv?TEAL:CORAL;
+    const nm=alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'); const pct=alt?Math.max(-0.999,t.pnl_pct*(sv?ALT_SV:ALT_UV)):t.pnl_pct;
+    markers.push({time:t.entry_date,position:mp,color:mc,shape:'arrowUp',text:'+'+nm});
+    markers.push({time:t.exit_date,position:mp,color:mc,shape:'arrowDown',text:(pct>=0?'+':'')+(pct*100).toFixed(1)+'%'}); });
+  markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers; }
+function applyChartMode(){ const btn=document.getElementById('chart-mode-toggle'); if(btn) btn.textContent=CHART_MODE==='real'?'SVXY / UVXY':'SVIX / UVIX';
+  if(!candleSeries||!sumMain) return; CANDLES=displayCandles(); MARKERS=displayMarkers();
+  const vr=sumMain.timeScale().getVisibleLogicalRange(); candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS); if(vr) sumMain.timeScale().setVisibleLogicalRange(vr); }
+function toggleChartMode(){ CHART_MODE=(CHART_MODE==='real')?'alt':'real'; applyChartMode(); }
 function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-44),to:N+2}); }catch(_){} }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
 function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : 'rgba(131,116,72,.55)'; }
@@ -1301,7 +1322,7 @@ function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVX
 function renderSummary(){
   if(!OHLC || !window.LightweightCharts || !document.getElementById('candle-chart')) return;
   const LC=LightweightCharts;
-  CANDLES = OHLC.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
+  CANDLES = displayCandles();
 
   const posByDate={}; DATA.bar_history.forEach(b=>{posByDate[b.date]=b.position;}); POSBYDATE=posByDate;
   const startCap=DATA.meta.start_capital;
@@ -1310,12 +1331,7 @@ function renderSummary(){
     (evByDate[t.entry_date]=evByDate[t.entry_date]||[]).push({kind:'ENTER',sv,t});
     (evByDate[t.exit_date]=evByDate[t.exit_date]||[]).push({kind:'EXIT',sv,t}); });
 
-  const SV_COL=TEAL, UV_COL=CORAL;
-  const markers=[];
-  DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar'; const mc=sv?SV_COL:UV_COL;
-    markers.push({time:t.entry_date,position:mp,color:mc,shape:'arrowUp',text:sv?'+SVXY':'+UVXY'});
-    markers.push({time:t.exit_date,position:mp,color:mc,shape:'arrowDown',text:(t.pnl_pct>=0?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'}); });
-  markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0);
+  const markers=displayMarkers();
 
   const el=document.getElementById('candle-chart'); el.innerHTML='';
   sumMain=LC.createChart(el,{ width:el.clientWidth||900, height:430,
@@ -1430,8 +1446,6 @@ function renderSignalMonitor(){
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +`<td>${r[4]}</td><td>${tag(r[5])}</td></tr>`).join('')+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;
-  const asof=document.getElementById('sig-asof');
-  if(asof) asof.textContent = LIVE?('live'+(LIVE.derived&&LIVE.derived.regime?' · '+LIVE.derived.regime:'')):('as of '+b.date);
   window._sigMonReady=true;
 }
 
