@@ -329,7 +329,7 @@ tr:hover td { background: #1f1a10 }
 .mkt-sessbar .c2 { width:16.6%; background:rgba(131,116,72,0.4); }
 .mkt-marker { position:absolute; top:-5px; height:16px; width:2px; background:#ffffff; }
 #mkt-countdown { color:var(--dim); font-weight:400; }
-.mkt-block { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; width:300px; overflow:hidden; }
+.mkt-block { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; }
 #mkt-label { color:var(--pink, #ff2a6d); font-weight:700; letter-spacing:0.04em; }
 .cdl-toggle-group { display:inline-flex; border:1px solid var(--border2); border-radius:5px; overflow:hidden; }
 .cdl-seg { background:transparent; color:var(--dim); border:none; padding:3px 11px; font-family:'Saira',sans-serif; font-size:0.7rem; font-weight:600; letter-spacing:0.03em; cursor:pointer; }
@@ -1283,7 +1283,12 @@ async function loadLive(){
 
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
-function _fmtDur(s){ if(s<0)s=0; const d=Math.floor(s/86400); s-=d*86400; const h=Math.floor(s/3600); s-=h*3600; const m=Math.floor(s/60); if(d>0) return d+'d '+h+'h '+m+'m'; if(h>0) return h+'h '+m+'m'; return m+'m'; }
+function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
+let _mktKey='', _mktProbe=null;
+function _mktReserveWidth(label,verb){ if(!_mktProbe){ _mktProbe=document.createElement('span'); _mktProbe.style.cssText='visibility:hidden;position:absolute;white-space:nowrap;font-family:Saira,sans-serif;font-size:0.74rem;letter-spacing:0.04em;left:-9999px'; document.body.appendChild(_mktProbe); }
+  _mktProbe.style.fontWeight='700'; _mktProbe.textContent=label; const wL=_mktProbe.getBoundingClientRect().width;
+  _mktProbe.style.fontWeight='400'; _mktProbe.textContent=' \u00b7 '+verb+' in 88h 88m'; const wC=_mktProbe.getBoundingClientRect().width;
+  return Math.ceil(wL+wC)+8+6+10; }
 function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
@@ -1296,7 +1301,8 @@ function updateMarket(){
   if(dot) dot.style.background=color;
   if(lab){ lab.textContent=label; }
   if(mk){ mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
-  if(cd){ const np=_nextPhase(); cd.textContent=' \u00b7 '+np.verb+' in '+_fmtDur(np.secs); }
+  if(cd){ const np=_nextPhase(); cd.textContent=' \u00b7 '+np.verb+' in '+_fmtDur(np.secs);
+    const key=label+'|'+np.verb; if(key!==_mktKey){ _mktKey=key; const blk=document.querySelector('.mkt-block'); if(blk) blk.style.width=_mktReserveWidth(label,np.verb)+'px'; } }
   const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
 }
 let CHART_MODE='real';
