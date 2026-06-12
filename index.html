@@ -620,7 +620,7 @@ const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
-let OHLC=null, CANDLES=null, candleSeries=null, volSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null;
+let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null;
 
 // ── Formatters ────────────────────────────────────────────────────────────
 const abbrev  = v => { if(v==null||isNaN(v))return 'N/A'; const a=Math.abs(v);
@@ -1296,7 +1296,6 @@ async function loadLive(){
             OHLC=arr; CANDLES=displayCandles();
             const vr=sumMain.timeScale().getVisibleLogicalRange();
             candleSeries.setData(CANDLES);
-            if(volSeries) volSeries.setData(displayVolume());
             if(MARKERS) candleSeries.setMarkers(MARKERS);
             if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
             if(vr) sumMain.timeScale().setVisibleLogicalRange(vr);
@@ -1353,12 +1352,6 @@ function displayCandles(){
   if(!src) return [];
   return src.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
 }
-function displayVolume(){
-  const src = CHART_MODE==='alt' ? ALT_SVIX : OHLC;
-  if(!src) return [];
-  return src.map(a=>({time:a[0],value:a[5]||0,
-    color:(a[4]>=a[1])?'rgba(82,230,189,0.26)':'rgba(242,86,58,0.26)'}));
-}
 function displayMarkers(){
   const alt=CHART_MODE==='alt'; const markers=[];
   let svC={}, uvC={};
@@ -1383,7 +1376,6 @@ function applyChartMode(){
   if(!candleSeries||!sumMain) return;
   CANDLES=displayCandles(); MARKERS=displayMarkers();
   candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS);
-  if(volSeries) volSeries.setData(displayVolume());
   if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
   summaryToEnd();
 }
@@ -1419,13 +1411,6 @@ function renderSummary(){
   candleSeries=sumMain.addCandlestickSeries({upColor:TEAL,downColor:CORAL,borderUpColor:TEAL,borderDownColor:CORAL,wickUpColor:TEAL,wickDownColor:CORAL});
   candleSeries.setData(CANDLES); candleSeries.setMarkers(markers); MARKERS=markers;
 
-  // Volume bars overlaid along the bottom (height = daily share volume).
-  // Note: Lightweight Charts uses a single fixed candle width, so volume is
-  // shown as bar height here — variable-WIDTH candles aren't supported.
-  volSeries=sumMain.addHistogramSeries({priceScaleId:'vol',priceFormat:{type:'volume'},lastValueVisible:false,priceLineVisible:false});
-  sumMain.priceScale('vol').applyOptions({scaleMargins:{top:0.86,bottom:0}});
-  volSeries.setData(displayVolume());
-
   // Position bar below the chart (per-session bars)
   const pel=document.getElementById('pos-band'); pel.innerHTML='';
   sumPos=LC.createChart(pel,{ width:pel.clientWidth||900, height:30,
@@ -1460,11 +1445,9 @@ function renderSummary(){
   sumMain.subscribeCrosshairMove(param=>{
     const sd=param.seriesData&&candleSeries?param.seriesData.get(candleSeries):null;
     if(!param.time||!sd){ info.innerHTML='Hover the chart for details'; return; }
-    const vd=param.seriesData&&volSeries?param.seriesData.get(volSeries):null;
     const d=param.time, pos=posByDate[d]||'CASH', pn=posNameOf(pos);
     const pcls=pn==='SVXY'?'sig-svxy':pn==='UVXY'?'sig-uvxy':'sig-neu';
     let html=`<b>${d}</b> &nbsp; O ${sd.open.toFixed(2)} &middot; H ${sd.high.toFixed(2)} &middot; L ${sd.low.toFixed(2)} &middot; C ${sd.close.toFixed(2)}`
-            +(vd&&vd.value?` &middot; V ${abbrev(vd.value)}`:``)
             +` &nbsp;|&nbsp; Position: <b class="${pcls}">${pn}</b>`;
     const evs=evByDate[d];
     if(evs) evs.forEach(e=>{ const t=e.t;

@@ -46,14 +46,12 @@ def fetch_ohlc(symbol="SVXY", start="2011-10-01"):
     ts = res["timestamp"]
     q = res["indicators"]["quote"][0]
     o, h, l, c = q["open"], q["high"], q["low"], q["close"]
-    v = q.get("volume") or [None] * len(ts)
     rows = []
     for i, t in enumerate(ts):
         if None in (o[i], h[i], l[i], c[i]):
             continue
         d = datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d")
-        vol = int(v[i]) if i < len(v) and v[i] is not None else 0
-        rows.append([d, round(o[i], 4), round(h[i], 4), round(l[i], 4), round(c[i], 4), vol])
+        rows.append([d, round(o[i], 4), round(h[i], 4), round(l[i], 4), round(c[i], 4)])
     return rows
 
 def main():
