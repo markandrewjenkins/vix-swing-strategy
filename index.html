@@ -313,10 +313,10 @@ tr:hover td { background: #1f1a10 }
 .live-val.up { color: var(--teal, #00e5a0) } .live-val.down { color: var(--coral, #ff4560) }
 .live-val.pos-svxy { color: var(--teal, #00e5a0) } .live-val.pos-uvxy { color: var(--amber, #ffb86c) }
 .live-val.pos-cash { color: var(--dim, #909090) }
-.live-updated { margin-left: auto; color: var(--dim, #909090); font-size: 0.64rem; }
+.live-updated { margin-left: auto; color: var(--dim, #909090); font-size: 0.72rem; }
 
 /* Market status row */
-#mkt-row { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:8px; font-size:0.74rem; font-family:'Saira', sans-serif; }
+#mkt-row { display:flex; align-items:center; justify-content:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:8px; font-size:0.74rem; font-family:'Saira', sans-serif; }
 .mkt-left { display:inline-flex; align-items:center; gap:12px; }
 #mkt-status { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 #mkt-dot { width:8px; height:8px; border-radius:50%; background:var(--gray); flex:none; }
@@ -374,8 +374,7 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 
 <!-- ══ LIVE MARKET STRIP ═══════════════════════════════════════════════════ -->
 <div id="live-strip" title="Live market readings. The strategy evaluates once daily on confirmed closes at 15:45 ET — intraday values are indicative only.">
-  <span class="mkt-block"><span id="mkt-dot"></span><span id="mkt-label">Market closed</span><span id="mkt-countdown"></span></span>
-  <span class="mkt-sessbar"><span class="seg c1"></span><span class="seg pre"></span><span class="seg reg"></span><span class="seg aft"></span><span class="seg c2"></span><span class="mkt-marker" id="mkt-marker"></span></span>
+  <span class="live-badge"><span class="live-dot"></span>LIVE</span>
   <span class="live-item"><span class="live-lbl">VIX</span><span class="live-val" id="lv-vix">—</span></span>
   <span class="live-item"><span class="live-lbl">Contango</span><span class="live-val" id="lv-cont">—</span></span>
   <span class="live-item"><span class="live-lbl">VDelta</span><span class="live-val" id="lv-vd">—</span></span>
@@ -411,6 +410,10 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
     <div class="panel">
       <div class="ph"><span>Live Chart</span><span id="cdl-live" style="color:var(--dim);font-weight:400">scroll to pan · wheel to zoom</span></div>
       <div class="pb">
+        <div id="mkt-row">
+          <span class="mkt-block"><span id="mkt-dot"></span><span id="mkt-label">Market closed</span><span id="mkt-countdown"></span></span>
+          <span class="mkt-sessbar"><span class="seg c1"></span><span class="seg pre"></span><span class="seg reg"></span><span class="seg aft"></span><span class="seg c2"></span><span class="mkt-marker" id="mkt-marker"></span></span>
+        </div>
         <div id="cdl-info" class="cdl-info">Hover the chart for details</div>
         <div style="position:relative;width:100%;height:430px">
           <div id="candle-chart" style="width:100%;height:100%"></div>
@@ -1234,7 +1237,7 @@ async function loadLive(){
         ageMin<60 ? Math.round(ageMin)+'m ago' :
         Math.round(ageMin/60)+'h ago';
     document.getElementById('lv-updated').textContent =
-        'Last refresh '+toEtClock(L.generated_utc)+' ET';
+        'Last refresh: '+toEtClock(L.generated_utc)+' ET';
 
     LIVE=L;
     updateMarket();
