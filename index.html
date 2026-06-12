@@ -320,12 +320,15 @@ tr:hover td { background: #1f1a10 }
 .mkt-left { display:inline-flex; align-items:center; gap:12px; }
 #mkt-status { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 #mkt-dot { width:8px; height:8px; border-radius:50%; background:var(--gray); }
-.mkt-sessbar { position:relative; display:inline-flex; width:150px; height:6px; border-radius:3px; overflow:hidden; background:#2a2415; vertical-align:middle; }
+.mkt-sessbar { position:relative; display:inline-flex; width:170px; height:6px; border-radius:3px; overflow:hidden; background:#2a2415; vertical-align:middle; }
 .mkt-sessbar .seg { height:100%; }
-.mkt-sessbar .pre { width:34%; background:rgba(240,152,47,0.55); }
-.mkt-sessbar .reg { width:41%; background:rgba(82,230,189,0.7); }
-.mkt-sessbar .aft { width:25%; background:rgba(84,210,239,0.55); }
-.mkt-marker { position:absolute; top:-2px; width:2px; height:10px; background:var(--text); display:none; }
+.mkt-sessbar .c1 { width:16.7%; background:#2a2415; }
+.mkt-sessbar .pre { width:22.9%; background:rgba(240,152,47,0.55); }
+.mkt-sessbar .reg { width:27.1%; background:rgba(82,230,189,0.7); }
+.mkt-sessbar .aft { width:16.7%; background:rgba(84,210,239,0.55); }
+.mkt-sessbar .c2 { width:16.6%; background:#2a2415; }
+.mkt-marker { position:absolute; top:-3px; height:12px; width:0; border-left:1.5px dashed var(--text); }
+#mkt-countdown { color:var(--dim); font-weight:400; margin-left:8px; }
 #mkt-refresh { color:var(--dim); }
 /* Summary page */
 .cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
@@ -407,8 +410,8 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
       <div class="pb">
         <div id="mkt-row">
           <span class="mkt-left">
-            <span id="mkt-status"><span id="mkt-dot"></span><span id="mkt-label">&mdash;</span></span>
-            <span class="mkt-sessbar"><span class="seg pre"></span><span class="seg reg"></span><span class="seg aft"></span><span class="mkt-marker" id="mkt-marker"></span></span>
+            <span id="mkt-status"><span id="mkt-dot"></span><span id="mkt-label">&mdash;</span><span id="mkt-countdown"></span></span>
+            <span class="mkt-sessbar"><span class="seg c1"></span><span class="seg pre"></span><span class="seg reg"></span><span class="seg aft"></span><span class="seg c2"></span><span class="mkt-marker" id="mkt-marker"></span></span>
           </span>
           <span id="mkt-refresh">Last refresh &mdash;</span>
         </div>
@@ -1275,19 +1278,21 @@ async function loadLive(){
 
 
 // Summary: SVXY candlesticks + trade overlay + signal monitor
-function _etParts(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; return {wd:g('weekday'), dec:(+g('hour')%24)+(+g('minute'))/60}; }
+function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
+function _fmtDur(s){ if(s<0)s=0; const d=Math.floor(s/86400); s-=d*86400; const h=Math.floor(s/3600); s-=h*3600; const m=Math.floor(s/60); const ss=s-m*60; if(d>0) return d+'d '+h+'h '+m+'m'; if(h>0) return h+'h '+m+'m '+ss+'s'; return m+'m '+ss+'s'; }
+function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Regular opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'Closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'After-hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
-  const {wd,dec}=_etParts(); let label,color,open=true;
-  if(wd==='Sat'||wd==='Sun'){ label='Market closed'; color=GRAY; open=false; }
-  else if(dec>=9.5&&dec<16){ label='Market open'; color=TEAL; }
-  else if(dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; }
-  else if(dec>=16&&dec<20){ label='After hours'; color=CYAN; }
-  else { label='Market closed'; color=GRAY; open=false; }
-  const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker');
+  const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color;
+  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; }
+  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; }
+  else if(isWk&&dec>=16&&dec<20){ label='After hours'; color=CYAN; }
+  else { label='Market closed'; color=GRAY; }
+  const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker'), cd=document.getElementById('mkt-countdown');
   if(dot) dot.style.background=color;
   if(lab){ lab.textContent=label; lab.style.color=color; }
-  if(mk){ if(!open){ mk.style.display='none'; } else { mk.style.display='block'; mk.style.left=Math.max(0,Math.min(100,((dec-4)/16)*100))+'%'; } }
+  if(mk){ mk.style.display='block'; mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
+  if(cd){ const np=_nextPhase(); cd.textContent='\u00b7 '+np.verb+' in '+_fmtDur(np.secs); }
 }
 function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-44),to:N+2}); }catch(_){} }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
@@ -1328,12 +1333,12 @@ function renderSummary(){
   // Position bar below the chart (per-session bars)
   const pel=document.getElementById('pos-band'); pel.innerHTML='';
   sumPos=LC.createChart(pel,{ width:pel.clientWidth||900, height:30,
-    layout:{background:{color:'transparent'},textColor:'rgba(0,0,0,0)',fontFamily:"'Saira', sans-serif"},
+    layout:{background:{color:'#0c0a07'},textColor:'rgba(0,0,0,0)',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{visible:false},horzLines:{visible:false}},
     rightPriceScale:{visible:true,borderVisible:false},leftPriceScale:{visible:false},
     timeScale:{visible:false,borderVisible:false},
     handleScroll:false,handleScale:false,
-    crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),horzLine:{visible:false},vertLine:{color:'#6a551f',labelVisible:false}} });
+    crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),horzLine:{visible:false,labelVisible:false},vertLine:{visible:false,labelVisible:false}} });
   posSeries=sumPos.addHistogramSeries({priceScaleId:'right',priceFormat:{type:'volume'},base:0,lastValueVisible:false,priceLineVisible:false});
   posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf(posByDate[c.time]||'CASH')})));
   sumPos.priceScale('right').applyOptions({scaleMargins:{top:0,bottom:0}});
@@ -1435,7 +1440,7 @@ function renderSignalMonitor(){
 load();
 loadLive();
 setInterval(loadLive, 60000);   // refresh every 60s while the page is open
-updateMarket(); setInterval(updateMarket, 15000);   // session status ticks on its own
+updateMarket(); setInterval(updateMarket, 1000);    // session status + countdown tick every second
 </script>
 </body>
 </html>
