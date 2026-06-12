@@ -6,11 +6,14 @@ name: Update live market status
 
 on:
   schedule:
-    # Every 5 minutes during US market hours (13:00–21:00 UTC covers 9:30–16:00
-    # ET across both EST and EDT), Monday–Friday. NOTE: GitHub schedules are
-    # best-effort and frequently delayed 5–15 min under load.
-    - cron: "*/5 13-21 * * 1-5"
-  workflow_dispatch: {}   # allow manual runs from the Actions tab
+    # Reliable EOD backbone: post-close runs after CBOE publishes the day's
+    # end-of-day term-structure files. 21:35/22:35/23:35 UTC covers ~4:35–7:35pm
+    # ET across EST/EDT, with redundancy in case GitHub delays/skips one.
+    # (GitHub throttles high-frequency schedules, so we do NOT poll every 5 min
+    #  here — intraday refresh is driven externally via workflow_dispatch; see
+    #  LIVE-REFRESH.md.)
+    - cron: "35 21,22,23 * * 1-5"
+  workflow_dispatch: {}   # manual runs + external trigger (cron-job.org etc.)
 
 # Avoid overlapping runs piling up if one is delayed.
 concurrency:
