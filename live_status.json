@@ -1,19 +1,19 @@
 {
-  "generated_utc": "2026-06-12T20:55:24+00:00",
+  "generated_utc": "2026-06-12T22:14:44+00:00",
   "market": {
     "vix_spot": 17.68,
     "vix1m_used": 17.68,
     "curve": {
-      "vix9d": 20.66,
-      "vix9d_date": "2026-06-11",
+      "vix9d": 17.26,
+      "vix9d_date": "2026-06-12",
       "vix1m": 19.44,
       "vix1m_date": "2026-06-11",
-      "vix3m": 21.42,
-      "vix3m_date": "2026-06-11",
-      "vix6m": 23.14,
-      "vix6m_date": "2026-06-11",
-      "vix1y": 23.95,
-      "vix1y_date": "2026-06-11"
+      "vix3m": 20.51,
+      "vix3m_date": "2026-06-12",
+      "vix6m": 22.59,
+      "vix6m_date": "2026-06-12",
+      "vix1y": 23.75,
+      "vix1y_date": "2026-06-12"
     },
     "quotes": {
       "vix": {
@@ -34,18 +34,48 @@
         "change_pct": -0.067511,
         "time": "2026-06-12T20:00:00+00:00"
       },
+      "svix": {
+        "price": 22.06,
+        "prev_close": 21.1,
+        "change_pct": 0.045498,
+        "time": "2026-06-12T20:00:00+00:00"
+      },
+      "uvix": {
+        "price": 3.78,
+        "prev_close": 4.17,
+        "change_pct": -0.093525,
+        "time": "2026-06-12T20:00:00+00:00"
+      },
+      "tqqq": {
+        "price": 77.52,
+        "prev_close": 76.01,
+        "change_pct": 0.019866,
+        "time": "2026-06-12T20:00:00+00:00"
+      },
+      "sqqq": {
+        "price": 40.04,
+        "prev_close": 40.83,
+        "change_pct": -0.019349,
+        "time": "2026-06-12T20:00:00+00:00"
+      },
       "spy": {
         "price": 741.75,
         "prev_close": 737.76,
         "change_pct": 0.005408,
         "time": "2026-06-12T20:00:00+00:00"
+      },
+      "gspc": {
+        "price": 7431.46,
+        "prev_close": 7394.3,
+        "change_pct": 0.005025,
+        "time": "2026-06-12T20:54:28+00:00"
       }
     }
   },
   "derived": {
-    "contango": 0.211538,
-    "backend_slope": 0.080299,
-    "vdelta": -2.98,
+    "contango": 0.160068,
+    "backend_slope": 0.101414,
+    "vdelta": 0.42,
     "regime": "contango"
   },
   "official": {

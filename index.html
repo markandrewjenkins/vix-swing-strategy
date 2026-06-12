@@ -300,11 +300,16 @@ tr:hover td { background: #1f1a10 }
   border-bottom: 1px solid var(--border2, #333);
   font-family: 'Saira', sans-serif; font-size: 0.72rem;
 }
-.live-badge { display: inline-flex; align-items: center; gap: 6px;
+.live-badge { display: inline-flex; align-items: baseline; gap: 6px;
   color: var(--pink, #ff2a6d); font-weight: 700; letter-spacing: 0.12em; }
-.live-dot { width: 7px; height: 7px; border-radius: 50%;
+.live-dot { width: 7px; height: 7px; border-radius: 50%; align-self: center;
   background: var(--pink, #ff2a6d); box-shadow: 0 0 6px var(--pink, #ff2a6d);
   animation: livepulse 1.6s ease-in-out infinite; }
+.live-grp { display: inline-flex; align-items: baseline; gap: 13px; flex-wrap: wrap; }
+.live-sep { color: var(--border2, #555); font-weight: 300; margin: 0 2px; align-self: center; }
+.live-chg { font-size: 0.62rem; font-weight: 700; color: var(--dim, #909090); }
+.live-chg.up { color: var(--teal, #00e5a0); } .live-chg.down { color: var(--coral, #ff4560); }
+.live-status { display: inline-flex; align-items: baseline; }
 @keyframes livepulse { 0%,100% { opacity: 1 } 50% { opacity: 0.25 } }
 #live-strip.stale .live-dot { background: var(--gray, #666); box-shadow: none; animation: none; }
 .live-item { display: inline-flex; align-items: baseline; gap: 6px; }
@@ -341,7 +346,7 @@ tr:hover td { background: #1f1a10 }
 .cdl-info b { color:var(--yellow); }
 .pos-band-label { font-size:0.64rem; color:var(--dim); letter-spacing:0.05em; margin:10px 0 3px; text-transform:uppercase; }
 table.sig-mon { width:100%; border-collapse:collapse; font-size:0.8rem; }
-table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.74rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
 table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
 table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; white-space:nowrap; }
 table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
@@ -378,14 +383,32 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 
 <!-- ══ LIVE MARKET STRIP ═══════════════════════════════════════════════════ -->
 <div id="live-strip" title="Live market readings. The strategy evaluates once daily on confirmed closes at 15:45 ET — intraday values are indicative only.">
-  <span class="live-item"><span class="live-lbl">VIX</span><span class="live-val" id="lv-vix">—</span></span>
-  <span class="live-item"><span class="live-lbl">Contango</span><span class="live-val" id="lv-cont">—</span></span>
-  <span class="live-item"><span class="live-lbl">VDelta</span><span class="live-val" id="lv-vd">—</span></span>
-  <span class="live-item"><span class="live-lbl">Regime</span><span class="live-val" id="lv-regime">—</span></span>
-  <span class="live-item"><span class="live-lbl">SVXY</span><span class="live-val" id="lv-svxy">—</span></span>
-  <span class="live-item"><span class="live-lbl">UVXY</span><span class="live-val" id="lv-uvxy">—</span></span>
-  <span class="live-item"><span class="live-lbl">Position</span><span class="live-val" id="lv-pos">—</span></span>
-  <span class="live-item" style="margin-left:auto;gap:8px"><span class="live-badge"><span class="live-dot"></span>LIVE</span><span class="live-lbl">Last refresh:</span><span class="live-val" id="lv-updated">—</span></span>
+  <span class="live-grp">
+    <span class="live-item"><span class="live-lbl">Current Position</span><span class="live-val" id="lv-pos">—</span><span class="live-chg" id="lv-pospnl"></span></span>
+  </span>
+  <span class="live-sep">|</span>
+  <span class="live-grp">
+    <span class="live-item"><span class="live-lbl">VIX9D</span><span class="live-val" id="lv-vix9d">—</span></span>
+    <span class="live-item"><span class="live-lbl">VIX1M</span><span class="live-val" id="lv-vix1m">—</span></span>
+    <span class="live-item"><span class="live-lbl">VIX3M</span><span class="live-val" id="lv-vix3m">—</span></span>
+    <span class="live-item"><span class="live-lbl">VIX1Y</span><span class="live-val" id="lv-vix1y">—</span></span>
+  </span>
+  <span class="live-sep">|</span>
+  <span class="live-grp">
+    <span class="live-item"><span class="live-lbl">SVXY</span><span class="live-val" id="lv-svxy">—</span><span class="live-chg" id="lv-svxy-c"></span></span>
+    <span class="live-item"><span class="live-lbl">UVXY</span><span class="live-val" id="lv-uvxy">—</span><span class="live-chg" id="lv-uvxy-c"></span></span>
+    <span class="live-item"><span class="live-lbl">SVIX</span><span class="live-val" id="lv-svix">—</span><span class="live-chg" id="lv-svix-c"></span></span>
+    <span class="live-item"><span class="live-lbl">UVIX</span><span class="live-val" id="lv-uvix">—</span><span class="live-chg" id="lv-uvix-c"></span></span>
+    <span class="live-item"><span class="live-lbl">TQQQ</span><span class="live-val" id="lv-tqqq">—</span><span class="live-chg" id="lv-tqqq-c"></span></span>
+    <span class="live-item"><span class="live-lbl">SQQQ</span><span class="live-val" id="lv-sqqq">—</span><span class="live-chg" id="lv-sqqq-c"></span></span>
+    <span class="live-item"><span class="live-lbl">SPX</span><span class="live-val" id="lv-spx">—</span><span class="live-chg" id="lv-spx-c"></span></span>
+  </span>
+  <span class="live-item live-status" style="margin-left:auto;gap:10px">
+    <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
+    <span class="live-lbl" id="lv-feed-note">quotes ~15&nbsp;min delayed</span>
+    <span class="live-lbl">Last refresh:</span>
+    <span class="live-val" id="lv-updated">—</span>
+  </span>
 </div>
 </div>
 
@@ -597,7 +620,7 @@ const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
-let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null;
+let OHLC=null, CANDLES=null, candleSeries=null, volSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null;
 
 // ── Formatters ────────────────────────────────────────────────────────────
 const abbrev  = v => { if(v==null||isNaN(v))return 'N/A'; const a=Math.abs(v);
@@ -1214,33 +1237,47 @@ async function loadLive(){
       el.className = 'live-val' + (cls?(' '+cls):'');
     };
     const signed = (v,dp,suf='') => v==null||isNaN(v)?'—':((v>=0?'+':'')+(v).toFixed(dp)+suf);
+    const numv = (v,dp=2) => v==null||isNaN(v)?'—':(+v).toFixed(dp);
+    const price = (v) => v==null||isNaN(v)?'—':'$'+(+v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const clsOf = (v) => v>0?'up':v<0?'down':'';
 
-    setVal('lv-vix', m.vix_spot!=null ? m.vix_spot.toFixed(2) : '—');
-    setVal('lv-cont', d.contango!=null ? signed(d.contango*100,1,'%') : '—',
-           d.contango>0?'up':d.contango<0?'down':'');
-    setVal('lv-vd', d.vdelta!=null ? signed(d.vdelta,2) : '—',
-           d.vdelta>0?'up':d.vdelta<0?'down':'');
-    setVal('lv-regime', d.regime ? d.regime.toUpperCase() : '—',
-           d.regime==='contango'?'up':d.regime==='backwardation'?'down':'');
-    const pq = (id,key) => {
-      const x=q[key]||{}; const c = x.change_pct>0?'up':x.change_pct<0?'down':'';
-      setVal(id, x.price!=null ? ('$'+x.price.toFixed(2)) : '—', c);
-    };
-    pq('lv-svxy','svxy'); pq('lv-uvxy','uvxy');
-
+    // ── Current position + open P&L ──────────────────────────────────────
     const pos = (o.position||'CASH').replace('LONG_VOL_SELLER','SVXY')
                   .replace('LONG_VOL','UVXY');
     const pcls = pos.indexOf('SVXY')>=0?'pos-svxy':pos.indexOf('UVXY')>=0?'pos-uvxy':'pos-cash';
     setVal('lv-pos', pos, pcls);
+    const pnlEl = document.getElementById('lv-pospnl');
+    if(pnlEl){
+      pnlEl.textContent = (pos==='CASH' || o.open_pnl==null) ? '' : signed(o.open_pnl*100,2,'%');
+      pnlEl.className = 'live-chg ' + clsOf(o.open_pnl);
+    }
 
-    // Freshness: stale if the feed is >15 min old.
+    // ── VIX term structure (CBOE EOD; VIX1M = live spot when available) ──
+    const cv = m.curve||{};
+    setVal('lv-vix9d', numv(cv.vix9d,2));
+    setVal('lv-vix1m', numv(m.vix1m_used!=null?m.vix1m_used:cv.vix1m,2));
+    setVal('lv-vix3m', numv(cv.vix3m,2));
+    setVal('lv-vix1y', numv(cv.vix1y,2));
+
+    // ── Tradeable tickers: price + % change ─────────────────────────────
+    const tk = (id,key) => {
+      const x=q[key]||{}; const c=clsOf(x.change_pct);
+      setVal('lv-'+id, price(x.price), c);
+      const ce=document.getElementById('lv-'+id+'-c');
+      if(ce){ ce.textContent = x.change_pct!=null ? signed(x.change_pct*100,1,'%') : ''; ce.className='live-chg '+c; }
+    };
+    tk('svxy','svxy'); tk('uvxy','uvxy'); tk('svix','svix'); tk('uvix','uvix');
+    tk('tqqq','tqqq'); tk('sqqq','sqqq'); tk('spx','gspc');
+
+    // ── Feed freshness: live vs paused ──────────────────────────────────
     const gen = L.generated_utc ? new Date(L.generated_utc) : null;
     const ageMin = gen ? (Date.now()-gen.getTime())/60000 : null;
-    strip.classList.toggle('stale', ageMin!=null && ageMin>15);
-    const ago = ageMin==null ? '' :
-        ageMin<1 ? 'just now' :
-        ageMin<60 ? Math.round(ageMin)+'m ago' :
-        Math.round(ageMin/60)+'h ago';
+    const stale = ageMin!=null && ageMin>20;
+    strip.classList.toggle('stale', stale);
+    const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note');
+    if(feed) feed.textContent = stale ? 'PAUSED' : 'LIVE';
+    if(note) note.textContent = stale ? 'no new data since last close'
+                                      : 'updating live · quotes ~15 min delayed';
     document.getElementById('lv-updated').textContent =
         toEtClock(L.generated_utc)+' ET';
 
@@ -1259,6 +1296,7 @@ async function loadLive(){
             OHLC=arr; CANDLES=displayCandles();
             const vr=sumMain.timeScale().getVisibleLogicalRange();
             candleSeries.setData(CANDLES);
+            if(volSeries) volSeries.setData(displayVolume());
             if(MARKERS) candleSeries.setMarkers(MARKERS);
             if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
             if(vr) sumMain.timeScale().setVisibleLogicalRange(vr);
@@ -1276,7 +1314,10 @@ async function loadLive(){
     }
   }catch(e){
     strip.classList.add('stale');
-    document.getElementById('lv-updated').textContent = 'live feed unavailable';
+    const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note');
+    if(feed) feed.textContent='OFFLINE';
+    if(note) note.textContent='live feed unavailable';
+    document.getElementById('lv-updated').textContent = '—';
   }
 }
 
@@ -1285,24 +1326,25 @@ async function loadLive(){
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
 let _mktKey='', _mktProbe=null;
-function _mktReserveWidth(label,verb){ if(!_mktProbe){ _mktProbe=document.createElement('span'); _mktProbe.style.cssText='visibility:hidden;position:absolute;white-space:nowrap;font-family:Saira,sans-serif;font-size:0.74rem;letter-spacing:0.04em;left:-9999px'; document.body.appendChild(_mktProbe); }
+function _mktReserveWidth(label,sep,verb){ if(!_mktProbe){ _mktProbe=document.createElement('span'); _mktProbe.style.cssText='visibility:hidden;position:absolute;white-space:nowrap;font-family:Saira,sans-serif;font-size:0.74rem;letter-spacing:0.04em;left:-9999px'; document.body.appendChild(_mktProbe); }
   _mktProbe.style.fontWeight='700'; _mktProbe.textContent=label; const wL=_mktProbe.getBoundingClientRect().width;
-  _mktProbe.style.fontWeight='400'; _mktProbe.textContent=' \u00b7 '+verb+' in 88h 88m'; const wC=_mktProbe.getBoundingClientRect().width;
-  return Math.ceil(wL+wC)+8+6+10; }
+  _mktProbe.style.fontWeight='400'; _mktProbe.textContent=sep+verb+' in 88h 88m'; const wC=_mktProbe.getBoundingClientRect().width;
+  return Math.ceil(wL+wC)+8+12+8; }
 function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
-  const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color;
-  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; }
-  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market open'; color=AMBER; }
-  else if(isWk&&dec>=16&&dec<20){ label='After hours open'; color=CYAN; }
-  else { label='Market closed'; color=GRAY; }
+  const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color,sep;
+  const DASH='\u00a0-\u00a0', GAP='\u00a0\u00a0';   // snug gap for closed/pre, dash for open/after
+  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; sep=DASH; }
+  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; sep=GAP; }
+  else if(isWk&&dec>=16&&dec<20){ label='After hours'; color=CYAN; sep=DASH; }
+  else { label='Market closed'; color=GRAY; sep=GAP; }
   const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker'), cd=document.getElementById('mkt-countdown');
   if(dot) dot.style.background=color;
   if(lab){ lab.textContent=label; }
   if(mk){ mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
-  if(cd){ const np=_nextPhase(); cd.textContent=' \u00b7 '+np.verb+' in '+_fmtDur(np.secs);
-    const key=label+'|'+np.verb; if(key!==_mktKey){ _mktKey=key; const blk=document.querySelector('.mkt-block'); if(blk) blk.style.width=_mktReserveWidth(label,np.verb)+'px'; } }
+  if(cd){ const np=_nextPhase(); cd.textContent=sep+np.verb+' in '+_fmtDur(np.secs);
+    const key=label+'|'+np.verb; if(key!==_mktKey){ _mktKey=key; const blk=document.querySelector('.mkt-block'); if(blk) blk.style.width=_mktReserveWidth(label,sep,np.verb)+'px'; } }
   const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
 }
 let CHART_MODE='real';
@@ -1310,6 +1352,12 @@ function displayCandles(){
   const src = CHART_MODE==='alt' ? ALT_SVIX : OHLC;
   if(!src) return [];
   return src.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
+}
+function displayVolume(){
+  const src = CHART_MODE==='alt' ? ALT_SVIX : OHLC;
+  if(!src) return [];
+  return src.map(a=>({time:a[0],value:a[5]||0,
+    color:(a[4]>=a[1])?'rgba(82,230,189,0.26)':'rgba(242,86,58,0.26)'}));
 }
 function displayMarkers(){
   const alt=CHART_MODE==='alt'; const markers=[];
@@ -1335,6 +1383,7 @@ function applyChartMode(){
   if(!candleSeries||!sumMain) return;
   CANDLES=displayCandles(); MARKERS=displayMarkers();
   candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS);
+  if(volSeries) volSeries.setData(displayVolume());
   if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
   summaryToEnd();
 }
@@ -1362,13 +1411,20 @@ function renderSummary(){
   sumMain=LC.createChart(el,{ width:el.clientWidth||900, height:430,
     layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
-    rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.22,bottom:0.22}},
+    rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.14}},
     timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.4},
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),
       vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},
       horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
   candleSeries=sumMain.addCandlestickSeries({upColor:TEAL,downColor:CORAL,borderUpColor:TEAL,borderDownColor:CORAL,wickUpColor:TEAL,wickDownColor:CORAL});
   candleSeries.setData(CANDLES); candleSeries.setMarkers(markers); MARKERS=markers;
+
+  // Volume bars overlaid along the bottom (height = daily share volume).
+  // Note: Lightweight Charts uses a single fixed candle width, so volume is
+  // shown as bar height here — variable-WIDTH candles aren't supported.
+  volSeries=sumMain.addHistogramSeries({priceScaleId:'vol',priceFormat:{type:'volume'},lastValueVisible:false,priceLineVisible:false});
+  sumMain.priceScale('vol').applyOptions({scaleMargins:{top:0.86,bottom:0}});
+  volSeries.setData(displayVolume());
 
   // Position bar below the chart (per-session bars)
   const pel=document.getElementById('pos-band'); pel.innerHTML='';
@@ -1404,9 +1460,11 @@ function renderSummary(){
   sumMain.subscribeCrosshairMove(param=>{
     const sd=param.seriesData&&candleSeries?param.seriesData.get(candleSeries):null;
     if(!param.time||!sd){ info.innerHTML='Hover the chart for details'; return; }
+    const vd=param.seriesData&&volSeries?param.seriesData.get(volSeries):null;
     const d=param.time, pos=posByDate[d]||'CASH', pn=posNameOf(pos);
     const pcls=pn==='SVXY'?'sig-svxy':pn==='UVXY'?'sig-uvxy':'sig-neu';
     let html=`<b>${d}</b> &nbsp; O ${sd.open.toFixed(2)} &middot; H ${sd.high.toFixed(2)} &middot; L ${sd.low.toFixed(2)} &middot; C ${sd.close.toFixed(2)}`
+            +(vd&&vd.value?` &middot; V ${abbrev(vd.value)}`:``)
             +` &nbsp;|&nbsp; Position: <b class="${pcls}">${pn}</b>`;
     const evs=evByDate[d];
     if(evs) evs.forEach(e=>{ const t=e.t;
