@@ -1,8 +1,8 @@
 {
-  "generated_utc": "2026-06-12T13:05:24+00:00",
+  "generated_utc": "2026-06-12T13:10:25+00:00",
   "market": {
-    "vix_spot": 19.38,
-    "vix1m_used": 19.38,
+    "vix_spot": 19.5,
+    "vix1m_used": 19.5,
     "curve": {
       "vix9d": 20.66,
       "vix9d_date": "2026-06-11",
@@ -17,10 +17,10 @@
     },
     "quotes": {
       "vix": {
-        "price": 19.38,
+        "price": 19.5,
         "prev_close": 19.44,
-        "change_pct": -0.003086,
-        "time": "2026-06-12T12:50:16+00:00"
+        "change_pct": 0.003086,
+        "time": "2026-06-12T12:55:16+00:00"
       },
       "svxy": {
         "price": 53.58,
@@ -43,9 +43,9 @@
     }
   },
   "derived": {
-    "contango": 0.105263,
+    "contango": 0.098462,
     "backend_slope": 0.080299,
-    "vdelta": -1.28,
+    "vdelta": -1.16,
     "regime": "contango"
   },
   "official": {
