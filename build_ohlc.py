@@ -55,11 +55,22 @@ def fetch_ohlc(symbol="SVXY", start="2011-10-01"):
     return rows
 
 def main():
-    rows = fetch_ohlc()
-    with open("svxy_ohlc.json", "w", encoding="utf-8") as fh:
-        json.dump(rows, fh, separators=(",", ":"))
-    print(f"Wrote svxy_ohlc.json: {len(rows)} daily bars "
-          f"({rows[0][0]} .. {rows[-1][0]}), last close={rows[-1][4]}")
+    # SVXY back to 2011; SVIX/UVIX are newer ETFs (Volatility Shares, 2022+)
+    for sym, fname, start in [("SVXY", "svxy_ohlc.json", "2011-10-01"),
+                              ("SVIX", "svix_ohlc.json", "2022-01-01"),
+                              ("UVIX", "uvix_ohlc.json", "2022-01-01")]:
+        try:
+            rows = fetch_ohlc(sym, start)
+        except Exception as e:
+            print(f"  {sym} FAILED: {e}")
+            continue
+        with open(fname, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, separators=(",", ":"))
+        if rows:
+            print(f"Wrote {fname}: {len(rows)} bars "
+                  f"({rows[0][0]} .. {rows[-1][0]}), last close={rows[-1][4]}")
+        else:
+            print(f"Wrote {fname}: EMPTY")
 
 if __name__ == "__main__":
     main()

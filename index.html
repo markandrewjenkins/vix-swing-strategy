@@ -322,24 +322,26 @@ tr:hover td { background: #1f1a10 }
 #mkt-dot { width:8px; height:8px; border-radius:50%; background:var(--gray); flex:none; }
 .mkt-sessbar { position:relative; display:inline-flex; width:170px; height:6px; border-radius:3px; overflow:hidden; background:#2a2415; vertical-align:middle; }
 .mkt-sessbar .seg { height:100%; }
-.mkt-sessbar .c1 { width:16.7%; background:#2a2415; }
+.mkt-sessbar .c1 { width:16.7%; background:rgba(131,116,72,0.4); }
 .mkt-sessbar .pre { width:22.9%; background:rgba(240,152,47,0.55); }
 .mkt-sessbar .reg { width:27.1%; background:rgba(82,230,189,0.7); }
 .mkt-sessbar .aft { width:16.7%; background:rgba(84,210,239,0.55); }
-.mkt-sessbar .c2 { width:16.6%; background:#2a2415; }
-.mkt-marker { position:absolute; top:-5px; height:16px; width:2px; background:repeating-linear-gradient(to bottom, var(--text) 0 2.5px, transparent 2.5px 5px); }
+.mkt-sessbar .c2 { width:16.6%; background:rgba(131,116,72,0.4); }
+.mkt-marker { position:absolute; top:-5px; height:16px; width:2px; background:#ffffff; }
 #mkt-countdown { color:var(--dim); font-weight:400; }
 .mkt-block { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; width:214px; overflow:hidden; }
 #mkt-label { color:var(--pink, #ff2a6d); font-weight:700; letter-spacing:0.04em; }
-.cdl-toggle { background:rgba(40,33,16,0.6); color:var(--yellow); border:1px solid var(--border2); border-radius:4px; padding:2px 9px; font-family:'Saira',sans-serif; font-size:0.7rem; font-weight:600; letter-spacing:0.03em; cursor:pointer; }
-.cdl-toggle:hover { background:rgba(60,48,24,0.7); }
+.cdl-toggle-group { display:inline-flex; border:1px solid var(--border2); border-radius:5px; overflow:hidden; }
+.cdl-seg { background:transparent; color:var(--dim); border:none; padding:3px 11px; font-family:'Saira',sans-serif; font-size:0.7rem; font-weight:600; letter-spacing:0.03em; cursor:pointer; }
+.cdl-seg.active { background:var(--yellow); color:#1a1410; }
+.cdl-seg:not(.active):hover { color:var(--text); }
 #mkt-refresh { color:var(--dim); }
 /* Summary page */
 .cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
 .cdl-info b { color:var(--yellow); }
 .pos-band-label { font-size:0.64rem; color:var(--dim); letter-spacing:0.05em; margin:10px 0 3px; text-transform:uppercase; }
 table.sig-mon { width:100%; border-collapse:collapse; font-size:0.8rem; }
-table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.74rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
 table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
 table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; white-space:nowrap; }
 table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
@@ -409,7 +411,7 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
   <!-- ══ ANALYTICS TAB ══════════════════════════════════════════════ -->
   <div id="tab-summary">
     <div class="panel">
-      <div class="ph"><span>Live Chart</span><span style="display:inline-flex;align-items:center;gap:12px"><button id="chart-mode-toggle" onclick="toggleChartMode()" class="cdl-toggle" title="Switch the instruments shown on the chart">SVXY / UVXY</button><span id="cdl-live" style="color:var(--dim);font-weight:400">scroll to pan · wheel to zoom</span></span></div>
+      <div class="ph"><span>Live Chart</span><span class="cdl-toggle-group"><button id="mode-real" class="cdl-seg active" onclick="setChartMode('real')">SVXY / UVXY</button><button id="mode-alt" class="cdl-seg" onclick="setChartMode('alt')">SVIX / UVIX</button></span></div>
       <div class="pb">
         <div id="mkt-row">
           <span class="mkt-block"><span id="mkt-dot"></span><span id="mkt-label">Market closed</span><span id="mkt-countdown"></span></span>
@@ -595,7 +597,7 @@ const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
-let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null;
+let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null;
 
 // ── Formatters ────────────────────────────────────────────────────────────
 const abbrev  = v => { if(v==null||isNaN(v))return 'N/A'; const a=Math.abs(v);
@@ -617,6 +619,8 @@ async function load(){
     if(!r.ok)throw new Error('HTTP '+r.status);
     DATA=await r.json();
     try{ const ro=await fetch('svxy_ohlc.json?v='+Date.now()); if(ro.ok) OHLC=await ro.json(); }catch(_){}
+    try{ const r2=await fetch('svix_ohlc.json?v='+Date.now()); if(r2.ok) ALT_SVIX=await r2.json(); }catch(_){}
+    try{ const r3=await fetch('uvix_ohlc.json?v='+Date.now()); if(r3.ok) ALT_UVIX=await r3.json(); }catch(_){}
     document.getElementById('loading').style.display='none';
     document.getElementById('main-content').style.display='flex';
     computeAltSim();
@@ -1280,13 +1284,13 @@ async function loadLive(){
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
 function _fmtDur(s){ if(s<0)s=0; const d=Math.floor(s/86400); s-=d*86400; const h=Math.floor(s/3600); s-=h*3600; const m=Math.floor(s/60); if(d>0) return d+'d '+h+'h '+m+'m'; if(h>0) return h+'h '+m+'m'; return m+'m'; }
-function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'opens',secs:toFour+extra*DAY}; }
+function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
   const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color;
   if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; }
-  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; }
-  else if(isWk&&dec>=16&&dec<20){ label='After hours'; color=CYAN; }
+  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market open'; color=AMBER; }
+  else if(isWk&&dec>=16&&dec<20){ label='After hours open'; color=CYAN; }
   else { label='Market closed'; color=GRAY; }
   const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker'), cd=document.getElementById('mkt-countdown');
   if(dot) dot.style.background=color;
@@ -1295,25 +1299,40 @@ function updateMarket(){
   if(cd){ const np=_nextPhase(); cd.textContent=' \u00b7 '+np.verb+' in '+_fmtDur(np.secs); }
   const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
 }
-let CHART_MODE='real'; const ALT_SV=2.0, ALT_UV=1.333;
-function displayCandles(){ if(!OHLC) return [];
-  if(CHART_MODE==='real') return OHLC.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
-  const m=ALT_SV, out=[]; let sim=null, prevC=null;
-  for(let i=0;i<OHLC.length;i++){ const a=OHLC[i];
-    if(i===0){ sim=a[4]; prevC=a[4]; out.push({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}); continue; }
-    const sr=x=>{ let v=(x/prevC-1)*m; return v<-0.95?-0.95:v; }; const o=sim*(1+sr(a[1])), c=sim*(1+sr(a[4])), h=sim*(1+sr(a[2])), l=sim*(1+sr(a[3]));
-    out.push({time:a[0],open:o,high:Math.max(o,h,c),low:Math.min(o,l,c),close:c}); sim=c; prevC=a[4]; }
-  return out; }
-function displayMarkers(){ const alt=CHART_MODE==='alt'; const markers=[];
+let CHART_MODE='real';
+function displayCandles(){
+  const src = CHART_MODE==='alt' ? ALT_SVIX : OHLC;
+  if(!src) return [];
+  return src.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
+}
+function displayMarkers(){
+  const alt=CHART_MODE==='alt'; const markers=[];
+  let svC={}, uvC={};
+  if(alt){ (ALT_SVIX||[]).forEach(a=>svC[a[0]]=a[4]); (ALT_UVIX||[]).forEach(a=>uvC[a[0]]=a[4]); }
   DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar'; const mc=sv?TEAL:CORAL;
-    const nm=alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'); const pct=alt?Math.max(-0.999,t.pnl_pct*(sv?ALT_SV:ALT_UV)):t.pnl_pct;
-    markers.push({time:t.entry_date,position:mp,color:mc,shape:'arrowUp',text:'+'+nm});
-    markers.push({time:t.exit_date,position:mp,color:mc,shape:'arrowDown',text:(pct>=0?'+':'')+(pct*100).toFixed(1)+'%'}); });
-  markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers; }
-function applyChartMode(){ const btn=document.getElementById('chart-mode-toggle'); if(btn) btn.textContent=CHART_MODE==='real'?'SVXY / UVXY':'SVIX / UVIX';
-  if(!candleSeries||!sumMain) return; CANDLES=displayCandles(); MARKERS=displayMarkers();
-  const vr=sumMain.timeScale().getVisibleLogicalRange(); candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS); if(vr) sumMain.timeScale().setVisibleLogicalRange(vr); }
-function toggleChartMode(){ CHART_MODE=(CHART_MODE==='real')?'alt':'real'; applyChartMode(); }
+    if(alt){
+      const map=sv?svC:uvC; const e=map[t.entry_date], x=map[t.exit_date];
+      if(e==null||x==null) return;            // no real SVIX/UVIX data for this trade (pre-2022)
+      const pct=x/e-1; const nm=sv?'SVIX':'UVIX';
+      markers.push({time:t.entry_date,position:mp,color:mc,shape:'arrowUp',text:'+'+nm});
+      markers.push({time:t.exit_date,position:mp,color:mc,shape:'arrowDown',text:(pct>=0?'+':'')+(pct*100).toFixed(1)+'%'});
+    } else {
+      markers.push({time:t.entry_date,position:mp,color:mc,shape:'arrowUp',text:sv?'+SVXY':'+UVXY'});
+      markers.push({time:t.exit_date,position:mp,color:mc,shape:'arrowDown',text:(t.pnl_pct>=0?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
+    } });
+  markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
+}
+function applyChartMode(){
+  const r=document.getElementById('mode-real'), a=document.getElementById('mode-alt');
+  if(r) r.classList.toggle('active', CHART_MODE==='real');
+  if(a) a.classList.toggle('active', CHART_MODE==='alt');
+  if(!candleSeries||!sumMain) return;
+  CANDLES=displayCandles(); MARKERS=displayMarkers();
+  candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS);
+  if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
+  summaryToEnd();
+}
+function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
 function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-44),to:N+2}); }catch(_){} }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
 function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : 'rgba(131,116,72,.55)'; }
