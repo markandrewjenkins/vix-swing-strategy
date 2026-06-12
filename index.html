@@ -310,6 +310,11 @@ tr:hover td { background: #1f1a10 }
 .live-chg { font-size: 0.62rem; font-weight: 700; color: var(--dim, #909090); }
 .live-chg.up { color: var(--teal, #00e5a0); } .live-chg.down { color: var(--coral, #ff4560); }
 .live-status { display: inline-flex; align-items: baseline; }
+/* When zoomed/narrow the three groups can't share one row, so pin the LIVE
+   line to the top and let the stock tickers fall to their own line below. */
+@media (max-width: 820px){
+  #live-strip .live-status { order: -1; flex-basis: 100%; justify-content: flex-end; margin-left: 0 !important; }
+}
 @keyframes livepulse { 0%,100% { opacity: 1 } 50% { opacity: 0.25 } }
 #live-strip.stale .live-dot { background: var(--gray, #666); box-shadow: none; animation: none; }
 .live-item { display: inline-flex; align-items: baseline; gap: 6px; }
@@ -351,6 +356,11 @@ table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); colo
 table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; white-space:nowrap; }
 table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-ind { font-weight:700; }
+.sig-proj { font-size:0.84rem; color:var(--text); padding:2px 2px 4px; line-height:1.5; }
+.sig-proj .sig-proj-pos { font-weight:700; font-size:0.95rem; letter-spacing:0.02em; }
+.sig-proj .sig-proj-note { color:var(--dim); font-size:0.74rem; }
+.sig-proj .sig-proj-tally { color:var(--dim); font-size:0.72rem; margin-top:3px; }
+.sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
 table.sig-mon tr.sig-override td { background:rgba(240,152,47,0.05); }
 table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #f0982f); }
@@ -396,7 +406,7 @@ table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #
     <span class="live-item"><span class="live-lbl">VIX3M</span><span class="live-val" id="lv-vix3m">—</span></span>
     <span class="live-item"><span class="live-lbl">VIX1Y</span><span class="live-val" id="lv-vix1y">—</span></span>
   </span>
-  <span class="live-item live-status" style="order:-1;flex-basis:100%;justify-content:flex-end;gap:10px">
+  <span class="live-item live-status" style="margin-left:auto;gap:10px">
     <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
     <span class="live-lbl" id="lv-feed-note">quotes ~15&nbsp;min delayed</span>
     <span class="live-lbl">Last refresh:</span>
@@ -453,7 +463,8 @@ table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #
     </div>
     <div class="panel" style="margin-top:12px">
       <div class="ph"><span>Live Signal Monitor</span></div>
-      <div class="pb" style="overflow-x:auto"><table id="signal-monitor" class="sig-mon"></table></div>
+      <div class="pb"><div id="sig-proj" class="sig-proj"></div></div>
+      <div class="pb" style="overflow-x:auto;padding-top:0"><table id="signal-monitor" class="sig-mon"></table></div>
     </div>
   </div>
 
@@ -1326,11 +1337,6 @@ async function loadLive(){
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
-let _mktKey='', _mktProbe=null;
-function _mktReserveWidth(label,sep,verb,durMax){ if(!_mktProbe){ _mktProbe=document.createElement('span'); _mktProbe.style.cssText='visibility:hidden;position:absolute;white-space:nowrap;font-family:Saira,sans-serif;font-size:0.74rem;letter-spacing:0.04em;left:-9999px'; document.body.appendChild(_mktProbe); }
-  _mktProbe.style.fontWeight='700'; _mktProbe.textContent=label; const wL=_mktProbe.getBoundingClientRect().width;
-  _mktProbe.style.fontWeight='400'; _mktProbe.textContent=sep+verb+' in '+durMax; const wC=_mktProbe.getBoundingClientRect().width;
-  return Math.ceil(wL+wC)+8+12+2; }
 function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
@@ -1344,8 +1350,7 @@ function updateMarket(){
   if(dot) dot.style.background=color;
   if(lab){ lab.textContent=label; }
   if(mk){ mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
-  if(cd){ const np=_nextPhase(); cd.textContent=sep+np.verb+' in '+_fmtDur(np.secs);
-    const key=label+'|'+np.verb; if(key!==_mktKey){ _mktKey=key; const blk=document.querySelector('.mkt-block'); const durMax=(label==='Market closed')?'88h 88m':'8h 88m'; if(blk) blk.style.width=_mktReserveWidth(label,sep,np.verb,durMax)+'px'; } }
+  if(cd){ const np=_nextPhase(); cd.textContent=sep+np.verb+' in '+_fmtDur(np.secs); }
   const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
 }
 let CHART_MODE='real';
@@ -1513,6 +1518,31 @@ function renderSignalMonitor(){
       spike?'<span class="neg">SPIKE</span>':(crush?'<span class="pos">CRUSH</span>':'N/A'),
       spike?'UVXY':(crush?'SVXY':'NEU')],
   ];
+
+  // ── Projected end-of-day position: how the live signals combine ──────
+  // Indicative read of where the signals are leaning intraday. The OFFICIAL
+  // position is set by the full strategy on the confirmed 15:45 ET close;
+  // this tally lets you see the EOD call taking shape mid-session.
+  const core = rows.map(r=>r[5]);
+  const sv = core.filter(v=>v==='SVXY').length;
+  const uv = core.filter(v=>v==='UVXY').length;
+  const neu = core.filter(v=>v==='NEU').length;
+  let proj, why;
+  if(spike){ proj='UVXY'; why='Spike override active — forces long-vol'; }
+  else if(crush){ proj='SVXY'; why='Crush override active — forces short-vol'; }
+  else if(contango!=null && contango<0){ proj='UVXY'; why='Term structure in backwardation'+(uv>sv?(', '+uv+' signals bearish'):''); }
+  else if(sv>uv && (contango==null||contango>=P.ct)){ proj='SVXY'; why=sv+' of '+core.length+' signals favour short-vol, term structure in contango'; }
+  else if(uv>sv){ proj='UVXY'; why=uv+' of '+core.length+' signals favour long-vol'; }
+  else { proj='CASH'; why='signals mixed — no clear edge'; }
+  const projTag = proj==='SVXY'?'<span class="sig-proj-pos sig-svxy">SVXY · short vol</span>'
+                : proj==='UVXY'?'<span class="sig-proj-pos sig-uvxy">UVXY · long vol</span>'
+                : '<span class="sig-proj-pos sig-neu">CASH</span>';
+  const off = (L&&L.official&&L.official.position)?L.official.position.replace('LONG_VOL_SELLER','SVXY').replace('LONG_VOL','UVXY'):null;
+  const projHtml = `Projected close position: ${projTag} <span class="sig-proj-note">— ${why}. Firms up on the 15:45&nbsp;ET close`
+    + (off?(`; last official: <b>${off}</b>`):``) + `.</span>`
+    + `<div class="sig-proj-tally">Signal tally: <span class="vt-sv">${sv} short-vol</span> &middot; <span class="vt-uv">${uv} long-vol</span> &middot; <span class="vt-neu">${neu} neutral</span>`
+    + (spike?(` &middot; <span class="vt-uv">SPIKE override</span>`):(crush?(` &middot; <span class="vt-sv">CRUSH override</span>`):``)) + `</div>`;
+  const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=projHtml;
 
   const head='<thead><tr><th>Indicator</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th>Current</th><th>Signal</th></tr></thead>';
   const rowHtml=(r,cls='')=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
