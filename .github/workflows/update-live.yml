@@ -35,17 +35,19 @@ jobs:
       - name: Install dependencies
         run: pip install --quiet pandas
 
-      - name: Generate live_status.json
-        run: python update_live.py
+      - name: Refresh data
+        run: |
+          python build_ohlc.py    # daily candles incl. the current forming day
+          python update_live.py   # live quotes + position + signal levels
 
       - name: Commit if changed
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git status --porcelain live_status.json | grep -q .; then
-            git add live_status.json
-            git commit -m "chore: refresh live_status.json [skip ci]"
+          git add live_status.json svxy_ohlc.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: refresh live data [skip ci]"
             git push
           else
-            echo "No change in live_status.json — nothing to commit."
+            echo "No data changes — nothing to commit."
           fi

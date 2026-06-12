@@ -394,7 +394,10 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
       <div class="ph"><span>Live Chart</span><span id="cdl-live" style="color:var(--dim);font-weight:400">scroll to pan · wheel to zoom</span></div>
       <div class="pb">
         <div id="cdl-info" class="cdl-info">Hover the chart for details</div>
-        <div id="candle-chart" style="width:100%;height:430px"></div>
+        <div style="position:relative;width:100%;height:430px">
+          <div id="candle-chart" style="width:100%;height:100%"></div>
+          <button id="cdl-toend" title="Jump to latest" onclick="summaryToEnd()" style="position:absolute;top:8px;right:64px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:4px;padding:3px 10px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
+        </div>
         <div class="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span></div>
         <div id="pos-band" style="width:100%;height:30px"></div>
       </div>
@@ -570,7 +573,7 @@ const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
-let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null;
+let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null;
 
 // ── Formatters ────────────────────────────────────────────────────────────
 const abbrev  = v => { if(v==null||isNaN(v))return 'N/A'; const a=Math.abs(v);
@@ -1217,18 +1220,31 @@ async function loadLive(){
 
     LIVE=L;
     if(window._sigMonReady) renderSignalMonitor();
-    if(candleSeries && CANDLES && L.market && L.market.quotes && L.market.quotes.svxy){
-      const px=L.market.quotes.svxy.price;
-      if(px!=null){
-        const today=(L.generated_utc||'').slice(0,10);
-        const last=CANDLES[CANDLES.length-1];
-        if(today && last && today>last.time){
-          const nc={time:today,open:px,high:px,low:px,close:px};
-          CANDLES.push(nc); candleSeries.update(nc);
-        }else if(last){
-          const nc={time:last.time,open:last.open,high:Math.max(last.high,px),low:Math.min(last.low,px),close:px};
-          CANDLES[CANDLES.length-1]=nc; candleSeries.update(nc);
+    // Refresh candle history from svxy_ohlc.json (Action keeps it current incl. the forming day)
+    if(candleSeries && sumMain){
+      try{
+        const ro=await fetch('svxy_ohlc.json?v='+Date.now());
+        if(ro.ok){
+          const arr=await ro.json();
+          const ln=arr[arr.length-1], lc=(CANDLES&&CANDLES.length)?CANDLES[CANDLES.length-1]:null;
+          const changed=!lc||arr.length!==CANDLES.length||ln[0]!==lc.time||ln[4]!==lc.close;
+          if(changed){
+            OHLC=arr; CANDLES=arr.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
+            const vr=sumMain.timeScale().getVisibleLogicalRange();
+            candleSeries.setData(CANDLES);
+            if(MARKERS) candleSeries.setMarkers(MARKERS);
+            if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
+            if(vr) sumMain.timeScale().setVisibleLogicalRange(vr);
+          }
         }
+      }catch(_){}
+    }
+    // Refine the forming candle's close with the latest live quote (never fabricate flat candles)
+    if(candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
+      const px=L.market.quotes.svxy.price, today=(L.generated_utc||'').slice(0,10), last=CANDLES[CANDLES.length-1];
+      if(px!=null && last && today===last.time){
+        const nc={time:last.time,open:last.open,high:Math.max(last.high,px),low:Math.min(last.low,px),close:px};
+        CANDLES[CANDLES.length-1]=nc; candleSeries.update(nc);
       }
     }
   }catch(e){
@@ -1239,6 +1255,8 @@ async function loadLive(){
 
 
 // Summary: SVXY candlesticks + trade overlay + signal monitor
+function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-44),to:N+2}); }catch(_){} }
+function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
 function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : 'rgba(131,116,72,.55)'; }
 function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVXY' : 'CASH'; }
 
@@ -1247,7 +1265,7 @@ function renderSummary(){
   const LC=LightweightCharts;
   CANDLES = OHLC.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
 
-  const posByDate={}; DATA.bar_history.forEach(b=>{posByDate[b.date]=b.position;});
+  const posByDate={}; DATA.bar_history.forEach(b=>{posByDate[b.date]=b.position;}); POSBYDATE=posByDate;
   const startCap=DATA.meta.start_capital;
   const evByDate={};
   DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER';
@@ -1271,7 +1289,7 @@ function renderSummary(){
       vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},
       horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
   candleSeries=sumMain.addCandlestickSeries({upColor:TEAL,downColor:CORAL,borderUpColor:TEAL,borderDownColor:CORAL,wickUpColor:TEAL,wickDownColor:CORAL});
-  candleSeries.setData(CANDLES); candleSeries.setMarkers(markers);
+  candleSeries.setData(CANDLES); candleSeries.setMarkers(markers); MARKERS=markers;
 
   // Position bar below the chart (per-session bars)
   const pel=document.getElementById('pos-band'); pel.innerHTML='';
@@ -1287,8 +1305,8 @@ function renderSummary(){
   sumPos.priceScale('right').applyOptions({scaleMargins:{top:0,bottom:0}});
 
   let _sync=false;
-  sumMain.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(r&&!_sync){_sync=true;try{sumPos.timeScale().setVisibleLogicalRange(r);}catch(_){} _sync=false;} });
-  sumMain.timeScale().fitContent();
+  sumMain.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(r&&!_sync){_sync=true;try{sumPos.timeScale().setVisibleLogicalRange(r);}catch(_){} _sync=false;} _updateToEndBtn(); });
+  summaryToEnd();
 
   // Align the band's right gutter to the candle chart's price-scale width
   const _alignBand=()=>{ try{ const w=sumMain.priceScale('right').width(); if(w) sumPos.priceScale('right').applyOptions({minimumWidth:w}); }catch(_){} };
