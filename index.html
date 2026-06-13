@@ -1513,13 +1513,7 @@ function renderSummary(){
   const _alignBand=()=>{ try{ const w=sumMain.priceScale('right').width(); if(w) sumPos.priceScale('right').applyOptions({minimumWidth:w}); }catch(_){} };
   _alignBand(); setTimeout(_alignBand,80); setTimeout(_alignBand,300);
 
-  // Hovering the bar shows the crosshair on the candle chart at the same date
   const _ohlcByTime={}; CANDLES.forEach(c=>{_ohlcByTime[c.time]=c;});
-  sumPos.subscribeCrosshairMove(param=>{
-    if(param && param.time && _ohlcByTime[param.time]){
-      sumMain.setCrosshairPosition(_ohlcByTime[param.time].close, param.time, candleSeries);
-    } else { sumMain.clearCrosshairPosition(); }
-  });
 
   // K/M/B with a forced single decimal (1.0M, never 1M)
   const abbr1=v=>{const a=Math.abs(v); if(a>=1e9)return (v/1e9).toFixed(1)+'B'; if(a>=1e6)return (v/1e6).toFixed(1)+'M'; if(a>=1e3)return (v/1e3).toFixed(1)+'K'; return Math.round(v).toLocaleString('en-US');};
@@ -1529,10 +1523,12 @@ function renderSummary(){
     TP:'Take Profit', SL:'Stop Loss', TRAIL:'Trailing Stop', TIMESTOP:'Time Stop' };
   const reasonText=r=>REASONS[r]||r;
   const info=document.getElementById('cdl-info');
-  sumMain.subscribeCrosshairMove(param=>{
-    const sd=param.seriesData&&candleSeries?param.seriesData.get(candleSeries):null;
-    if(!param.time||!sd){ info.innerHTML='Hover the chart for details'; return; }
-    const d=param.time, pos=posByDate[d]||'CASH', pn=posNameOf(pos);
+
+  // Shared detail readout — fed by hovering EITHER the candle chart or the position band
+  function renderInfo(time, sd){
+    sd = sd || (time?_ohlcByTime[time]:null);
+    if(!time || !sd){ info.innerHTML='Hover the chart for details'; return; }
+    const d=time, pos=posByDate[d]||'CASH', pn=posNameOf(pos);
     const pcls=pn==='SVXY'?'sig-svxy':pn==='UVXY'?'sig-uvxy':'sig-neu';
     let html=`<b>${d}</b> &nbsp; O ${sd.open.toFixed(2)} &middot; H ${sd.high.toFixed(2)} &middot; L ${sd.low.toFixed(2)} &middot; C ${sd.close.toFixed(2)}`
             +` &nbsp;|&nbsp; Position: <b class="${pcls}">${pn}</b>`;
@@ -1544,6 +1540,18 @@ function renderSummary(){
               +` &nbsp; Cumulative: <span class="${cumD>=0?'pos':'neg'}">${fmtPct(cumP,1)} / ${money(cumD)}</span>`; }
     });
     info.innerHTML=html;
+  }
+
+  sumMain.subscribeCrosshairMove(param=>{
+    const sd=param.seriesData&&candleSeries?param.seriesData.get(candleSeries):null;
+    renderInfo(param.time, sd);
+  });
+  // Hovering the position band: drive the candle crosshair AND the same readout
+  sumPos.subscribeCrosshairMove(param=>{
+    if(param && param.time && _ohlcByTime[param.time]){
+      sumMain.setCrosshairPosition(_ohlcByTime[param.time].close, param.time, candleSeries);
+      renderInfo(param.time, _ohlcByTime[param.time]);
+    } else { sumMain.clearCrosshairPosition(); renderInfo(null); }
   });
 
   if(!window._sumResize){ window.addEventListener('resize',()=>{
