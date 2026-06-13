@@ -398,6 +398,61 @@ table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #
 @keyframes spin { to { transform: rotate(360deg) } }
 #error-state  { display: none; text-align: center; padding: 60px }
 #main-content { display: none }
+
+/* ════════ Cyber-renaissance accents ════════════════════════════════ */
+/* (1) Chamfered DXHR "cut" corners on panels (top-left + bottom-right) */
+.panel {
+  --chamf: 13px;
+  --pclip: polygon(var(--chamf) 0, 100% 0, 100% calc(100% - var(--chamf)), calc(100% - var(--chamf)) 100%, 0 100%, 0 var(--chamf));
+  background: transparent; border: none; border-radius: 0;
+  position: relative; overflow: visible; clip-path: var(--pclip);
+}
+.panel::before { content:''; position:absolute; inset:0;   background: var(--border); clip-path: var(--pclip); z-index:0; }
+.panel::after  { content:''; position:absolute; inset:1px; background: var(--panel);  clip-path: var(--pclip); z-index:0; }
+.panel:hover::before { background: var(--border2); }
+.panel > * { position: relative; z-index: 1; }
+
+/* (2) Icarus sunburst watermark behind the page */
+body::before {
+  content:''; position: fixed; top: -300px; left: 50%; transform: translateX(-50%);
+  width: 1200px; height: 1200px; pointer-events: none; z-index: -1; opacity: 0.55;
+  background: repeating-conic-gradient(from -90deg at 50% 50%, rgba(232,185,79,0.05) 0deg 1deg, transparent 1deg 7deg);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 11%, transparent 60%);
+          mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 11%, transparent 60%);
+}
+
+/* (3) Filigree flourish as section separator on each panel header */
+.ph { position: relative; z-index: 3; }
+.ph::after {
+  content:''; position: absolute; left: 50%; transform: translateX(-50%); bottom: -9px;
+  width: 130px; height: 18px; pointer-events: none; z-index: 4;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20130%2018%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23e8b94f%27%20stroke-width%3D%271%27%20opacity%3D%270.85%27%3E%3Cpath%20d%3D%27M57%209%20H32%27%2F%3E%3Cpath%20d%3D%27M32%209%20c-7%200%20-10%20-6%20-16%20-3%20c-4%202%20-3%207%201%206%27%2F%3E%3Cpath%20d%3D%27M73%209%20H98%27%2F%3E%3Cpath%20d%3D%27M98%209%20c7%200%2010%20-6%2016%20-3%20c4%202%203%207%20-1%206%27%2F%3E%3C%2Fg%3E%3Cpath%20fill%3D%27%23e8b94f%27%20opacity%3D%270.95%27%20d%3D%27M65%203.5%20l4.5%205.5%20-4.5%205.5%20-4.5%20-5.5%20z%27%2F%3E%3C%2Fsvg%3E");
+  filter: drop-shadow(0 0 3px rgba(232,185,79,0.25));
+}
+
+/* (4) Stencil section numerals beside panel titles */
+[id^="tab-"] { counter-reset: sec; }
+[id^="tab-"] .panel { counter-increment: sec; }
+.ph > span:first-child::before {
+  content: counter(sec, decimal-leading-zero);
+  margin-right: 11px; font-weight: 800; font-size: 0.9em; letter-spacing: 0.05em;
+  color: transparent; -webkit-text-stroke: 0.7px var(--yellow); opacity: 0.55; vertical-align: baseline;
+}
+
+/* (5) Edge vignette for chiaroscuro depth */
+body::after {
+  content:''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(ellipse 130% 120% at 50% 35%, transparent 58%, rgba(0,0,0,0.5));
+}
+
+/* (6) Gold caret beneath the active tab */
+.tab { position: relative; }
+.tab.active::after {
+  content:''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%);
+  width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-bottom: 6px solid var(--yellow); filter: drop-shadow(0 0 4px rgba(232,185,79,0.5));
+}
+
 </style>
 </head>
 <body>
