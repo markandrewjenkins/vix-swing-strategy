@@ -376,6 +376,12 @@ tr:hover td { background: #1f1a10 }
 .cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
 .cdl-info b { color:var(--yellow); }
 .pos-band-label { font-size:0.64rem; color:var(--dim); letter-spacing:0.05em; margin:10px 0 3px; text-transform:uppercase; }
+.cdl-legend { display:flex; flex-wrap:wrap; align-items:center; gap:13px; margin-top:8px; font-size:0.68rem; color:var(--dim); }
+.cdl-legend > span { display:inline-flex; align-items:center; gap:5px; }
+.cdl-legend-sep { color:var(--border2); }
+.cdl-cndl { width:7px; height:12px; border:1px solid var(--yellow); display:inline-block; }
+.cdl-cndl.up { background:transparent; }
+.cdl-cndl.dn { background:var(--yellow); }
 table.sig-mon { width:100%; border-collapse:collapse; font-size:0.8rem; }
 table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
 table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
@@ -488,6 +494,14 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div style="position:relative;width:100%;height:430px">
           <div id="candle-chart" style="width:100%;height:100%"></div>
           <button id="cdl-toend" title="Jump to latest" onclick="summaryToEnd()" style="position:absolute;top:8px;right:64px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:4px;padding:3px 10px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
+        </div>
+        <div class="cdl-legend">
+          <span><span class="cdl-cndl up"></span> up day</span>
+          <span><span class="cdl-cndl dn"></span> down day</span>
+          <span class="cdl-legend-sep">·</span>
+          <span><span style="color:#c9b06b">&#9650;</span> entry</span>
+          <span><span style="color:var(--teal)">&#9650;</span> profit exit</span>
+          <span><span style="color:var(--coral)">&#9660;</span> loss exit</span>
         </div>
         <div class="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span></div>
         <div id="pos-band" style="width:100%;height:30px"></div>
@@ -1408,16 +1422,18 @@ function displayMarkers(){
   const alt=CHART_MODE==='alt'; const markers=[];
   let svC={}, uvC={};
   if(alt){ (ALT_SVIX||[]).forEach(a=>svC[a[0]]=a[4]); (ALT_UVIX||[]).forEach(a=>uvC[a[0]]=a[4]); }
-  DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar'; const mc=sv?TEAL:CORAL;
+  const ENTRY='#c9b06b';   // calm gold — entries are direction-neutral; colour is reserved for P&L
+  DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     if(alt){
       const map=sv?svC:uvC; const e=map[t.entry_date], x=map[t.exit_date];
       if(e==null||x==null) return;            // no real SVIX/UVIX data for this trade (pre-2022)
-      const pct=x/e-1; const nm=sv?'SVIX':'UVIX';
-      markers.push({time:t.entry_date,position:mp,color:mc,shape:'arrowUp',text:'+'+nm});
-      markers.push({time:t.exit_date,position:mp,color:mc,shape:'arrowDown',text:(pct>=0?'+':'')+(pct*100).toFixed(1)+'%'});
+      const pct=x/e-1; const nm=sv?'SVIX':'UVIX'; const win=pct>=0;
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',text:nm+' ▲'});
+      markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:win?'arrowUp':'arrowDown',text:(win?'+':'')+(pct*100).toFixed(1)+'%'});
     } else {
-      markers.push({time:t.entry_date,position:mp,color:mc,shape:'arrowUp',text:sv?'+SVXY':'+UVXY'});
-      markers.push({time:t.exit_date,position:mp,color:mc,shape:'arrowDown',text:(t.pnl_pct>=0?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
+      const win=t.pnl_pct>=0;
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',text:(sv?'SVXY':'UVXY')+' ▲'});
+      markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:win?'arrowUp':'arrowDown',text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
     } });
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
 }
@@ -1460,7 +1476,8 @@ function renderSummary(){
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),
       vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},
       horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
-  candleSeries=sumMain.addCandlestickSeries({upColor:TEAL,downColor:CORAL,borderUpColor:TEAL,borderDownColor:CORAL,wickUpColor:TEAL,wickDownColor:CORAL});
+  // Monochrome theme-gold candles: hollow body = up day, filled body = down day
+  candleSeries=sumMain.addCandlestickSeries({upColor:'rgba(0,0,0,0)',downColor:YELLOW,borderUpColor:YELLOW,borderDownColor:YELLOW,wickUpColor:YELLOW,wickDownColor:YELLOW});
   candleSeries.setData(CANDLES); candleSeries.setMarkers(markers); MARKERS=markers;
 
   // Position bar below the chart (per-session bars)
