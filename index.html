@@ -496,12 +496,12 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           <button id="cdl-toend" title="Jump to latest" onclick="summaryToEnd()" style="position:absolute;top:8px;right:64px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:4px;padding:3px 10px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
         </div>
         <div class="cdl-legend">
-          <span><span class="cdl-cndl up"></span> up day</span>
-          <span><span class="cdl-cndl dn"></span> down day</span>
+          <span><span class="cdl-cndl up"></span> Up day</span>
+          <span><span class="cdl-cndl dn"></span> Down day</span>
           <span class="cdl-legend-sep">·</span>
-          <span><span style="color:#c9b06b">&#9650;</span> entry</span>
-          <span><span style="color:var(--teal)">&#9650;</span> profit exit</span>
-          <span><span style="color:var(--coral)">&#9660;</span> loss exit</span>
+          <span><span style="color:#ffffff">&#9679;</span> Entry</span>
+          <span><span style="color:var(--teal)">&#9679;</span> Profit exit</span>
+          <span><span style="color:var(--coral)">&#9679;</span> Loss exit</span>
         </div>
         <div class="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span></div>
         <div id="pos-band" style="width:100%;height:30px"></div>
@@ -1396,19 +1396,19 @@ async function loadLive(){
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
-function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'pre-market opens',secs:toFour+extra*DAY}; }
+function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-Market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
   const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color,sep;
   const DASH='\u00a0-\u00a0', GAP='\u00a0\u00a0';   // snug gap for closed/pre, dash for open/after
   if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; sep=DASH; }
-  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; sep=GAP; }
+  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-Market'; color=AMBER; sep=GAP; }
   else if(isWk&&dec>=16&&dec<20){ label='After hours'; color=CYAN; sep=GAP; }
   else { label='Market closed'; color=GRAY; sep=GAP; }
   const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker'), cd=document.getElementById('mkt-countdown');
   if(dot) dot.style.background=color;
   if(lab){ lab.textContent=label; }
-  if(mk){ mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
+  if(mk){ mk.style.display = isWk ? '' : 'none'; mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
   if(cd){ const np=_nextPhase(); cd.textContent=sep+np.verb+' in '+_fmtDur(np.secs); }
   const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
 }
@@ -1422,18 +1422,18 @@ function displayMarkers(){
   const alt=CHART_MODE==='alt'; const markers=[];
   let svC={}, uvC={};
   if(alt){ (ALT_SVIX||[]).forEach(a=>svC[a[0]]=a[4]); (ALT_UVIX||[]).forEach(a=>uvC[a[0]]=a[4]); }
-  const ENTRY='#c9b06b';   // calm gold — entries are direction-neutral; colour is reserved for P&L
+  const ENTRY='#ffffff';   // white — entries kept prominent; teal/red reserved for P&L exits
   DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     if(alt){
       const map=sv?svC:uvC; const e=map[t.entry_date], x=map[t.exit_date];
       if(e==null||x==null) return;            // no real SVIX/UVIX data for this trade (pre-2022)
       const pct=x/e-1; const nm=sv?'SVIX':'UVIX'; const win=pct>=0;
-      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',text:nm+' ▲'});
-      markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:win?'arrowUp':'arrowDown',text:(win?'+':'')+(pct*100).toFixed(1)+'%'});
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'circle',text:nm});
+      markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'circle',text:(win?'+':'')+(pct*100).toFixed(1)+'%'});
     } else {
       const win=t.pnl_pct>=0;
-      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',text:(sv?'SVXY':'UVXY')+' ▲'});
-      markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:win?'arrowUp':'arrowDown',text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'circle',text:sv?'SVXY':'UVXY'});
+      markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'circle',text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
     } });
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
 }
@@ -1510,6 +1510,10 @@ function renderSummary(){
   });
 
   const money=v=>(v>=0?'+$':'-$')+abbrev(Math.abs(v));
+  // Spell out exit-reason codes (term-structure ones match the Signal Monitor's Indicator names)
+  const REASONS={ RATIO:'VIX1M / VIX3M Ratio', MOVE_LO:'MOVE / VIX Ratio', NEG_VOL:'Negative vol carry',
+    TP:'Take profit', SL:'Stop loss', TRAIL:'Trailing stop', TIMESTOP:'Time stop' };
+  const reasonText=r=>REASONS[r]||r;
   const info=document.getElementById('cdl-info');
   sumMain.subscribeCrosshairMove(param=>{
     const sd=param.seriesData&&candleSeries?param.seriesData.get(candleSeries):null;
@@ -1522,7 +1526,7 @@ function renderSummary(){
     if(evs) evs.forEach(e=>{ const t=e.t;
       if(e.kind==='ENTER'){ html+=` &nbsp;|&nbsp; <b>Enter ${e.sv?'SVXY':'UVXY'}</b> @ $${t.entry_price.toFixed(2)}`; }
       else{ const cumD=t.equity_after-startCap, cumP=t.equity_after/startCap-1;
-        html+=` &nbsp;|&nbsp; <b>Exit ${e.sv?'SVXY':'UVXY'}</b> (${t.exit_reason}) &mdash; Trade: <span class="${t.pnl_pct>=0?'pos':'neg'}">${fmtPct(t.pnl_pct,2)} / ${money(t.pnl_dollar)}</span>`
+        html+=` &nbsp;|&nbsp; <b>Exit ${e.sv?'SVXY':'UVXY'}</b> (${reasonText(t.exit_reason)}) &mdash; Trade: <span class="${t.pnl_pct>=0?'pos':'neg'}">${fmtPct(t.pnl_pct,2)} / ${money(t.pnl_dollar)}</span>`
               +` &nbsp; Cumulative: <span class="${cumD>=0?'pos':'neg'}">${fmtPct(cumP,1)} / ${money(cumD)}</span>`; }
     });
     info.innerHTML=html;
