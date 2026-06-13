@@ -53,8 +53,8 @@ def _get(url: str, timeout: int = 20, extra: dict | None = None) -> bytes:
 
 
 # ── CBOE end-of-day term structure ───────────────────────────────────────────
-def cboe_last(symbol: str) -> tuple[float | None, str | None]:
-    """Return (last_close, iso_date) for a CBOE index history CSV, or (None, None)."""
+def cboe_last(symbol: str) -> tuple[float | None, float | None, str | None]:
+    """Return (last_close, prev_close, iso_date) for a CBOE index history CSV."""
     url = f"https://cdn.cboe.com/api/global/us_indices/daily_prices/{symbol}_History.csv"
     try:
         text = _get(url).decode("utf-8", errors="replace")
@@ -70,11 +70,12 @@ def cboe_last(symbol: str) -> tuple[float | None, str | None]:
         df = df.dropna(subset=[dc]).set_index(dc).sort_index()
         s = pd.to_numeric(df[cc], errors="coerce").dropna()
         if s.empty:
-            return None, None
-        return float(s.iloc[-1]), s.index[-1].date().isoformat()
+            return None, None, None
+        prev = float(s.iloc[-2]) if len(s) >= 2 else None
+        return float(s.iloc[-1]), prev, s.index[-1].date().isoformat()
     except Exception as e:
         print(f"  cboe  {symbol:6s} FAILED: {e}")
-        return None, None
+        return None, None, None
 
 
 # ── Yahoo v8 live quote ───────────────────────────────────────────────────────
@@ -141,10 +142,11 @@ def main() -> None:
     # Term structure (CBOE EOD). vix1m proxy = VIX index, matching the backtest.
     curve = {}
     for key, sym in [("vix9d", "VIX9D"), ("vix1m", "VIX"), ("vix3m", "VIX3M"),
-                     ("vix6m", "VIX6M"), ("vix1y", "VIX1Y")]:
-        val, dt = cboe_last(sym)
+                     ("vix6m", "VIX6M"), ("vix1y", "VIX1Y"), ("vvix", "VVIX")]:
+        val, prev, dt = cboe_last(sym)
         curve[key] = val
         curve[key + "_date"] = dt
+        curve[key + "_chg"] = round(val / prev - 1.0, 6) if (val and prev) else None
         print(f"  cboe  {sym:6s} {val}")
 
     # Live spot / ETF quotes (Yahoo intraday).

@@ -33,9 +33,15 @@
   --neu: var(--cyan);
 }
 * { box-sizing: border-box; margin: 0; padding: 0 }
-html { font-size: 15px; zoom: 1.1 }   /* default view ≈ Chrome 110% */
+html { font-size: 15px }
 body {
-  background: var(--bg);
+  background-color: var(--bg);
+  /* Deus Ex: subtle Icarus-gold angular lattice + warm glow from the top */
+  background-image:
+    radial-gradient(ellipse at 50% -8%, rgba(232,185,79,0.07), transparent 55%),
+    repeating-linear-gradient(60deg,  rgba(232,185,79,0.020) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(-60deg, rgba(232,185,79,0.020) 0 1px, transparent 1px 32px);
+  background-attachment: fixed;
   color: var(--text);
   font-family: 'Saira', sans-serif;
   font-weight: 400;
@@ -47,15 +53,27 @@ body {
 
 /* ── Header ───────────────────────────────────────────────────────── */
 .hdr {
-  background: #0e0c08;
+  background:
+    repeating-linear-gradient(115deg, rgba(232,185,79,0.028) 0 1px, transparent 1px 24px),
+    linear-gradient(180deg, #110d08, #0e0c08);
   border-bottom: 2px solid var(--yellow);
+  box-shadow: 0 3px 16px -4px rgba(232,185,79,0.22);
   padding: 12px 20px;
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
 }
+/* DXHR angular corner accent (top-right gold facet) */
+.hdr::before {
+  content: ''; position: absolute; top: 0; right: 0; width: 54px; height: 54px;
+  background: linear-gradient(225deg, rgba(232,185,79,0.16), transparent 62%);
+  clip-path: polygon(100% 0, 0 0, 100% 100%); pointer-events: none; z-index: 0;
+}
+.hdr > * { position: relative; z-index: 1; }
 /* Sticky top bar: header + live strip pin together on scroll */
 .topbar { position: sticky; top: 0; z-index: 100; }
 .hdr-title {
@@ -65,6 +83,7 @@ body {
   color: var(--yellow);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  text-shadow: 0 0 16px rgba(232,185,79,0.28);
 }
 .hdr-meta {
   font-family: 'Saira', sans-serif;
@@ -413,10 +432,11 @@ table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #
     <div class="live-vdiv"></div>
     <div class="live-quotes">
       <div class="live-row">
-        <span class="live-item"><span class="live-lbl">VIX9D</span><span class="live-val" id="lv-vix9d">—</span></span>
-        <span class="live-item"><span class="live-lbl">VIX1M</span><span class="live-val" id="lv-vix1m">—</span></span>
-        <span class="live-item"><span class="live-lbl">VIX3M</span><span class="live-val" id="lv-vix3m">—</span></span>
-        <span class="live-item"><span class="live-lbl">VIX1Y</span><span class="live-val" id="lv-vix1y">—</span></span>
+        <span class="live-item"><span class="live-lbl">VIX9D</span><span class="live-val" id="lv-vix9d">—</span><span class="live-chg" id="lv-vix9d-c"></span></span>
+        <span class="live-item"><span class="live-lbl">VIX1M</span><span class="live-val" id="lv-vix1m">—</span><span class="live-chg" id="lv-vix1m-c"></span></span>
+        <span class="live-item"><span class="live-lbl">VIX3M</span><span class="live-val" id="lv-vix3m">—</span><span class="live-chg" id="lv-vix3m-c"></span></span>
+        <span class="live-item"><span class="live-lbl">VIX1Y</span><span class="live-val" id="lv-vix1y">—</span><span class="live-chg" id="lv-vix1y-c"></span></span>
+        <span class="live-item"><span class="live-lbl">VVIX</span><span class="live-val" id="lv-vvix">—</span><span class="live-chg" id="lv-vvix-c"></span></span>
       </div>
       <div class="live-row">
         <span class="live-item"><span class="live-lbl">SVXY</span><span class="live-val" id="lv-svxy">—</span><span class="live-chg" id="lv-svxy-c"></span></span>
@@ -1275,10 +1295,18 @@ async function loadLive(){
 
     // ── VIX term structure (CBOE EOD; VIX1M = live spot when available) ──
     const cv = m.curve||{};
-    setVal('lv-vix9d', numv(cv.vix9d,2));
-    setVal('lv-vix1m', numv(m.vix1m_used!=null?m.vix1m_used:cv.vix1m,2));
-    setVal('lv-vix3m', numv(cv.vix3m,2));
-    setVal('lv-vix1y', numv(cv.vix1y,2));
+    const setChg = (id,chg) => {
+      const ce=document.getElementById(id); if(!ce) return;
+      ce.textContent = chg!=null&&!isNaN(chg) ? signed(chg*100,1,'%') : '';
+      ce.className='live-chg '+clsOf(chg);
+    };
+    const vx = (id,val,chg) => { setVal('lv-'+id, numv(val,2)); setChg('lv-'+id+'-c', chg); };
+    const vixq = q.vix||{};   // VIX1M shows the live spot, so use its intraday change
+    vx('vix9d', cv.vix9d, cv.vix9d_chg);
+    vx('vix1m', m.vix1m_used!=null?m.vix1m_used:cv.vix1m, vixq.change_pct!=null?vixq.change_pct:cv.vix1m_chg);
+    vx('vix3m', cv.vix3m, cv.vix3m_chg);
+    vx('vix1y', cv.vix1y, cv.vix1y_chg);
+    vx('vvix',  cv.vvix,  cv.vvix_chg);
 
     // ── Tradeable tickers: price + % change ─────────────────────────────
     const tk = (id,key) => {
@@ -1345,15 +1373,15 @@ async function loadLive(){
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
-function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'pre-market opens',secs:toFour+extra*DAY}; }
+function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Market Opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'Market Closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'After Hours Closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market Opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
   const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color,sep;
   const DASH='\u00a0-\u00a0', GAP='\u00a0\u00a0';   // snug gap for closed/pre, dash for open/after
-  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; sep=DASH; }
+  if(isWk&&dec>=9.5&&dec<16){ label='Market Open'; color=TEAL; sep=DASH; }
   else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; sep=GAP; }
-  else if(isWk&&dec>=16&&dec<20){ label='After hours'; color=CYAN; sep=GAP; }
-  else { label='Market closed'; color=GRAY; sep=GAP; }
+  else if(isWk&&dec>=16&&dec<20){ label='After Hours'; color=CYAN; sep=GAP; }
+  else { label='Market Closed'; color=GRAY; sep=GAP; }
   const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker'), cd=document.getElementById('mkt-countdown');
   if(dot) dot.style.background=color;
   if(lab){ lab.textContent=label; }
