@@ -51,9 +51,7 @@ body {
 
 /* ── Header ───────────────────────────────────────────────────────── */
 .hdr {
-  background:
-    repeating-linear-gradient(115deg, rgba(232,185,79,0.028) 0 1px, transparent 1px 24px),
-    linear-gradient(180deg, #110d08, #0e0c08);
+  background: linear-gradient(180deg, #110d08, #0e0c08);
   border-bottom: 2px solid var(--yellow);
   box-shadow: 0 3px 16px -4px rgba(232,185,79,0.22);
   padding: 12px 20px;
@@ -76,10 +74,10 @@ body {
 .hdr::after {
   content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%;
   background: linear-gradient(90deg, transparent, rgba(255,242,205,0.85), transparent);
-  background-size: 200px 100%; background-repeat: no-repeat; background-position: -220px 0;
-  animation: hdrsweep 7s linear infinite; opacity: 0.5; pointer-events: none; z-index: 2;
+  background-size: 110px 100%; background-repeat: no-repeat; background-position: -130px 0;
+  animation: hdrsweep 2.6s ease-out 1 both; opacity: 0.5; pointer-events: none; z-index: 2;
 }
-@keyframes hdrsweep { 0% { background-position: -220px 0 } 100% { background-position: calc(100% + 220px) 0 } }
+@keyframes hdrsweep { 0% { background-position: -130px 0 } 100% { background-position: calc(100% + 130px) 0 } }
 /* Sticky top bar: header + live strip pin together on scroll */
 .topbar { position: sticky; top: 0; z-index: 100; }
 .hdr-title {
@@ -129,16 +127,8 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
-  position: relative;
 }
 .panel:hover { border-color: var(--border2) }
-/* DXHR aug-HUD corner brackets (top-left + bottom-right) */
-.panel::before, .panel::after {
-  content: ''; position: absolute; width: 10px; height: 10px;
-  opacity: 0.45; pointer-events: none; z-index: 3;
-}
-.panel::before { top: 6px; left: 6px; border-top: 1px solid var(--yellow); border-left: 1px solid var(--yellow); }
-.panel::after { bottom: 6px; right: 6px; border-bottom: 1px solid var(--yellow); border-right: 1px solid var(--yellow); }
 .ph {
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
@@ -154,12 +144,6 @@ body {
   background: #0a0805;
 }
 .ph span { color: var(--yellow); font-weight: 700 }
-/* Renaissance section marker: glowing gold diamond before each panel title */
-.ph > span:first-child::before {
-  content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 9px;
-  background: var(--yellow); transform: rotate(45deg); vertical-align: middle;
-  box-shadow: 0 0 6px rgba(232,185,79,0.5);
-}
 .pb { padding: 14px 16px }
 
 /* ── KPI strip ────────────────────────────────────────────────────── */
