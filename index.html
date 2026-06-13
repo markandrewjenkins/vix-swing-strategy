@@ -1397,7 +1397,7 @@ async function loadLive(){
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
-function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'pre-market opens',secs:toFour+extra*DAY}; }
+function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
   const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color,sep;
@@ -1429,11 +1429,11 @@ function displayMarkers(){
       const map=sv?svC:uvC; const e=map[t.entry_date], x=map[t.exit_date];
       if(e==null||x==null) return;            // no real SVIX/UVIX data for this trade (pre-2022)
       const pct=x/e-1; const nm=sv?'SVIX':'UVIX'; const win=pct>=0;
-      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',text:nm});
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+nm});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(pct*100).toFixed(1)+'%'});
     } else {
       const win=t.pnl_pct>=0;
-      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',text:sv?'SVXY':'UVXY'});
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?'SVXY':'UVXY')});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
     } });
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
@@ -1459,7 +1459,12 @@ function renderSummary(){
   const LC=LightweightCharts;
   CANDLES = displayCandles();
 
-  const posByDate={}; DATA.bar_history.forEach(b=>{posByDate[b.date]=b.position;}); POSBYDATE=posByDate;
+  // Build the position band straight from the trades (bar_history has duplicate
+  // rows per date whose positions disagree on transition days), so the band
+  // lines up exactly with the entry/exit markers.
+  const posByDate={}; const _allTimes=(OHLC||[]).map(r=>r[0]);
+  DATA.trades.forEach(t=>{ const ty=t.type; for(const tm of _allTimes){ if(tm>=t.entry_date && tm<=t.exit_date) posByDate[tm]=ty; } });
+  POSBYDATE=posByDate;
   const startCap=DATA.meta.start_capital;
   const evByDate={};
   DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER';
@@ -1616,8 +1621,20 @@ function renderSignalMonitor(){
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +`<td>${r[4]}</td><td>${tag(r[5])}</td></tr>`;
   const divider='<tr class="sig-divider"><td colspan="6">Evaluated separately - any non-cash signal acts as an override</td></tr>';
+  // Exit rules — additional ways an open position is closed (beyond the
+  // term-structure signals above, which can also trigger exits).
+  const exitRules=[
+    ['Take profit','Position reached its profit target — locks in the gain.'],
+    ['Stop loss','Position hit its maximum loss — caps the downside.'],
+    ['Trailing stop','Gave back too much from the running peak — trails the high.'],
+    ['Time stop','Held the maximum number of days — closes on elapsed time.'],
+    ['Negative vol carry','Roll yield turned unfavourable (backwardation) — carry no longer pays.'],
+  ];
+  const exitDivider='<tr class="sig-divider"><td colspan="6">Exit rules - any one closes the open position</td></tr>';
+  const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc" colspan="5">${r[1]}</td></tr>`).join('');
   const body='<tbody>'+rows.map(r=>rowHtml(r)).join('')
-    +divider+overrideRows.map(r=>rowHtml(r)).join('')+'</tbody>';
+    +divider+overrideRows.map(r=>rowHtml(r)).join('')
+    +exitDivider+exitHtml+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;
   window._sigMonReady=true;
 }
