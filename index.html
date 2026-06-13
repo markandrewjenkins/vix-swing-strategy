@@ -33,7 +33,7 @@
   --neu: var(--cyan);
 }
 * { box-sizing: border-box; margin: 0; padding: 0 }
-html { font-size: 15px }
+html { font-size: 15px; zoom: 1.1 }   /* default view ≈ Chrome 110% */
 body {
   background: var(--bg);
   color: var(--text);
@@ -295,11 +295,19 @@ tr:hover td { background: #1f1a10 }
 
 /* ── Live market strip ────────────────────────────────────────────── */
 #live-strip {
-  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
-  padding: 7px 18px; background: var(--panel2, #232323);
+  display: flex; flex-direction: column; align-items: stretch; gap: 7px;
+  padding: 8px 18px; background: var(--panel2, #232323);
   border-bottom: 1px solid var(--border2, #333);
   font-family: 'Saira', sans-serif; font-size: 0.72rem;
 }
+.live-main { display: flex; align-items: stretch; gap: 16px; flex-wrap: wrap; }
+.live-pos-block { display: flex; flex-direction: column; justify-content: center; gap: 1px; padding-right: 2px; }
+.live-pos-lbl { color: var(--dim, #909090); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.6rem; }
+.live-pos-val { font-weight: 700; font-size: 1.2rem; letter-spacing: 0.01em; display: inline-flex; align-items: baseline; gap: 8px; }
+.live-pos-val .live-chg { font-size: 0.82rem; }
+.live-vdiv { width: 1px; align-self: stretch; background: var(--border2, #555); }
+.live-quotes { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-width: 0; }
+.live-row { display: flex; align-items: baseline; gap: 13px; flex-wrap: wrap; }
 .live-badge { display: inline-flex; align-items: baseline; gap: 6px;
   color: var(--pink, #ff2a6d); font-weight: 700; letter-spacing: 0.12em; }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; align-self: center;
@@ -309,12 +317,7 @@ tr:hover td { background: #1f1a10 }
 .live-sep { color: var(--border2, #555); font-weight: 300; margin: 0 2px; align-self: center; }
 .live-chg { font-size: 0.62rem; font-weight: 700; color: var(--dim, #909090); }
 .live-chg.up { color: var(--teal, #00e5a0); } .live-chg.down { color: var(--coral, #ff4560); }
-.live-status { display: inline-flex; align-items: baseline; }
-/* When zoomed/narrow the three groups can't share one row, so pin the LIVE
-   line to the top and let the stock tickers fall to their own line below. */
-@media (max-width: 820px){
-  #live-strip .live-status { order: -1; flex-basis: 100%; justify-content: flex-end; margin-left: 0 !important; }
-}
+.live-status { display: inline-flex; align-items: baseline; align-self: flex-end; }
 @keyframes livepulse { 0%,100% { opacity: 1 } 50% { opacity: 0.25 } }
 #live-strip.stale .live-dot { background: var(--gray, #666); box-shadow: none; animation: none; }
 .live-item { display: inline-flex; align-items: baseline; gap: 6px; }
@@ -396,31 +399,36 @@ table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #
 
 <!-- ══ LIVE MARKET STRIP ═══════════════════════════════════════════════════ -->
 <div id="live-strip" title="Live market readings. The strategy evaluates once daily on confirmed closes at 15:45 ET — intraday values are indicative only.">
-  <span class="live-grp">
-    <span class="live-item"><span class="live-lbl">Current Position</span><span class="live-val" id="lv-pos">—</span><span class="live-chg" id="lv-pospnl"></span></span>
-  </span>
-  <span class="live-sep">|</span>
-  <span class="live-grp">
-    <span class="live-item"><span class="live-lbl">VIX9D</span><span class="live-val" id="lv-vix9d">—</span></span>
-    <span class="live-item"><span class="live-lbl">VIX1M</span><span class="live-val" id="lv-vix1m">—</span></span>
-    <span class="live-item"><span class="live-lbl">VIX3M</span><span class="live-val" id="lv-vix3m">—</span></span>
-    <span class="live-item"><span class="live-lbl">VIX1Y</span><span class="live-val" id="lv-vix1y">—</span></span>
-  </span>
-  <span class="live-item live-status" style="margin-left:auto;gap:10px">
+  <span class="live-item live-status" style="gap:10px">
     <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
     <span class="live-lbl" id="lv-feed-note">quotes ~15&nbsp;min delayed</span>
     <span class="live-lbl">Last refresh:</span>
     <span class="live-val" id="lv-updated">—</span>
   </span>
-  <span class="live-grp" style="flex-basis:100%">
-    <span class="live-item"><span class="live-lbl">SVXY</span><span class="live-val" id="lv-svxy">—</span><span class="live-chg" id="lv-svxy-c"></span></span>
-    <span class="live-item"><span class="live-lbl">UVXY</span><span class="live-val" id="lv-uvxy">—</span><span class="live-chg" id="lv-uvxy-c"></span></span>
-    <span class="live-item"><span class="live-lbl">SVIX</span><span class="live-val" id="lv-svix">—</span><span class="live-chg" id="lv-svix-c"></span></span>
-    <span class="live-item"><span class="live-lbl">UVIX</span><span class="live-val" id="lv-uvix">—</span><span class="live-chg" id="lv-uvix-c"></span></span>
-    <span class="live-item"><span class="live-lbl">TQQQ</span><span class="live-val" id="lv-tqqq">—</span><span class="live-chg" id="lv-tqqq-c"></span></span>
-    <span class="live-item"><span class="live-lbl">SQQQ</span><span class="live-val" id="lv-sqqq">—</span><span class="live-chg" id="lv-sqqq-c"></span></span>
-    <span class="live-item"><span class="live-lbl">SPX</span><span class="live-val" id="lv-spx">—</span><span class="live-chg" id="lv-spx-c"></span></span>
-  </span>
+  <div class="live-main">
+    <div class="live-pos-block">
+      <span class="live-pos-lbl">Current Position</span>
+      <span class="live-pos-val"><span class="live-val" id="lv-pos">—</span><span class="live-chg" id="lv-pospnl"></span></span>
+    </div>
+    <div class="live-vdiv"></div>
+    <div class="live-quotes">
+      <div class="live-row">
+        <span class="live-item"><span class="live-lbl">VIX9D</span><span class="live-val" id="lv-vix9d">—</span></span>
+        <span class="live-item"><span class="live-lbl">VIX1M</span><span class="live-val" id="lv-vix1m">—</span></span>
+        <span class="live-item"><span class="live-lbl">VIX3M</span><span class="live-val" id="lv-vix3m">—</span></span>
+        <span class="live-item"><span class="live-lbl">VIX1Y</span><span class="live-val" id="lv-vix1y">—</span></span>
+      </div>
+      <div class="live-row">
+        <span class="live-item"><span class="live-lbl">SVXY</span><span class="live-val" id="lv-svxy">—</span><span class="live-chg" id="lv-svxy-c"></span></span>
+        <span class="live-item"><span class="live-lbl">UVXY</span><span class="live-val" id="lv-uvxy">—</span><span class="live-chg" id="lv-uvxy-c"></span></span>
+        <span class="live-item"><span class="live-lbl">SVIX</span><span class="live-val" id="lv-svix">—</span><span class="live-chg" id="lv-svix-c"></span></span>
+        <span class="live-item"><span class="live-lbl">UVIX</span><span class="live-val" id="lv-uvix">—</span><span class="live-chg" id="lv-uvix-c"></span></span>
+        <span class="live-item"><span class="live-lbl">TQQQ</span><span class="live-val" id="lv-tqqq">—</span><span class="live-chg" id="lv-tqqq-c"></span></span>
+        <span class="live-item"><span class="live-lbl">SQQQ</span><span class="live-val" id="lv-sqqq">—</span><span class="live-chg" id="lv-sqqq-c"></span></span>
+        <span class="live-item"><span class="live-lbl">SPX</span><span class="live-val" id="lv-spx">—</span><span class="live-chg" id="lv-spx-c"></span></span>
+      </div>
+    </div>
+  </div>
 </div>
 </div>
 
@@ -1491,22 +1499,22 @@ function renderSignalMonitor(){
   const spike=b.spike_9d||b.spike_1m, crush=b.crush_9d||b.crush_1m;
   let rows=[
     ['Contango (VIX3M / VIX1M)','Term-structure carry. Positive &amp; rising favours short-vol (SVXY).',
-      '&ge; +3.3% rising, or &ge; +14.6%','&le; 0% (backwardation)', pct(contango,1),
+      'Positive &amp; rising','Backwardation', pct(contango,1),
       contango>=P.ct?'SVXY':contango<0?'UVXY':'NEU'],
     ['VDelta (VIX1M &minus; VIX9D)','Front-end fear gauge. Deeply negative = acute near-term fear.',
-      '&gt; +0.32','&le; &minus;2.43', num(vdelta,2),
+      'Elevated','Deeply negative', num(vdelta,2),
       vdelta>P.bvd?'SVXY':vdelta<=P.xvd?'UVXY':'NEU'],
     ['VIX9D Level','9-day implied vol. In-zone = calm enough to sell vol.',
-      'in 14.8 &ndash; 31.0','&ge; 31 or &lt; 14.8', num(vix9d,2),
+      'In calm zone','Elevated or extreme', num(vix9d,2),
       (vix9d!=null&&vix9d>=P.b9lo&&vix9d<P.b9hi)?'SVXY':(vix9d!=null?'UVXY':'NEU')],
     ['VIX1M Level','1-month implied vol zone.',
-      'in 8.0 &ndash; 22.8','&ge; 22.8', num(vix1m,2),
+      'In calm zone','Elevated', num(vix1m,2),
       (vix1m!=null&&vix1m>=P.b1lo&&vix1m<P.b1hi)?'SVXY':(vix1m!=null?'UVXY':'NEU')],
     ['VIX1M / VIX3M Ratio','Slope of the near curve.',
-      '&lt; 0.932 (contango)','&ge; 1.096 (inverted)', num(ratio13,3),
+      'Upward-sloping (contango)','Inverted (backwardation)', num(ratio13,3),
       ratio13<P.br13?'SVXY':(ratio13>=P.xr13?'UVXY':'NEU')],
     ['MOVE / VIX Ratio','Bond vol vs equity vol stress.',
-      '&lt; 2','&gt; 11', num(movevix,2),
+      'Low cross-asset stress','High cross-asset stress', num(movevix,2),
       (movevix!=null&&movevix>11)?'UVXY':((movevix!=null&&movevix<2)?'SVXY':'NEU')],
   ];
 
