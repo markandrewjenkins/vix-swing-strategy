@@ -500,7 +500,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           <span><span class="cdl-cndl up"></span> Up day</span>
           <span><span class="cdl-cndl dn"></span> Down day</span>
           <span class="cdl-legend-sep">·</span>
-          <span><span style="color:#ffd95e">&#9650;</span> Entry</span>
+          <span><span style="color:#fff3c8">&#9650;</span> Entry</span>
           <span><span class="cdl-sw" style="background:var(--teal)"></span> Profit exit</span>
           <span><span class="cdl-sw" style="background:var(--coral)"></span> Loss exit</span>
         </div>
@@ -785,10 +785,15 @@ function mkChart(id,cfg){const c=document.getElementById(id);if(!c)return null;r
 function legHtml(items){return items.map(([c,l])=>`<span class="leg-item"><span class="leg-swatch" style="background:${c}"></span>${l}</span>`).join('');}
 
 // ── Main render ───────────────────────────────────────────────────────────
-function render(){
+function updateHdrMeta(){
+  const el=document.getElementById('hdr-meta'); if(!el||!DATA||!DATA.meta) return;
   const m=DATA.meta;
-  document.getElementById('hdr-meta').textContent=
-    m.start_date+' — '+m.end_date+'  ·  '+m.trading_days.toLocaleString()+' trading days  ·  SVXY / UVXY';
+  const lastDate=(OHLC&&OHLC.length)?OHLC[OHLC.length-1][0]:m.end_date;
+  const tdays=(OHLC&&OHLC.length)?OHLC.filter(r=>r[0]>=m.start_date).length:m.trading_days;
+  el.textContent=m.start_date+' — '+lastDate+'  ·  '+tdays.toLocaleString()+' trading days  ·  SVXY (UVXY) / SVIX (UVIX)';
+}
+function render(){
+  updateHdrMeta();
   renderAnalytics();renderMetrics();buildEqOverview();
   renderSigPerf();renderSigDist();renderExitReasons();renderTrades();
   renderSummary();
@@ -1366,7 +1371,7 @@ async function loadLive(){
           const ln=arr[arr.length-1], lo=(OHLC&&OHLC.length)?OHLC[OHLC.length-1]:null;
           const changed=!lo||arr.length!==OHLC.length||ln[0]!==lo[0]||ln[4]!==lo[4];
           if(changed){
-            OHLC=arr; CANDLES=displayCandles();
+            OHLC=arr; CANDLES=displayCandles(); updateHdrMeta();
             const vr=sumMain.timeScale().getVisibleLogicalRange();
             candleSeries.setData(CANDLES);
             if(MARKERS) candleSeries.setMarkers(MARKERS);
@@ -1423,7 +1428,7 @@ function displayMarkers(){
   const alt=CHART_MODE==='alt'; const markers=[];
   let svC={}, uvC={};
   if(alt){ (ALT_SVIX||[]).forEach(a=>svC[a[0]]=a[4]); (ALT_UVIX||[]).forEach(a=>uvC[a[0]]=a[4]); }
-  const ENTRY='#ffd95e';   // bright Icarus gold — stands out against the candle gold; P&L colour reserved for exits
+  const ENTRY='#fff3c8';   // luminous pale gold — pops against the deeper gold candles without looking stark white
   DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     if(alt){
       const map=sv?svC:uvC; const e=map[t.entry_date], x=map[t.exit_date];
@@ -1483,7 +1488,8 @@ function renderSummary(){
       vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},
       horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
   // Monochrome theme-gold candles: hollow body = up day, filled body = down day
-  candleSeries=sumMain.addCandlestickSeries({upColor:'rgba(0,0,0,0)',downColor:YELLOW,borderUpColor:YELLOW,borderDownColor:YELLOW,wickUpColor:YELLOW,wickDownColor:YELLOW});
+  candleSeries=sumMain.addCandlestickSeries({upColor:'rgba(0,0,0,0)',downColor:YELLOW,borderUpColor:YELLOW,borderDownColor:YELLOW,wickUpColor:YELLOW,wickDownColor:YELLOW,
+    lastValueVisible:true,priceLineVisible:true,priceLineColor:'#cdbf95',priceLineWidth:1,priceLineStyle:2});
   candleSeries.setData(CANDLES); candleSeries.setMarkers(markers); MARKERS=markers;
 
   // Position bar below the chart (per-session bars)
@@ -1515,10 +1521,12 @@ function renderSummary(){
     } else { sumMain.clearCrosshairPosition(); }
   });
 
-  const money=v=>(v>=0?'+$':'-$')+abbrev(Math.abs(v));
+  // K/M/B with a forced single decimal (1.0M, never 1M)
+  const abbr1=v=>{const a=Math.abs(v); if(a>=1e9)return (v/1e9).toFixed(1)+'B'; if(a>=1e6)return (v/1e6).toFixed(1)+'M'; if(a>=1e3)return (v/1e3).toFixed(1)+'K'; return Math.round(v).toLocaleString('en-US');};
+  const money=v=>(v>=0?'+$':'-$')+abbr1(Math.abs(v));
   // Spell out exit-reason codes (term-structure ones match the Signal Monitor's Indicator names)
-  const REASONS={ RATIO:'VIX1M / VIX3M Ratio', MOVE_LO:'MOVE / VIX Ratio', NEG_VOL:'Negative vol carry',
-    TP:'Take profit', SL:'Stop loss', TRAIL:'Trailing stop', TIMESTOP:'Time stop' };
+  const REASONS={ RATIO:'VIX1M / VIX3M Ratio', MOVE_LO:'MOVE / VIX Ratio', NEG_VOL:'Negative Vol Carry',
+    TP:'Take Profit', SL:'Stop Loss', TRAIL:'Trailing Stop', TIMESTOP:'Time Stop' };
   const reasonText=r=>REASONS[r]||r;
   const info=document.getElementById('cdl-info');
   sumMain.subscribeCrosshairMove(param=>{
@@ -1530,7 +1538,7 @@ function renderSummary(){
             +` &nbsp;|&nbsp; Position: <b class="${pcls}">${pn}</b>`;
     const evs=evByDate[d];
     if(evs) evs.forEach(e=>{ const t=e.t;
-      if(e.kind==='ENTER'){ html+=` &nbsp;|&nbsp; <b>Enter ${e.sv?'SVXY':'UVXY'}</b> @ $${t.entry_price.toFixed(1)}`; }
+      if(e.kind==='ENTER'){ html+=` &nbsp;|&nbsp; <b>Enter ${e.sv?'SVXY':'UVXY'}</b> @ $${t.entry_price.toFixed(2)}`; }
       else{ const cumD=t.equity_after-startCap, cumP=t.equity_after/startCap-1;
         html+=` &nbsp;|&nbsp; <b>Exit ${e.sv?'SVXY':'UVXY'}</b> (${reasonText(t.exit_reason)}) &mdash; Trade: <span class="${t.pnl_pct>=0?'pos':'neg'}">${fmtPct(t.pnl_pct,1)} / ${money(t.pnl_dollar)}</span>`
               +` &nbsp; Cumulative: <span class="${cumD>=0?'pos':'neg'}">${fmtPct(cumP,1)} / ${money(cumD)}</span>`; }
@@ -1623,15 +1631,21 @@ function renderSignalMonitor(){
   const divider='<tr class="sig-divider"><td colspan="6">Evaluated separately - any non-cash signal acts as an override</td></tr>';
   // Exit rules — additional ways an open position is closed (beyond the
   // term-structure signals above, which can also trigger exits).
+  const offPos=(L&&L.official)?L.official.position:null;
+  const inPos=!!offPos && offPos!=='CASH';
+  const openpnl=(L&&L.official&&L.official.open_pnl!=null)?L.official.open_pnl:null;
+  const dimc=t=>`<span style="color:var(--dim)">${t}</span>`;
+  const pnlCur = (inPos&&openpnl!=null) ? pct(openpnl,1) : dimc('Flat');
   const exitRules=[
-    ['Take profit','Position reached its profit target — locks in the gain.'],
-    ['Stop loss','Position hit its maximum loss — caps the downside.'],
-    ['Trailing stop','Gave back too much from the running peak — trails the high.'],
-    ['Time stop','Held the maximum number of days — closes on elapsed time.'],
-    ['Negative vol carry','Roll yield turned unfavourable (backwardation) — carry no longer pays.'],
+    ['Take Profit','Position reached its profit target — locks in the gain.', pnlCur],
+    ['Stop Loss','Position hit its maximum loss — caps the downside.', pnlCur],
+    ['Trailing Stop','Gave back too much from the running peak — trails the high.', pnlCur],
+    ['Time Stop','Held the maximum number of days — closes on elapsed time.', inPos?dimc('In position'):dimc('Flat')],
+    ['Negative Vol Carry','Roll yield turned unfavourable (backwardation) — carry no longer pays.', pct(contango,1)],
   ];
   const exitDivider='<tr class="sig-divider"><td colspan="6">Exit rules - any one closes the open position</td></tr>';
-  const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc" colspan="5">${r[1]}</td></tr>`).join('');
+  const naCell='<span style="color:var(--dim)">N/A</span>';
+  const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td><td>${naCell}</td><td>${naCell}</td><td>${r[2]}</td><td>${naCell}</td></tr>`).join('');
   const body='<tbody>'+rows.map(r=>rowHtml(r)).join('')
     +divider+overrideRows.map(r=>rowHtml(r)).join('')
     +exitDivider+exitHtml+'</tbody>';
