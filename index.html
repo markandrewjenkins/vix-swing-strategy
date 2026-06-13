@@ -386,10 +386,8 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj .sig-proj-pos { font-weight:700; font-size:0.95rem; letter-spacing:0.02em; }
 .sig-proj .sig-proj-note { color:var(--dim); font-size:0.74rem; }
 .sig-proj .sig-proj-tally { color:var(--dim); font-size:0.72rem; margin-top:3px; }
-.sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); }
+.sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); font-weight:700; }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
-table.sig-mon tr.sig-override td { background:rgba(240,152,47,0.05); }
-table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #f0982f); }
 .sig-svxy { color:var(--teal); } .sig-uvxy { color:var(--coral); } .sig-neu { color:var(--dim); }
 
 /* ── Loading ──────────────────────────────────────────────────────── */
@@ -436,6 +434,7 @@ table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #
         <span class="live-item"><span class="live-lbl">VIX3M</span><span class="live-val" id="lv-vix3m">—</span><span class="live-chg" id="lv-vix3m-c"></span></span>
         <span class="live-item"><span class="live-lbl">VIX1Y</span><span class="live-val" id="lv-vix1y">—</span><span class="live-chg" id="lv-vix1y-c"></span></span>
         <span class="live-item"><span class="live-lbl">VVIX</span><span class="live-val" id="lv-vvix">—</span><span class="live-chg" id="lv-vvix-c"></span></span>
+        <span class="live-item"><span class="live-lbl">MOVE</span><span class="live-val" id="lv-move">—</span><span class="live-chg" id="lv-move-c"></span></span>
         <span class="live-item live-status" style="margin-left:auto;gap:10px">
           <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
           <span class="live-lbl" id="lv-feed-note">quotes ~15&nbsp;min delayed</span>
@@ -1312,6 +1311,7 @@ async function loadLive(){
     vx('vix3m', cv.vix3m, cv.vix3m_chg);
     vx('vix1y', cv.vix1y, cv.vix1y_chg);
     vx('vvix',  cv.vvix,  cv.vvix_chg);
+    const mq = q.move||{}; vx('move', mq.price, mq.change_pct);
 
     // ── Tradeable tickers: price + % change ─────────────────────────────
     const tk = (id,key) => {
@@ -1382,15 +1382,15 @@ async function loadLive(){
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
-function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Market Opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'Market Closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'After Hours Closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market Opens',secs:toFour+extra*DAY}; }
+function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
   const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color,sep;
   const DASH='\u00a0-\u00a0', GAP='\u00a0\u00a0';   // snug gap for closed/pre, dash for open/after
-  if(isWk&&dec>=9.5&&dec<16){ label='Market Open'; color=TEAL; sep=DASH; }
+  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; sep=DASH; }
   else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; sep=GAP; }
-  else if(isWk&&dec>=16&&dec<20){ label='After Hours'; color=CYAN; sep=GAP; }
-  else { label='Market Closed'; color=GRAY; sep=GAP; }
+  else if(isWk&&dec>=16&&dec<20){ label='After hours'; color=CYAN; sep=GAP; }
+  else { label='Market closed'; color=GRAY; sep=GAP; }
   const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker'), cd=document.getElementById('mkt-countdown');
   if(dot) dot.style.background=color;
   if(lab){ lab.textContent=label; }
@@ -1548,7 +1548,7 @@ function renderSignalMonitor(){
       'In calm zone','Elevated', num(vix1m,2),
       (vix1m!=null&&vix1m>=P.b1lo&&vix1m<P.b1hi)?'SVXY':(vix1m!=null?'UVXY':'NEU')],
     ['VIX1M / VIX3M Ratio','Slope of the near curve.',
-      'Upward-sloping (contango)','Inverted (backwardation)', num(ratio13,3),
+      'Upward-sloping (contango)','Inverted (backwardation)', num(ratio13,2),
       ratio13<P.br13?'SVXY':(ratio13>=P.xr13?'UVXY':'NEU')],
     ['MOVE / VIX Ratio','Bond vol vs equity vol stress.',
       'Low cross-asset stress','High cross-asset stress', num(movevix,2),
@@ -1573,11 +1573,11 @@ function renderSignalMonitor(){
   const uv = core.filter(v=>v==='UVXY').length;
   const neu = core.filter(v=>v==='NEU').length;
   let proj, why;
-  if(spike){ proj='UVXY'; why='Spike override active — forces long-vol'; }
-  else if(crush){ proj='SVXY'; why='Crush override active — forces short-vol'; }
+  if(spike){ proj='UVXY'; why='Spike override active — forces long vol'; }
+  else if(crush){ proj='SVXY'; why='Crush override active — forces short vol'; }
   else if(contango!=null && contango<0){ proj='UVXY'; why='Term structure in backwardation'+(uv>sv?(', '+uv+' signals bearish'):''); }
-  else if(sv>uv && (contango==null||contango>=P.ct)){ proj='SVXY'; why=sv+' of '+core.length+' signals favour short-vol, term structure in contango'; }
-  else if(uv>sv){ proj='UVXY'; why=uv+' of '+core.length+' signals favour long-vol'; }
+  else if(sv>uv && (contango==null||contango>=P.ct)){ proj='SVXY'; why=sv+' of '+core.length+' signals favour short vol, term structure in contango'; }
+  else if(uv>sv){ proj='UVXY'; why=uv+' of '+core.length+' signals favour long vol'; }
   else { proj='CASH'; why='signals mixed — no clear edge'; }
   const projTag = proj==='SVXY'?'<span class="sig-proj-pos sig-svxy">SVXY · short vol</span>'
                 : proj==='UVXY'?'<span class="sig-proj-pos sig-uvxy">UVXY · long vol</span>'
@@ -1585,7 +1585,7 @@ function renderSignalMonitor(){
   const off = (L&&L.official&&L.official.position)?L.official.position.replace('LONG_VOL_SELLER','SVXY').replace('LONG_VOL','UVXY'):null;
   const projHtml = `Projected close position: ${projTag} <span class="sig-proj-note">— ${why}. Firms up on the 15:45&nbsp;ET close`
     + (off?(`; last official: <b>${off}</b>`):``) + `.</span>`
-    + `<div class="sig-proj-tally">Signal tally: <span class="vt-sv">${sv} short-vol</span> &middot; <span class="vt-uv">${uv} long-vol</span> &middot; <span class="vt-neu">${neu} neutral</span>`
+    + `<div class="sig-proj-tally">Signal tally: <span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span>`
     + (spike?(` &middot; <span class="vt-uv">SPIKE override</span>`):(crush?(` &middot; <span class="vt-sv">CRUSH override</span>`):``)) + `</div>`;
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=projHtml;
 
@@ -1593,9 +1593,9 @@ function renderSignalMonitor(){
   const rowHtml=(r,cls='')=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +`<td>${r[4]}</td><td>${tag(r[5])}</td></tr>`;
-  const divider='<tr class="sig-divider"><td colspan="6">Override &middot; evaluated separately — a fired event forces the position</td></tr>';
+  const divider='<tr class="sig-divider"><td colspan="6">Evaluated separately - any non-cash signal acts as an override</td></tr>';
   const body='<tbody>'+rows.map(r=>rowHtml(r)).join('')
-    +divider+overrideRows.map(r=>rowHtml(r,'sig-override')).join('')+'</tbody>';
+    +divider+overrideRows.map(r=>rowHtml(r)).join('')+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;
   window._sigMonReady=true;
 }

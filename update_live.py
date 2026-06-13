@@ -152,7 +152,7 @@ def main() -> None:
     # Live spot / ETF quotes (Yahoo intraday).
     quotes = {sym.lower().lstrip("^"): yahoo_quote(sym)
               for sym in ["^VIX", "SVXY", "UVXY", "SVIX", "UVIX",
-                          "TQQQ", "SQQQ", "SPY", "^GSPC"]}
+                          "TQQQ", "SQQQ", "SPY", "^GSPC", "^MOVE"]}
 
     # Live VIX spot overrides the EOD VIX1M for the freshest front-end reading.
     vix_spot = quotes["vix"]["price"]
