@@ -325,7 +325,7 @@ tr:hover td { background: #1f1a10 }
 .live-pos-val { font-weight: 700; font-size: 1.2rem; letter-spacing: 0.01em; display: inline-flex; align-items: baseline; gap: 8px; }
 .live-pos-val .live-chg { font-size: 0.82rem; }
 .live-vdiv { width: 1px; align-self: stretch; background: var(--border2, #555); }
-.live-quotes { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-width: 0; }
+.live-quotes { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-width: 0; flex: 1; }
 .live-row { display: flex; align-items: baseline; gap: 13px; flex-wrap: wrap; }
 .live-badge { display: inline-flex; align-items: baseline; gap: 6px;
   color: var(--pink, #ff2a6d); font-weight: 700; letter-spacing: 0.12em; }
@@ -418,12 +418,6 @@ table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #
 
 <!-- ══ LIVE MARKET STRIP ═══════════════════════════════════════════════════ -->
 <div id="live-strip" title="Live market readings. The strategy evaluates once daily on confirmed closes at 15:45 ET — intraday values are indicative only.">
-  <span class="live-item live-status" style="gap:10px">
-    <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
-    <span class="live-lbl" id="lv-feed-note">quotes ~15&nbsp;min delayed</span>
-    <span class="live-lbl">Last refresh:</span>
-    <span class="live-val" id="lv-updated">—</span>
-  </span>
   <div class="live-main">
     <div class="live-pos-block">
       <span class="live-pos-lbl">Current Position</span>
@@ -437,6 +431,12 @@ table.sig-mon tr.sig-override td.sig-name { border-left:2px solid var(--amber, #
         <span class="live-item"><span class="live-lbl">VIX3M</span><span class="live-val" id="lv-vix3m">—</span><span class="live-chg" id="lv-vix3m-c"></span></span>
         <span class="live-item"><span class="live-lbl">VIX1Y</span><span class="live-val" id="lv-vix1y">—</span><span class="live-chg" id="lv-vix1y-c"></span></span>
         <span class="live-item"><span class="live-lbl">VVIX</span><span class="live-val" id="lv-vvix">—</span><span class="live-chg" id="lv-vvix-c"></span></span>
+        <span class="live-item live-status" style="margin-left:auto;gap:10px">
+          <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
+          <span class="live-lbl" id="lv-feed-note">quotes ~15&nbsp;min delayed</span>
+          <span class="live-lbl">Last refresh:</span>
+          <span class="live-val" id="lv-updated">—</span>
+        </span>
       </div>
       <div class="live-row">
         <span class="live-item"><span class="live-lbl">SVXY</span><span class="live-val" id="lv-svxy">—</span><span class="live-chg" id="lv-svxy-c"></span></span>
@@ -1321,12 +1321,16 @@ async function loadLive(){
     // ── Feed freshness: live vs paused ──────────────────────────────────
     const gen = L.generated_utc ? new Date(L.generated_utc) : null;
     const ageMin = gen ? (Date.now()-gen.getTime())/60000 : null;
-    const stale = ageMin!=null && ageMin>20;
-    strip.classList.toggle('stale', stale);
+    const _t = _etNow(); const _dec = _t.sod/3600; const _wk = _t.wd!=='Sat'&&_t.wd!=='Sun';
+    const regular = _wk && _dec>=9.5 && _dec<16;
+    const fresh = ageMin!=null && ageMin<=20;
+    const live = regular && fresh;
+    strip.classList.toggle('stale', !live);
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note');
-    if(feed) feed.textContent = stale ? 'PAUSED' : 'LIVE';
-    if(note) note.textContent = stale ? 'no new data since last close'
-                                      : 'updating live · quotes ~15 min delayed';
+    if(feed) feed.textContent = live ? 'LIVE' : (regular ? 'DELAYED' : 'PAUSED');
+    if(note) note.textContent = live ? 'updating live · quotes ~15 min delayed'
+                                     : (regular ? 'awaiting next refresh · quotes ~15 min delayed'
+                                                : 'market closed · last close shown');
     document.getElementById('lv-updated').textContent =
         toEtClock(L.generated_utc)+' ET';
 
