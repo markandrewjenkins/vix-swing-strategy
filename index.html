@@ -1706,12 +1706,12 @@ function renderSignalMonitor(){
   const inPos=!!offPos && offPos!=='CASH';
   const openpnl=(L&&L.official&&L.official.open_pnl!=null)?L.official.open_pnl:null;
   const dimc=t=>`<span style="color:var(--dim)">${t}</span>`;
-  const pnlCur = (inPos&&openpnl!=null) ? pct(openpnl,1) : dimc('Flat');
+  const pnlCur = (inPos&&openpnl!=null) ? pct(openpnl,1) : dimc('N/A');
   const exitRules=[
     ['Take Profit','Position reached its profit target — locks in the gain.', pnlCur],
     ['Stop Loss','Position hit its maximum loss — caps the downside.', pnlCur],
     ['Trailing Stop','Gave back too much from the running peak — trails the high.', pnlCur],
-    ['Time Stop','Held the maximum number of days — closes on elapsed time.', inPos?dimc('In position'):dimc('Flat')],
+    ['Time Stop','Held the maximum number of days — closes on elapsed time.', inPos?dimc('In position'):dimc('N/A')],
     ['Negative Vol Carry','Roll yield turned unfavourable (backwardation) — carry no longer pays.', pct(contango,1)],
   ];
   const exitDivider='<tr class="sig-divider"><td colspan="6">Exit rules - any one closes the open position</td></tr>';
