@@ -689,18 +689,32 @@ function altCloseMaps(){
     _altMapRef=ALT_SVIX; }
   return [_altSvMap, _altUvMap];
 }
-// Illustrative SVIX/UVIX equity curve: compound each trade's recomputed SVIX/UVIX
-// return (full size) from the same start capital, skipping pre-2022 trades.
+// Illustrative full-history SVIX/UVIX equity curve. Uses the real SVIX/UVIX
+// return per trade where the ETFs existed (2022+), and for earlier trades scales
+// the SVXY/UVXY trade return by the leverage ratio (SVIX ~-1x vs SVXY ~-0.5x;
+// UVIX ~2x vs UVXY ~1.5x) calibrated from the 2022+ overlap. Compounds full size
+// from the same start capital across ALL trades.
 let _altTradeMap=null, _altTradeRef=null;
 function altTrades(){
   if(_altTradeRef===ALT_SVIX && _altTradeMap) return _altTradeMap;
   const [svM,uvM]=altCloseMaps(); const start=(DATA&&DATA.meta)?DATA.meta.start_capital:100000;
-  const m=new Map(); let eq=start;
-  (DATA?DATA.trades:[]).forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const map=sv?svM:uvM;
+  const trades=DATA?DATA.trades:[];
+  // calibrate leverage factor from trades where we have BOTH real alt and SVXY returns
+  const svR=[], uvR=[];
+  trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const map=sv?svM:uvM;
     const e=map[t.entry_date], x=map[t.exit_date];
-    if(e==null||x==null) return;
-    const pct=x/e-1, dollar=eq*pct; eq+=dollar;
-    m.set(t,{pct, dollar, cumP:eq/start-1, cumD:eq-start});
+    if(e!=null && x!=null && t.pnl_pct!=null && Math.abs(t.pnl_pct)>0.005){
+      const r=(x/e-1)/t.pnl_pct; if(isFinite(r)&&r>0&&r<6)(sv?svR:uvR).push(r);
+    }});
+  const med=a=>{ if(!a.length) return null; const s=[...a].sort((p,q)=>p-q); return s[Math.floor(s.length/2)]; };
+  const svF=med(svR)||2.0, uvF=med(uvR)||1.33;
+  const m=new Map(); let eq=start;
+  trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const map=sv?svM:uvM;
+    const e=map[t.entry_date], x=map[t.exit_date];
+    let pct = (e!=null && x!=null) ? (x/e-1) : (t.pnl_pct||0)*(sv?svF:uvF);  // real, else scaled proxy
+    pct = Math.max(pct, -0.95);                                             // guard against ruin
+    const dollar=eq*pct; eq+=dollar;
+    m.set(t,{pct, dollar, cumP:eq/start-1, cumD:eq-start, sim:(e==null||x==null)});
   });
   _altTradeMap=m; _altTradeRef=ALT_SVIX; return m;
 }
