@@ -681,6 +681,14 @@ const FONT="'Saira', sans-serif";
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
 let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null;
+let OHLCBYTIME={}, _altSvMap=null, _altUvMap=null, _altMapRef=null;
+function rebuildChartMaps(){ OHLCBYTIME={}; (CANDLES||[]).forEach(c=>{OHLCBYTIME[c.time]=c;}); }
+function altCloseMaps(){
+  if(_altMapRef!==ALT_SVIX || !_altSvMap){ _altSvMap={}; _altUvMap={};
+    (ALT_SVIX||[]).forEach(a=>{_altSvMap[a[0]]=a[4];}); (ALT_UVIX||[]).forEach(a=>{_altUvMap[a[0]]=a[4];});
+    _altMapRef=ALT_SVIX; }
+  return [_altSvMap, _altUvMap];
+}
 
 // ── Formatters ────────────────────────────────────────────────────────────
 const abbrev  = v => { if(v==null||isNaN(v))return 'N/A'; const a=Math.abs(v);
@@ -1371,7 +1379,7 @@ async function loadLive(){
           const ln=arr[arr.length-1], lo=(OHLC&&OHLC.length)?OHLC[OHLC.length-1]:null;
           const changed=!lo||arr.length!==OHLC.length||ln[0]!==lo[0]||ln[4]!==lo[4];
           if(changed){
-            OHLC=arr; CANDLES=displayCandles(); updateHdrMeta();
+            OHLC=arr; CANDLES=displayCandles(); rebuildChartMaps(); updateHdrMeta();
             const vr=sumMain.timeScale().getVisibleLogicalRange();
             candleSeries.setData(CANDLES);
             if(MARKERS) candleSeries.setMarkers(MARKERS);
@@ -1448,7 +1456,7 @@ function applyChartMode(){
   if(r) r.classList.toggle('active', CHART_MODE==='real');
   if(a) a.classList.toggle('active', CHART_MODE==='alt');
   if(!candleSeries||!sumMain) return;
-  CANDLES=displayCandles(); MARKERS=displayMarkers();
+  CANDLES=displayCandles(); MARKERS=displayMarkers(); rebuildChartMaps();
   candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS);
   if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
   summaryToEnd();
@@ -1513,7 +1521,7 @@ function renderSummary(){
   const _alignBand=()=>{ try{ const w=sumMain.priceScale('right').width(); if(w) sumPos.priceScale('right').applyOptions({minimumWidth:w}); }catch(_){} };
   _alignBand(); setTimeout(_alignBand,80); setTimeout(_alignBand,300);
 
-  const _ohlcByTime={}; CANDLES.forEach(c=>{_ohlcByTime[c.time]=c;});
+  rebuildChartMaps();
 
   // K/M/B with a forced single decimal (1.0M, never 1M)
   const abbr1=v=>{const a=Math.abs(v); if(a>=1e9)return (v/1e9).toFixed(1)+'B'; if(a>=1e6)return (v/1e6).toFixed(1)+'M'; if(a>=1e3)return (v/1e3).toFixed(1)+'K'; return Math.round(v).toLocaleString('en-US');};
@@ -1526,19 +1534,33 @@ function renderSummary(){
 
   // Shared detail readout — fed by hovering EITHER the candle chart or the position band
   function renderInfo(time, sd){
-    sd = sd || (time?_ohlcByTime[time]:null);
+    sd = sd || (time?OHLCBYTIME[time]:null);
     if(!time || !sd){ info.innerHTML='Hover the chart for details'; return; }
-    const d=time, pos=posByDate[d]||'CASH', pn=posNameOf(pos);
-    const pcls=pn==='SVXY'?'sig-svxy':pn==='UVXY'?'sig-uvxy':'sig-neu';
+    const alt = CHART_MODE==='alt';
+    const d=time, pos=posByDate[d]||'CASH', pnReal=posNameOf(pos);
+    const pn = alt ? (pnReal==='SVXY'?'SVIX':pnReal==='UVXY'?'UVIX':pnReal) : pnReal;
+    const pcls=pnReal==='SVXY'?'sig-svxy':pnReal==='UVXY'?'sig-uvxy':'sig-neu';
     let html=`<b>${d}</b> &nbsp; O ${sd.open.toFixed(2)} &middot; H ${sd.high.toFixed(2)} &middot; L ${sd.low.toFixed(2)} &middot; C ${sd.close.toFixed(2)}`
             +` &nbsp;|&nbsp; Position: <b class="${pcls}">${pn}</b>`;
     const evs=evByDate[d];
-    if(evs) evs.forEach(e=>{ const t=e.t;
-      if(e.kind==='ENTER'){ html+=` &nbsp;|&nbsp; <b>Enter ${e.sv?'SVXY':'UVXY'}</b> @ $${t.entry_price.toFixed(2)}`; }
-      else{ const cumD=t.equity_after-startCap, cumP=t.equity_after/startCap-1;
-        html+=` &nbsp;|&nbsp; <b>Exit ${e.sv?'SVXY':'UVXY'}</b> (${reasonText(t.exit_reason)}) &mdash; Trade: <span class="${t.pnl_pct>=0?'pos':'neg'}">${fmtPct(t.pnl_pct,1)} / ${money(t.pnl_dollar)}</span>`
-              +` &nbsp; Cumulative: <span class="${cumD>=0?'pos':'neg'}">${fmtPct(cumP,1)} / ${money(cumD)}</span>`; }
-    });
+    if(evs){
+      const [svM, uvM] = alt ? altCloseMaps() : [null, null];
+      evs.forEach(e=>{ const t=e.t;
+        const inm = alt ? (e.sv?'SVIX':'UVIX') : (e.sv?'SVXY':'UVXY');
+        if(e.kind==='ENTER'){
+          const ep = alt ? (e.sv?svM:uvM)[t.entry_date] : t.entry_price;
+          if(ep!=null) html+=` &nbsp;|&nbsp; <b>Enter ${inm}</b> @ $${ep.toFixed(2)}`;
+        } else if(alt){
+          const m=e.sv?svM:uvM, ep=m[t.entry_date], xp=m[t.exit_date];
+          if(ep!=null && xp!=null){ const pct=xp/ep-1;
+            html+=` &nbsp;|&nbsp; <b>Exit ${inm}</b> (${reasonText(t.exit_reason)}) &mdash; Trade: <span class="${pct>=0?'pos':'neg'}">${fmtPct(pct,1)}</span>`; }
+        } else {
+          const cumD=t.equity_after-startCap, cumP=t.equity_after/startCap-1;
+          html+=` &nbsp;|&nbsp; <b>Exit ${inm}</b> (${reasonText(t.exit_reason)}) &mdash; Trade: <span class="${t.pnl_pct>=0?'pos':'neg'}">${fmtPct(t.pnl_pct,1)} / ${money(t.pnl_dollar)}</span>`
+                +` &nbsp; Cumulative: <span class="${cumD>=0?'pos':'neg'}">${fmtPct(cumP,1)} / ${money(cumD)}</span>`;
+        }
+      });
+    }
     info.innerHTML=html;
   }
 
@@ -1548,9 +1570,9 @@ function renderSummary(){
   });
   // Hovering the position band: drive the candle crosshair AND the same readout
   sumPos.subscribeCrosshairMove(param=>{
-    if(param && param.time && _ohlcByTime[param.time]){
-      sumMain.setCrosshairPosition(_ohlcByTime[param.time].close, param.time, candleSeries);
-      renderInfo(param.time, _ohlcByTime[param.time]);
+    if(param && param.time && OHLCBYTIME[param.time]){
+      sumMain.setCrosshairPosition(OHLCBYTIME[param.time].close, param.time, candleSeries);
+      renderInfo(param.time, OHLCBYTIME[param.time]);
     } else { sumMain.clearCrosshairPosition(); renderInfo(null); }
   });
 
