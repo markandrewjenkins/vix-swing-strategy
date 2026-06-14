@@ -689,6 +689,21 @@ function altCloseMaps(){
     _altMapRef=ALT_SVIX; }
   return [_altSvMap, _altUvMap];
 }
+// Illustrative SVIX/UVIX equity curve: compound each trade's recomputed SVIX/UVIX
+// return (full size) from the same start capital, skipping pre-2022 trades.
+let _altTradeMap=null, _altTradeRef=null;
+function altTrades(){
+  if(_altTradeRef===ALT_SVIX && _altTradeMap) return _altTradeMap;
+  const [svM,uvM]=altCloseMaps(); const start=(DATA&&DATA.meta)?DATA.meta.start_capital:100000;
+  const m=new Map(); let eq=start;
+  (DATA?DATA.trades:[]).forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const map=sv?svM:uvM;
+    const e=map[t.entry_date], x=map[t.exit_date];
+    if(e==null||x==null) return;
+    const pct=x/e-1, dollar=eq*pct; eq+=dollar;
+    m.set(t,{pct, dollar, cumP:eq/start-1, cumD:eq-start});
+  });
+  _altTradeMap=m; _altTradeRef=ALT_SVIX; return m;
+}
 
 // ── Formatters ────────────────────────────────────────────────────────────
 const abbrev  = v => { if(v==null||isNaN(v))return 'N/A'; const a=Math.abs(v);
@@ -1551,9 +1566,10 @@ function renderSummary(){
           const ep = alt ? (e.sv?svM:uvM)[t.entry_date] : t.entry_price;
           if(ep!=null) html+=` &nbsp;|&nbsp; <b>Enter ${inm}</b> @ $${ep.toFixed(2)}`;
         } else if(alt){
-          const m=e.sv?svM:uvM, ep=m[t.entry_date], xp=m[t.exit_date];
-          if(ep!=null && xp!=null){ const pct=xp/ep-1;
-            html+=` &nbsp;|&nbsp; <b>Exit ${inm}</b> (${reasonText(t.exit_reason)}) &mdash; Trade: <span class="${pct>=0?'pos':'neg'}">${fmtPct(pct,1)}</span>`; }
+          const at=altTrades().get(t);
+          if(at){
+            html+=` &nbsp;|&nbsp; <b>Exit ${inm}</b> (${reasonText(t.exit_reason)}) &mdash; Trade: <span class="${at.pct>=0?'pos':'neg'}">${fmtPct(at.pct,1)} / ${money(at.dollar)}</span>`
+                 +` &nbsp; Cumulative: <span class="${at.cumD>=0?'pos':'neg'}">${fmtPct(at.cumP,1)} / ${money(at.cumD)}</span>`; }
         } else {
           const cumD=t.equity_after-startCap, cumP=t.equity_after/startCap-1;
           html+=` &nbsp;|&nbsp; <b>Exit ${inm}</b> (${reasonText(t.exit_reason)}) &mdash; Trade: <span class="${t.pnl_pct>=0?'pos':'neg'}">${fmtPct(t.pnl_pct,1)} / ${money(t.pnl_dollar)}</span>`
