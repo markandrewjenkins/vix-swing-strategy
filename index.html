@@ -689,33 +689,36 @@ function altCloseMaps(){
     _altMapRef=ALT_SVIX; }
   return [_altSvMap, _altUvMap];
 }
-// Illustrative full-history SVIX/UVIX equity curve. Uses the real SVIX/UVIX
-// return per trade where the ETFs existed (2022+), and for earlier trades scales
-// the SVXY/UVXY trade return by the leverage ratio (SVIX ~-1x vs SVXY ~-0.5x;
-// UVIX ~2x vs UVXY ~1.5x) calibrated from the 2022+ overlap. Compounds full size
-// from the same start capital across ALL trades.
+// Leverage factor SVIX/SVXY and UVIX/UVXY, calibrated as the median ratio of the
+// real ETF trade return to the SVXY/UVXY trade return over the 2022+ overlap.
+// (Using close-to-close on the stored trade dates is unreliable — the backtest
+// fills on the next bar, so during fast reversals it can flip sign; scaling the
+// real pnl keeps the alt outcome consistent in direction and magnitude.)
+let _altLev=null, _altLevRef=null;
+function altLeverage(){
+  if(_altLevRef===ALT_SVIX && _altLev) return _altLev;
+  const [svM,uvM]=altCloseMaps(); const svR=[], uvR=[];
+  (DATA?DATA.trades:[]).forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const map=sv?svM:uvM;
+    const e=map[t.entry_date], x=map[t.exit_date];
+    if(e!=null && x!=null && t.pnl_pct!=null && Math.abs(t.pnl_pct)>0.02){
+      const r=(x/e-1)/t.pnl_pct; if(isFinite(r)&&r>0.2&&r<6)(sv?svR:uvR).push(r);
+    }});
+  const med=a=>{ if(!a.length) return null; const s=[...a].sort((p,q)=>p-q); return s[Math.floor(s.length/2)]; };
+  _altLev={svF:med(svR)||2.0, uvF:med(uvR)||1.33}; _altLevRef=ALT_SVIX; return _altLev;
+}
+function altTradePct(t){
+  const {svF,uvF}=altLeverage();
+  return Math.max((t.pnl_pct||0)*(t.type==='LONG_VOL_SELLER'?svF:uvF), -0.95);
+}
+// Illustrative full-history SVIX/UVIX equity curve: compound each trade's
+// leverage-scaled return (full size) from the same start capital across ALL trades.
 let _altTradeMap=null, _altTradeRef=null;
 function altTrades(){
   if(_altTradeRef===ALT_SVIX && _altTradeMap) return _altTradeMap;
-  const [svM,uvM]=altCloseMaps(); const start=(DATA&&DATA.meta)?DATA.meta.start_capital:100000;
-  const trades=DATA?DATA.trades:[];
-  // calibrate leverage factor from trades where we have BOTH real alt and SVXY returns
-  const svR=[], uvR=[];
-  trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const map=sv?svM:uvM;
-    const e=map[t.entry_date], x=map[t.exit_date];
-    if(e!=null && x!=null && t.pnl_pct!=null && Math.abs(t.pnl_pct)>0.005){
-      const r=(x/e-1)/t.pnl_pct; if(isFinite(r)&&r>0&&r<6)(sv?svR:uvR).push(r);
-    }});
-  const med=a=>{ if(!a.length) return null; const s=[...a].sort((p,q)=>p-q); return s[Math.floor(s.length/2)]; };
-  const svF=med(svR)||2.0, uvF=med(uvR)||1.33;
+  const start=(DATA&&DATA.meta)?DATA.meta.start_capital:100000;
   const m=new Map(); let eq=start;
-  trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const map=sv?svM:uvM;
-    const e=map[t.entry_date], x=map[t.exit_date];
-    let pct = (e!=null && x!=null) ? (x/e-1) : (t.pnl_pct||0)*(sv?svF:uvF);  // real, else scaled proxy
-    pct = Math.max(pct, -0.95);                                             // guard against ruin
-    const dollar=eq*pct; eq+=dollar;
-    m.set(t,{pct, dollar, cumP:eq/start-1, cumD:eq-start, sim:(e==null||x==null)});
-  });
+  (DATA?DATA.trades:[]).forEach(t=>{ const pct=altTradePct(t); const dollar=eq*pct; eq+=dollar;
+    m.set(t,{pct, dollar, cumP:eq/start-1, cumD:eq-start}); });
   _altTradeMap=m; _altTradeRef=ALT_SVIX; return m;
 }
 
@@ -1469,8 +1472,8 @@ function displayMarkers(){
   DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     if(alt){
       const map=sv?svC:uvC; const e=map[t.entry_date], x=map[t.exit_date];
-      if(e==null||x==null) return;            // no real SVIX/UVIX data for this trade (pre-2022)
-      const pct=x/e-1; const nm=sv?'SVIX':'UVIX'; const win=pct>=0;
+      if(e==null||x==null) return;            // no real SVIX/UVIX candle for this trade (pre-2022)
+      const pct=altTradePct(t); const nm=sv?'SVIX':'UVIX'; const win=pct>=0;  // leverage-scaled real return
       markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+nm});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(pct*100).toFixed(1)+'%'});
     } else {
@@ -1485,10 +1488,18 @@ function applyChartMode(){
   if(r) r.classList.toggle('active', CHART_MODE==='real');
   if(a) a.classList.toggle('active', CHART_MODE==='alt');
   if(!candleSeries||!sumMain) return;
+  // Preserve the current view (by date) so toggling doesn't jump the chart
+  let keep=null; try{ keep=sumMain.timeScale().getVisibleRange(); }catch(_){}
   CANDLES=displayCandles(); MARKERS=displayMarkers(); rebuildChartMaps();
   candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS);
   if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
-  summaryToEnd();
+  const first=CANDLES.length?CANDLES[0].time:null;
+  if(keep && first && keep.to >= first){
+    // clamp the start to the new series' first date (alt has less history)
+    const from = (keep.from < first) ? first : keep.from;
+    try{ sumMain.timeScale().setVisibleRange({from, to:keep.to}); }
+    catch(_){ summaryToEnd(); }
+  } else { summaryToEnd(); }   // viewed window predates alt data → show latest
 }
 function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
 function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-44),to:N+2}); }catch(_){} }
