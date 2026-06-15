@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated": "2026-06-14T20:53:38.683648",
+    "generated": "2026-06-14T22:56:47.406106",
     "start_capital": 100000.0,
     "start_date": "2011-12-01",
     "end_date": "2026-06-12",
@@ -17,28 +17,28 @@
     "max_dd_duration": 396,
     "final_equity": 79151131.96,
     "spy_return": 4.934475,
-    "total_trades": 170,
-    "win_rate": 0.5824,
-    "profit_factor": 4.3471,
+    "total_trades": 132,
+    "win_rate": 0.75,
+    "profit_factor": 2.0205,
     "avg_win": 0.097671,
-    "avg_loss": -0.022468,
+    "avg_loss": -0.04834,
     "largest_win": 0.449541,
     "largest_loss": -0.17119,
-    "avg_hold_days": 21.5,
+    "avg_hold_days": 27.5,
     "max_hold_days": 86,
-    "svxy_trades": 134,
-    "uvxy_trades": 36,
-    "svxy_win_rate": 0.6642,
-    "uvxy_win_rate": 0.2778,
-    "svxy_avg_return": 0.052372,
-    "uvxy_avg_return": 0.029343,
+    "svxy_trades": 116,
+    "uvxy_trades": 16,
+    "svxy_win_rate": 0.7672,
+    "uvxy_win_rate": 0.625,
+    "svxy_avg_return": 0.060499,
+    "uvxy_avg_return": 0.066021,
     "svxy_total_pnl": 69464042.78,
     "uvxy_total_pnl": 9587089.22,
     "cash_days": 3500,
     "cash_pct": 0.4772,
-    "max_consec_wins": 8,
-    "max_consec_losses": 7,
-    "expected_payoff": 465006.66
+    "max_consec_wins": 13,
+    "max_consec_losses": 4,
+    "expected_payoff": 598872.21
   },
   "equity_curve": [
     {
@@ -73556,19 +73556,6 @@
     },
     {
       "type": "LONG_VOL_SELLER",
-      "entry_date": "2013-06-21",
-      "exit_date": "2013-06-24",
-      "entry_price": 37.84,
-      "exit_price": 37.84,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 382914.96,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
       "entry_date": "2013-06-27",
       "exit_date": "2013-08-05",
       "entry_price": 38.46,
@@ -73595,19 +73582,6 @@
     },
     {
       "type": "LONG_VOL_SELLER",
-      "entry_date": "2014-01-27",
-      "exit_date": "2014-01-28",
-      "entry_price": 62.8,
-      "exit_price": 62.8,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 597890.32,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
       "entry_date": "2014-04-15",
       "exit_date": "2014-05-16",
       "entry_price": 58.73,
@@ -73631,19 +73605,6 @@
       "exit_reason": "TIMESTOP",
       "equity_after": 721145.53,
       "bars_in_trade": 41
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2014-10-15",
-      "exit_date": "2014-10-16",
-      "entry_price": 308437504.0,
-      "exit_price": 308437504.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 721145.53,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -73711,58 +73672,6 @@
       "bars_in_trade": 71
     },
     {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2015-07-07",
-      "exit_date": "2015-07-08",
-      "entry_price": 77.7,
-      "exit_price": 77.7,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 900115.36,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2015-08-21",
-      "exit_date": "2015-08-24",
-      "entry_price": 43250000.0,
-      "exit_price": 43250000.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "TP",
-      "equity_after": 900115.36,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2015-08-24",
-      "exit_date": "2015-08-25",
-      "entry_price": 85462496.0,
-      "exit_price": 85462496.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 900115.36,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2015-08-25",
-      "exit_date": "2015-08-26",
-      "entry_price": 54000000.0,
-      "exit_price": 54000000.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "TP",
-      "equity_after": 900115.36,
-      "bars_in_trade": 1
-    },
-    {
       "type": "LONG_VOL",
       "entry_date": "2015-08-26",
       "exit_date": "2015-08-31",
@@ -73774,32 +73683,6 @@
       "exit_reason": "TP",
       "equity_after": 940485.57,
       "bars_in_trade": 5
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2015-09-17",
-      "exit_date": "2015-09-18",
-      "entry_price": 57.53,
-      "exit_price": 57.53,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 940485.57,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2015-09-22",
-      "exit_date": "2015-09-23",
-      "entry_price": 51.15,
-      "exit_price": 51.15,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 940485.57,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -73839,19 +73722,6 @@
       "exit_reason": "TIMESTOP",
       "equity_after": 955917.5,
       "bars_in_trade": 41
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2015-12-14",
-      "exit_date": "2015-12-15",
-      "entry_price": 45.22,
-      "exit_price": 45.22,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 955917.5,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -74050,19 +73920,6 @@
     },
     {
       "type": "LONG_VOL",
-      "entry_date": "2018-02-06",
-      "exit_date": "2018-02-07",
-      "entry_price": 366875.0,
-      "exit_price": 366875.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 4726178.33,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
       "entry_date": "2018-02-07",
       "exit_date": "2018-02-08",
       "entry_price": 234375.0,
@@ -74141,19 +73998,6 @@
     },
     {
       "type": "LONG_VOL_SELLER",
-      "entry_date": "2018-04-04",
-      "exit_date": "2018-04-05",
-      "entry_price": 21.9,
-      "exit_price": 21.9,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 5912342.08,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
       "entry_date": "2018-04-25",
       "exit_date": "2018-06-05",
       "entry_price": 23.92,
@@ -74219,32 +74063,6 @@
     },
     {
       "type": "LONG_VOL_SELLER",
-      "entry_date": "2018-10-23",
-      "exit_date": "2018-10-24",
-      "entry_price": 24.315,
-      "exit_price": 24.315,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 6851974.28,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2018-10-24",
-      "exit_date": "2018-10-25",
-      "entry_price": 139600.0,
-      "exit_price": 139600.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "TP",
-      "equity_after": 6851974.28,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
       "entry_date": "2018-10-26",
       "exit_date": "2018-10-31",
       "entry_price": 23.475,
@@ -74283,45 +74101,6 @@
       "bars_in_trade": 4
     },
     {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2018-11-29",
-      "exit_date": "2018-11-30",
-      "entry_price": 24.755,
-      "exit_price": 24.755,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 7354799.15,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2018-12-06",
-      "exit_date": "2018-12-07",
-      "entry_price": 23.07,
-      "exit_price": 23.07,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 7354799.15,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2018-12-10",
-      "exit_date": "2018-12-11",
-      "entry_price": 22.95,
-      "exit_price": 22.95,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 7354799.15,
-      "bars_in_trade": 1
-    },
-    {
       "type": "LONG_VOL",
       "entry_date": "2018-12-20",
       "exit_date": "2018-12-21",
@@ -74344,19 +74123,6 @@
       "pnl_dollar": 302878.7,
       "days": 1,
       "exit_reason": "MOVE_LO",
-      "equity_after": 7777806.05,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2018-12-26",
-      "exit_date": "2018-12-27",
-      "entry_price": 219150.0,
-      "exit_price": 219150.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
       "equity_after": 7777806.05,
       "bars_in_trade": 1
     },
@@ -74401,32 +74167,6 @@
     },
     {
       "type": "LONG_VOL_SELLER",
-      "entry_date": "2019-05-09",
-      "exit_date": "2019-05-10",
-      "entry_price": 24.57,
-      "exit_price": 24.57,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 8311480.98,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2019-05-15",
-      "exit_date": "2019-05-16",
-      "entry_price": 24.65,
-      "exit_price": 24.65,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 8311480.98,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
       "entry_date": "2019-05-24",
       "exit_date": "2019-05-28",
       "entry_price": 25.97,
@@ -74437,45 +74177,6 @@
       "exit_reason": "RATIO",
       "equity_after": 8309881.04,
       "bars_in_trade": 2
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2019-08-02",
-      "exit_date": "2019-08-05",
-      "entry_price": 26.995,
-      "exit_price": 26.995,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 8309881.04,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2019-08-07",
-      "exit_date": "2019-08-08",
-      "entry_price": 24.75,
-      "exit_price": 24.75,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 8309881.04,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2019-08-15",
-      "exit_date": "2019-08-16",
-      "entry_price": 24.37,
-      "exit_price": 24.37,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 8309881.04,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -74557,19 +74258,6 @@
     },
     {
       "type": "LONG_VOL",
-      "entry_date": "2020-02-28",
-      "exit_date": "2020-03-02",
-      "entry_price": 63550.0,
-      "exit_price": 63550.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 9476554.59,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
       "entry_date": "2020-03-02",
       "exit_date": "2020-03-04",
       "entry_price": 55475.0,
@@ -74596,32 +74284,6 @@
     },
     {
       "type": "LONG_VOL",
-      "entry_date": "2020-03-06",
-      "exit_date": "2020-03-09",
-      "entry_price": 91700.0,
-      "exit_price": 91700.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 9850498.43,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2020-03-09",
-      "exit_date": "2020-03-10",
-      "entry_price": 130100.0,
-      "exit_price": 130100.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 9850498.43,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
       "entry_date": "2020-03-10",
       "exit_date": "2020-03-12",
       "entry_price": 97300.0,
@@ -74645,19 +74307,6 @@
       "exit_reason": "SL",
       "equity_after": 10112567.78,
       "bars_in_trade": 2
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2020-03-24",
-      "exit_date": "2020-03-25",
-      "entry_price": 126475.0,
-      "exit_price": 126475.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "TP",
-      "equity_after": 10112567.78,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -74736,19 +74385,6 @@
       "exit_reason": "NEG_VOL",
       "equity_after": 14045822.87,
       "bars_in_trade": 16
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2020-11-04",
-      "exit_date": "2020-11-05",
-      "entry_price": 45000.0,
-      "exit_price": 45000.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 14045822.87,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -75025,19 +74661,6 @@
     },
     {
       "type": "LONG_VOL",
-      "entry_date": "2022-09-30",
-      "exit_date": "2022-10-03",
-      "entry_price": 3150.0,
-      "exit_price": 3150.0,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 20298986.88,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
       "entry_date": "2022-10-06",
       "exit_date": "2022-10-10",
       "entry_price": 2837.5,
@@ -75207,19 +74830,6 @@
     },
     {
       "type": "LONG_VOL_SELLER",
-      "entry_date": "2024-04-25",
-      "exit_date": "2024-04-26",
-      "entry_price": 53.27,
-      "exit_price": 53.27,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 43531619.07,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL_SELLER",
       "entry_date": "2024-06-03",
       "exit_date": "2024-07-02",
       "entry_price": 59.88,
@@ -75230,19 +74840,6 @@
       "exit_reason": "TIMESTOP",
       "equity_after": 45378148.53,
       "bars_in_trade": 41
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2024-08-05",
-      "exit_date": "2024-08-06",
-      "entry_price": 324.95,
-      "exit_price": 324.95,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 45378148.53,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -75269,19 +74866,6 @@
       "exit_reason": "TIMESTOP",
       "equity_after": 45628792.12,
       "bars_in_trade": 41
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2024-12-18",
-      "exit_date": "2024-12-19",
-      "entry_price": 100.15,
-      "exit_price": 100.15,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "TP",
-      "equity_after": 45628792.12,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -75334,71 +74918,6 @@
       "exit_reason": "TP",
       "equity_after": 58195689.4,
       "bars_in_trade": 3
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2025-04-07",
-      "exit_date": "2025-04-08",
-      "entry_price": 228.5,
-      "exit_price": 228.5,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 58195689.4,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2025-04-08",
-      "exit_date": "2025-04-09",
-      "entry_price": 172.35,
-      "exit_price": 172.35,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "TP",
-      "equity_after": 58195689.4,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2025-04-09",
-      "exit_date": "2025-04-10",
-      "entry_price": 251.5,
-      "exit_price": 251.5,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 58195689.4,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2025-04-10",
-      "exit_date": "2025-04-11",
-      "entry_price": 182.45,
-      "exit_price": 182.45,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "TP",
-      "equity_after": 58195689.4,
-      "bars_in_trade": 1
-    },
-    {
-      "type": "LONG_VOL",
-      "entry_date": "2025-04-11",
-      "exit_date": "2025-04-14",
-      "entry_price": 218.4,
-      "exit_price": 218.4,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "SL",
-      "equity_after": 58195689.4,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -75503,19 +75022,6 @@
       "exit_reason": "NEG_VOL",
       "equity_after": 80010858.38,
       "bars_in_trade": 67
-    },
-    {
-      "type": "LONG_VOL_SELLER",
-      "entry_date": "2026-01-20",
-      "exit_date": "2026-01-21",
-      "entry_price": 53.04,
-      "exit_price": 53.04,
-      "pnl_pct": 0.0,
-      "pnl_dollar": 0.0,
-      "days": 1,
-      "exit_reason": "RATIO",
-      "equity_after": 80010858.38,
-      "bars_in_trade": 1
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -76318,11 +75824,11 @@
   "exit_counts": {
     "NEG_VOL": 41,
     "TIMESTOP": 31,
-    "TP": 19,
-    "RATIO": 54,
+    "TP": 12,
+    "RATIO": 35,
     "TRAIL": 6,
-    "SL": 16,
-    "MOVE_LO": 3
+    "MOVE_LO": 3,
+    "SL": 4
   },
   "roi_histogram": {
     "32": 2,
@@ -76336,7 +75842,7 @@
     "26": 2,
     "6": 7,
     "8": 9,
-    "0": 50,
+    "0": 12,
     "42": 1,
     "16": 4,
     "-18": 1,
