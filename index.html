@@ -341,6 +341,9 @@ tr:hover td { background: #1f1a10 }
 .live-chg { font-size: 0.62rem; font-weight: 700; color: var(--dim, #909090); }
 .live-chg.up { color: var(--teal, #00e5a0); } .live-chg.down { color: var(--coral, #ff4560); }
 .live-status { display: inline-flex; align-items: baseline; align-self: flex-end; }
+/* compact instrument toggle that tucks under Last Refresh without growing the strip */
+.instr-mini { align-self: center; }
+.instr-mini .cdl-seg { font-size: 0.58rem; padding: 1px 7px; }
 @keyframes livepulse { 0%,100% { opacity: 1 } 50% { opacity: 0.25 } }
 #live-strip.stale .live-dot { background: var(--gray, #666); box-shadow: none; animation: none; }
 .live-item { display: inline-flex; align-items: baseline; gap: 6px; }
@@ -461,6 +464,10 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <span class="live-item"><span class="live-lbl">TQQQ</span><span class="live-val" id="lv-tqqq">—</span><span class="live-chg" id="lv-tqqq-c"></span></span>
         <span class="live-item"><span class="live-lbl">SQQQ</span><span class="live-val" id="lv-sqqq">—</span><span class="live-chg" id="lv-sqqq-c"></span></span>
         <span class="live-item"><span class="live-lbl">SPX</span><span class="live-val" id="lv-spx">—</span><span class="live-chg" id="lv-spx-c"></span></span>
+        <span class="cdl-toggle-group instr-mini" style="margin-left:auto" title="Switch the whole dashboard between SVXY/UVXY and SVIX/UVIX">
+          <button id="instr-real2" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
+          <button id="instr-alt2" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
+        </span>
       </div>
     </div>
   </div>
@@ -819,9 +826,8 @@ function switchTab(n){
 function setInstr(m){
   if(m===CHART_MODE) return;
   CHART_MODE=m;
-  const r=document.getElementById('instr-real'), a=document.getElementById('instr-alt');
-  if(r) r.classList.toggle('active', m==='real');
-  if(a) a.classList.toggle('active', m==='alt');
+  ['instr-real','instr-real2'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.toggle('active',m==='real');});
+  ['instr-alt','instr-alt2'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.toggle('active',m==='alt');});
   const note=document.getElementById('alt-note'); if(note) note.style.display = m==='alt'?'':'none';
   if(typeof applyChartMode==='function') applyChartMode();   // live chart
   rerenderActive();                                          // P&L Summary / Trades / Monthly / labels
