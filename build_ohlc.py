@@ -58,7 +58,8 @@ def main():
     # SVXY back to 2011; SVIX/UVIX are newer ETFs (Volatility Shares, 2022+)
     for sym, fname, start in [("SVXY", "svxy_ohlc.json", "2011-10-01"),
                               ("SVIX", "svix_ohlc.json", "2022-01-01"),
-                              ("UVIX", "uvix_ohlc.json", "2022-01-01")]:
+                              ("UVIX", "uvix_ohlc.json", "2022-01-01"),
+                              ("TQQQ", "tqqq_ohlc.json", "2011-10-01")]:
         try:
             rows = fetch_ohlc(sym, start)
         except Exception as e:

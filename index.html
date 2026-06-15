@@ -642,7 +642,7 @@ const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
-let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null;
+let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null, TQQQ_OHLC=null;
 let OHLCBYTIME={}, _altSvMap=null, _altUvMap=null, _altMapRef=null;
 function rebuildChartMaps(){ OHLCBYTIME={}; (CANDLES||[]).forEach(c=>{OHLCBYTIME[c.time]=c;}); }
 function altCloseMaps(){
@@ -706,6 +706,7 @@ async function load(){
     try{ const ro=await fetch('svxy_ohlc.json?v='+Date.now()); if(ro.ok) OHLC=await ro.json(); }catch(_){}
     try{ const r2=await fetch('svix_ohlc.json?v='+Date.now()); if(r2.ok) ALT_SVIX=await r2.json(); }catch(_){}
     try{ const r3=await fetch('uvix_ohlc.json?v='+Date.now()); if(r3.ok) ALT_UVIX=await r3.json(); }catch(_){}
+    try{ const r4=await fetch('tqqq_ohlc.json?v='+Date.now()); if(r4.ok) TQQQ_OHLC=await r4.json(); }catch(_){}
     document.getElementById('loading').style.display='none';
     document.getElementById('main-content').style.display='flex';
     computeAltSim();
@@ -873,10 +874,8 @@ function renderAnalytics(){
     `<div class="kpi"><div class="kpi-label">${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.sub}</div></div>`
   ).join('');
 
-  // Build position state
-  const posMap=buildPositionState();
-
-  // Equity chart with position background
+  // Equity curve vs benchmarks (SPY & TQQQ buy-and-hold) + drawdown
+  const sc=DATA.meta.start_capital;
   const ec=aEq();
   const step=Math.max(1,Math.floor(ec.length/200));
   const eq=ec.filter((_,i)=>i%step===0);
@@ -886,36 +885,30 @@ function renderAnalytics(){
   const ddVals=eq.map(b=>+b.drawdown.toFixed(2));
   const spyMap={};spy.forEach(b=>{if(b.equity)spyMap[b.date]=+(b.equity/1000).toFixed(2);});
   const spyVals=labels.map(d=>spyMap[d]??null);
-  // Position background: all values = 1, colored by state
-  const posColors=labels.map(d=>{
-    const st=posMap[d]||'CASH';
-    if(st==='SVXY')return 'rgba(0,255,179,0.11)';
-    if(st==='UVXY')return 'rgba(255,62,92,0.13)';
-    return 'rgba(0,0,0,0)';
-  });
+  // TQQQ buy-and-hold, normalised to the same start capital
+  const tMap={}; (TQQQ_OHLC||[]).forEach(r=>{tMap[r[0]]=r[4];});
+  let tBase=null; for(const d of labels){ if(tMap[d]!=null){tBase=tMap[d];break;} }
+  const tqqqVals=labels.map(d=> (tBase&&tMap[d]!=null)? +((sc*tMap[d]/tBase)/1000).toFixed(2):null);
 
   document.getElementById('eq-legend').innerHTML=legHtml([
-    [YELLOW,'Strategy'],[GRAY,'SPY'],[TEAL,svN()+' period'],[CORAL,uvN()+' period'],[CORAL,'Drawdown'],
+    [YELLOW,'Strategy'],[GRAY,'SPY (B&H)'],[CYAN,'TQQQ (B&H)'],[CORAL,'Drawdown'],
   ]);
 
   mkChart('eqChart',{
     data:{labels,datasets:[
-      {type:'bar',label:'Position bg',data:eqVals.map(()=>1),backgroundColor:posColors,
-       yAxisID:'y3',barPercentage:1,categoryPercentage:1,order:100,borderWidth:0},
-      {type:'line',label:'Strategy ($k)',data:eqVals,borderColor:YELLOW,borderWidth:2.5,pointRadius:0,yAxisID:'y',tension:0.2,fill:false,order:1},
-      ...(spyVals.some(v=>v)?[{type:'line',label:'SPY ($k)',data:spyVals,borderColor:GRAY,borderWidth:1.5,pointRadius:0,yAxisID:'y',tension:0.2,borderDash:[5,3],fill:false,order:2}]:[]),
-      {type:'bar',label:'Drawdown',data:ddVals,backgroundColor:'rgba(255,62,92,0.22)',borderWidth:0,yAxisID:'y2',barPercentage:1,categoryPercentage:1,order:99},
+      {type:'line',label:'Strategy',data:eqVals,borderColor:YELLOW,borderWidth:2.5,pointRadius:0,yAxisID:'y',tension:0.2,fill:false},
+      ...(spyVals.some(v=>v)?[{type:'line',label:'SPY',data:spyVals,borderColor:GRAY,borderWidth:1.5,pointRadius:0,yAxisID:'y',tension:0.2,borderDash:[5,3],fill:false}]:[]),
+      ...(tqqqVals.some(v=>v)?[{type:'line',label:'TQQQ',data:tqqqVals,borderColor:CYAN,borderWidth:1.5,pointRadius:0,yAxisID:'y',tension:0.2,borderDash:[2,3],fill:false}]:[]),
+      {type:'bar',label:'Drawdown',data:ddVals,backgroundColor:'rgba(255,62,92,0.22)',borderWidth:0,yAxisID:'y2',barPercentage:1,categoryPercentage:1},
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{
-        filter:i=>i.datasetIndex!==0,  // hide position bg from tooltip
-        callbacks:{label:c=>c.datasetIndex===3?' DD: '+c.parsed.y.toFixed(1)+'%':' $'+abbrev(c.parsed.y*1000)}
+        callbacks:{label:c=>c.dataset.label==='Drawdown'?' DD: '+c.parsed.y.toFixed(1)+'%':' '+c.dataset.label+': $'+abbrev(c.parsed.y*1000)}
       }},
       scales:{
         x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:13,family:FONT}},grid:{color:GRID}},
         y:{position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+abbrev(v*1000)},grid:{color:GRID}},
         y2:{position:'right',reverse:true,min:-90,max:5,ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>Math.round(v)+'%'},grid:{display:false}},
-        y3:{display:false,min:0,max:1},
       }
     }
   });
