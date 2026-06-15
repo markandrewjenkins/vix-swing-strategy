@@ -182,12 +182,12 @@ def main() -> None:
             "vdelta": round(vdelta, 4) if vdelta is not None else None,
             "regime": regime,
         },
-        # Strategy's last OFFICIAL state (daily, evaluated on confirmed closes
-        # at 15:45 ET — intraday readings above are indicative only).
+        # Strategy's last OFFICIAL state (signals finalize ~7pm ET each day;
+        # trades execute the next market open — intraday readings are indicative).
         "official": last_official(),
         "note": ("Term structure is CBOE end-of-day; VIX spot & ETF quotes are "
-                 "Yahoo intraday (~15-min delayed). The strategy evaluates once "
-                 "daily on confirmed closes at 15:45 ET — no intraday repaint."),
+                 "Yahoo intraday (~15-min delayed). Signals finalize ~7pm ET each "
+                 "day; trades execute the next market open — no intraday repaint."),
     }
 
     with open("live_status.json", "w", encoding="utf-8") as fh:

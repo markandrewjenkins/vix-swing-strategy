@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-06-13T16:09:35+00:00",
+  "generated_utc": "2026-06-15T00:54:12+00:00",
   "market": {
     "vix_spot": 17.68,
     "vix1m_used": 17.68,
@@ -93,11 +93,11 @@
     "regime": "contango"
   },
   "official": {
-    "date": "2026-06-10",
-    "position": "CASH",
-    "signal": "CASH",
+    "date": "2026-06-12",
+    "position": "LONG_VOL_SELLER",
+    "signal": "LONG_SVXY",
     "open_pnl": 0.0,
-    "equity": 17759411.11
+    "equity": 79151131.96
   },
-  "note": "Term structure is CBOE end-of-day; VIX spot & ETF quotes are Yahoo intraday (~15-min delayed). The strategy evaluates once daily on confirmed closes at 15:45 ET \u2014 no intraday repaint."
+  "note": "Term structure is CBOE end-of-day; VIX spot & ETF quotes are Yahoo intraday (~15-min delayed). Signals finalize ~7pm ET each day; trades execute the next market open \u2014 no intraday repaint."
 }

@@ -52,7 +52,8 @@ Create a free account at https://cron-job.org, then **Create cronjob**:
   - `Content-Type: application/json`
 - **Schedule:** every **5 minutes**, **Mon–Fri**, **13:30–20:05 UTC**
   (= 9:30am–4:05pm ET; cron-job.org lets you set a time window + weekdays).
-  This window includes the strategy's ~15:45 ET decision point.
+  This just keeps the displayed quotes fresh — the official signal itself
+  finalizes after the close (~7pm ET) and is traded the next market open.
 
 A correct dispatch returns **HTTP 204** (no content) — cron-job.org will show
 the job as successful. You'll then see `chore: refresh live data [skip ci]`

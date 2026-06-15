@@ -31,8 +31,9 @@ those stay in the private project.
 - **VIX spot + SVXY/UVXY/SPY quotes:** Yahoo intraday (~15 min delayed).
 - **VIX9D / VIX3M / VIX6M / VIX1Y term structure:** CBOE **end-of-day** CSVs
   (no free intraday feed), so the curve updates after the close.
-- **The strategy's official position:** evaluated once daily on confirmed closes
-  at **15:45 ET** (no intraday repaint). The live strip's derived readings are
+- **The strategy's official position:** signals finalize **~7pm ET** each day
+  (once the daily term-structure data is in), and trades **execute the next
+  market open** — no intraday repaint. The live strip's derived readings are
   labelled indicative.
 - **GitHub cron is best-effort** — runs are routinely delayed 5–15 min. The page
   also self-polls `live_status.json` every 60 s while open, so an open tab stays
