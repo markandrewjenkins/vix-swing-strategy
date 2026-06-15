@@ -410,19 +410,23 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
 <div class="topbar">
 <div class="hdr">
-  <div>
-    <div class="hdr-title">VIX SWING STRATEGY</div>
-    <div class="hdr-meta" id="hdr-meta">Loading...</div>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div>
+      <div class="hdr-title">VIX SWING STRATEGY</div>
+      <div class="hdr-meta" id="hdr-meta">Loading...</div>
+    </div>
+    <span class="cdl-toggle-group" title="Switch the whole dashboard between the SVXY/UVXY pair and the SVIX/UVIX pair">
+      <button id="instr-real" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
+      <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
+    </span>
   </div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('summary')">Live Chart w/ Signals</button>
-    <button class="tab" onclick="switchTab('analytics')">Analytics</button>
-    <button class="tab" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" onclick="switchTab('analytics')">P&amp;L Summary</button>
     <button class="tab" onclick="switchTab('trades')">Trades</button>
     <button class="tab" onclick="switchTab('monthly')">Monthly</button>
     <button class="tab" onclick="switchTab('conditions')">Conditions</button>
     <button class="tab" onclick="switchTab('vix')">VIX Monitor</button>
-    <button class="tab" onclick="switchTab('alt')">SVIX · UVIX</button>
   </div>
 </div>
 
@@ -482,10 +486,15 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
 <div id="main-content" class="body">
 
-  <!-- ══ ANALYTICS TAB ══════════════════════════════════════════════ -->
+  <!-- Shown only when the global toggle is on SVIX/UVIX -->
+  <div id="alt-note" class="note-box" style="display:none">
+    <strong>SVIX / UVIX — simulated.</strong> The real ETFs only launched in 2022, so for the full history each trade's return is the SVXY/UVXY result scaled by the leverage ratio (SVIX ≈ −1× VIX vs SVXY ≈ −0.5×; UVIX ≈ 2× vs UVXY ≈ 1.5×), calibrated from the 2022+ overlap. Entries, exits and cash periods are identical to the live strategy. Figures are illustrative and ignore the path-dependence of leveraged ETFs.
+  </div>
+
+  <!-- ══ P&L SUMMARY TAB ══════════════════════════════════════════════ -->
   <div id="tab-summary">
     <div class="panel">
-      <div class="ph"><span>Live Chart</span><span class="cdl-toggle-group"><button id="mode-real" class="cdl-seg active" onclick="setChartMode('real')">SVXY / UVXY</button><button id="mode-alt" class="cdl-seg" onclick="setChartMode('alt')">SVIX / UVIX</button></span></div>
+      <div class="ph"><span>Live Chart</span></div>
       <div class="pb">
         <div id="mkt-row">
           <span class="mkt-block"><span id="mkt-dot"></span><span id="mkt-label">Market closed</span><span id="mkt-countdown"></span></span>
@@ -504,7 +513,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           <span><span class="cdl-sw" style="background:var(--teal)"></span> Profit exit</span>
           <span><span class="cdl-sw" style="background:var(--coral)"></span> Loss exit</span>
         </div>
-        <div class="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span></div>
+        <div class="pos-band-label" id="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span></div>
         <div id="pos-band" style="width:100%;height:30px"></div>
       </div>
     </div>
@@ -557,15 +566,8 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div class="pb" style="position:relative;height:190px"><canvas id="runupChart"></canvas></div>
       </div>
     </div>
-  </div>
 
-  <!-- ══ OVERVIEW TAB ═══════════════════════════════════════════════ -->
-  <div id="tab-overview" style="display:none">
-    <div class="mc-grid" id="metric-cards"></div>
-    <div class="panel" style="margin-top:12px">
-      <div class="ph"><span>Equity curve</span><div id="eq-leg2" style="display:flex;gap:12px"></div></div>
-      <div class="pb" style="position:relative;height:280px"><canvas id="eqChart2"></canvas></div>
-    </div>
+    <!-- merged from Overview: per-signal performance / distribution / exit reasons -->
     <div class="row" style="margin-top:0">
       <div class="panel" style="flex:1 1 300px"><div class="ph"><span>Per-signal performance</span></div><div class="pb" id="sig-perf"></div></div>
       <div class="panel" style="flex:1 1 220px"><div class="ph"><span>Signal distribution</span></div><div class="pb" style="position:relative;height:210px"><canvas id="sigDistChart"></canvas></div></div>
@@ -581,8 +583,8 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div style="display:flex;gap:8px;align-items:center">
           <label style="font-size:0.7rem;color:var(--dim)">Filter:</label>
           <select id="tfilter" onchange="renderTrades()" style="font-size:0.8rem;background:var(--panel2);color:var(--text);border:1px solid var(--border2);border-radius:3px;padding:4px 10px;font-family:'Saira', sans-serif">
-            <option value="ALL">All</option><option value="SVXY">SVXY</option>
-            <option value="UVXY">UVXY</option><option value="WIN">Wins</option><option value="LOSS">Losses</option>
+            <option value="ALL">All</option><option value="SV">SVXY</option>
+            <option value="UV">UVXY</option><option value="WIN">Wins</option><option value="LOSS">Losses</option>
           </select>
         </div>
       </div>
@@ -628,46 +630,6 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     </div>
   </div>
 
-  <!-- ══ SVIX / UVIX TAB ════════════════════════════════════════════ -->
-  <div id="tab-alt" style="display:none">
-    <div class="note-box" style="margin-bottom:12px">
-      <strong>Simulation methodology:</strong> For each SVXY trade, SVIX is simulated at 2× the SVXY daily return (SVIX targets ~-1× VIX vs SVXY's ~-0.5×). For each UVXY trade, UVIX is simulated at 1.33× the UVXY return (UVIX targets ~2× VIX vs UVXY's ~1.5×). Entries, exits, and cash periods are identical to the original strategy.
-    </div>
-    <div class="kpi-grid" id="alt-kpi-strip"></div>
-    <div class="panel" style="margin-top:12px">
-      <div class="ph">
-        <span>SVIX/UVIX simulated equity vs SVXY/UVXY &amp; SPY</span>
-        <div id="alt-eq-legend" style="display:flex;gap:14px"></div>
-      </div>
-      <div class="pb" style="position:relative;height:320px"><canvas id="altEqChart"></canvas></div>
-    </div>
-    <div class="row" style="margin-top:0">
-      <div class="panel" style="flex:1 1 320px"><div class="ph"><span>Side-by-side comparison</span></div><div class="pb" id="alt-comparison"></div></div>
-      <div class="panel" style="flex:1 1 280px"><div class="ph"><span>ROI distribution — simulated</span></div><div class="pb" style="position:relative;height:230px"><canvas id="altRoiChart"></canvas></div></div>
-      <div class="panel" style="flex:1 1 210px">
-        <div class="ph"><span>Trade outcomes</span></div>
-        <div class="pb">
-          <div style="position:relative;height:150px;margin-bottom:12px"><canvas id="altDistChart"></canvas></div>
-          <div id="alt-dist-legend" style="display:flex;flex-direction:column;gap:6px"></div>
-        </div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="ph">
-        <span>Simulated SVIX/UVIX trade log</span>
-        <select id="alt-tfilter" onchange="renderAltTrades()" style="font-size:0.8rem;background:var(--panel2);color:var(--text);border:1px solid var(--border2);border-radius:3px;padding:4px 10px;font-family:'Saira', sans-serif">
-          <option value="ALL">All</option><option value="SVIX">SVIX</option>
-          <option value="UVIX">UVIX</option><option value="WIN">Wins</option><option value="LOSS">Losses</option>
-        </select>
-      </div>
-      <div style="overflow-x:auto">
-        <table><thead><tr>
-          <th>#</th><th>Type</th><th>Entry</th><th>Exit</th><th>Days</th>
-          <th>Orig return</th><th>Sim return</th><th>Sim P&amp;L $</th><th>Equity after</th>
-        </tr></thead><tbody id="alt-trade-tbody"></tbody></table>
-      </div>
-    </div>
-  </div>
 
 </div><!-- /main-content -->
 
@@ -755,48 +717,81 @@ async function load(){
   }
 }
 
-// ── SVIX / UVIX simulation ────────────────────────────────────────────────
+// ── SVIX / UVIX simulation (full mirror of DATA.summary so every P&L surface
+//    can switch to the alt instruments via the global toggle) ──────────────
 function computeAltSim(){
-  const SM=2.0, UM=1.333;
-  let eq=DATA.meta.start_capital;
-  const trades=[];
+  const start=DATA.meta.start_capital;
+  const {svF,uvF}=altLeverage();                 // calibrated SVIX/SVXY, UVIX/UVXY factors
+  const isSV=t=>t.type==='LONG_VOL_SELLER';
+  // ── per-trade scaled returns + equity ──
+  let eq=start; const trades=[];
   for(const t of DATA.trades){
-    const m=t.type==='SVXY'?SM:UM;
-    const sr=Math.max(-0.999,t.pnl_pct*m);
-    const pd=eq*sr; eq+=pd;
-    trades.push({...t,alt_type:t.type==='SVXY'?'SVIX':'UVIX',sim_return:sr,sim_pnl:pd,equity_after:eq});
+    const m=isSV(t)?svF:uvF;
+    const r=Math.max(-0.95,(t.pnl_pct||0)*m);
+    const pd=eq*r; eq+=pd;
+    trades.push({...t, ret:r, pnl:pd, equity_after:eq});
   }
   ALT_TRADES=trades;
-  // Build alt equity curve
-  const origEq=DATA.equity_curve;
-  let altEq=DATA.meta.start_capital;
-  const eMap={},xMap={};
+  // ── alt equity curve (scale each bar's in-trade move, mark drawdown) ──
+  let altEq=start; const eMap={},xMap={};
   ALT_TRADES.forEach(t=>{eMap[t.entry_date]=t;xMap[t.exit_date]=t;});
-  let inAlt=null,entryO=null,entryA=null;
-  const altCurve=[];
-  for(const b of origEq){
+  let inAlt=null,entryO=null,entryA=null; const curve=[];
+  for(const b of (DATA.equity_curve||[])){
     if(eMap[b.date]){inAlt=eMap[b.date];entryO=b.equity;entryA=altEq;}
-    if(inAlt&&entryO>0){const or=(b.equity-entryO)/entryO;const m=inAlt.type==='SVXY'?SM:UM;altEq=entryA*(1+Math.max(-0.999,or*m));}
+    if(inAlt&&entryO>0){const or=(b.equity-entryO)/entryO;const m=isSV(inAlt)?svF:uvF;altEq=entryA*(1+Math.max(-0.95,or*m));}
     if(xMap[b.date]){altEq=xMap[b.date].equity_after;inAlt=null;}
-    altCurve.push({date:b.date,equity:altEq});
+    curve.push({date:b.date,equity:altEq});
   }
-  let pk=DATA.meta.start_capital;
-  for(const b of altCurve){if(b.equity>pk)pk=b.equity;b.drawdown=pk>0?(b.equity-pk)/pk*100:0;}
-  ALT_EQ=altCurve;
-  const nW=ALT_TRADES.filter(t=>t.sim_return>0).length;
-  const nL=ALT_TRADES.filter(t=>t.sim_return<=0).length;
-  const gP=ALT_TRADES.filter(t=>t.sim_return>0).reduce((s,t)=>s+t.sim_pnl,0);
-  const gL=Math.abs(ALT_TRADES.filter(t=>t.sim_return<=0).reduce((s,t)=>s+t.sim_pnl,0));
-  const fe=ALT_TRADES.length?ALT_TRADES[ALT_TRADES.length-1].equity_after:DATA.meta.start_capital;
+  let pk=start; for(const b of curve){if(b.equity>pk)pk=b.equity;b.drawdown=pk>0?(b.equity-pk)/pk*100:0;}
+  ALT_EQ=curve;
+  // ── daily returns → Sharpe / Sortino ──
+  const dr=[]; for(let i=1;i<curve.length;i++){const p=curve[i-1].equity;if(p>0)dr.push(curve[i].equity/p-1);}
+  const mean=dr.length?dr.reduce((a,b)=>a+b,0)/dr.length:0;
+  const sd=dr.length?Math.sqrt(dr.reduce((a,b)=>a+(b-mean)**2,0)/dr.length):0;
+  const dn=dr.filter(x=>x<0); const dsd=dn.length?Math.sqrt(dn.reduce((a,b)=>a+b*b,0)/dn.length):0;
+  const sharpe=sd>0?mean/sd*Math.sqrt(252):0, sortino=dsd>0?mean/dsd*Math.sqrt(252):0;
+  // ── trade aggregates ──
+  const wins=trades.filter(t=>t.ret>0.001), losses=trades.filter(t=>t.ret<-0.001);
+  const gP=wins.reduce((s,t)=>s+t.pnl,0), gL=Math.abs(losses.reduce((s,t)=>s+t.pnl,0));
+  const fe=trades.length?trades[trades.length-1].equity_after:start;
   const yrs=(new Date(DATA.meta.end_date)-new Date(DATA.meta.start_date))/(365.25*86400000);
-  const cagr=Math.pow(fe/DATA.meta.start_capital,1/yrs)-1;
-  const mdd=Math.min(...ALT_EQ.map(b=>b.drawdown))/100;
-  ALT_STATS={total_return:(fe-DATA.meta.start_capital)/DATA.meta.start_capital,final_equity:fe,cagr,
-    max_drawdown:mdd,win_rate:nW/ALT_TRADES.length,profit_factor:gL>0?gP/gL:0,
-    avg_win:nW>0?ALT_TRADES.filter(t=>t.sim_return>0).reduce((s,t)=>s+t.sim_return,0)/nW:0,
-    avg_loss:nL>0?ALT_TRADES.filter(t=>t.sim_return<=0).reduce((s,t)=>s+t.sim_return,0)/nL:0,
-    n_wins:nW,n_loss:nL,gross_profit:gP,gross_loss:-gL};
+  const cagr=Math.pow(fe/start,1/(yrs||1))-1, mdd=curve.length?Math.min(...curve.map(b=>b.drawdown))/100:0;
+  let cw=0,cl=0,mcw=0,mcl=0;
+  for(const t of trades){ if(t.ret>0){cw++;cl=0;mcw=Math.max(mcw,cw);} else {cl++;cw=0;mcl=Math.max(mcl,cl);} }
+  const sv=trades.filter(isSV), uv=trades.filter(t=>!isSV(t));
+  const agg=(arr,key)=>arr.length?arr.reduce((s,t)=>s+t[key],0)/arr.length:0;
+  const D=DATA.summary;
+  ALT_STATS={
+    total_return:(fe-start)/start, final_equity:fe, cagr, max_drawdown:mdd,
+    win_rate:trades.length?wins.length/trades.length:0, profit_factor:gL>0?gP/gL:0,
+    sharpe, sortino, calmar:mdd<0?cagr/Math.abs(mdd):0,
+    expected_payoff:trades.length?trades.reduce((s,t)=>s+t.pnl,0)/trades.length:0,
+    spy_return:D.spy_return, total_trades:trades.length,
+    avg_win:agg(wins,'ret'), avg_loss:agg(losses,'ret'),
+    largest_win:trades.length?Math.max(...trades.map(t=>t.ret)):0,
+    largest_loss:trades.length?Math.min(...trades.map(t=>t.ret)):0,
+    max_consec_wins:mcw, max_consec_losses:mcl,
+    avg_hold_days:D.avg_hold_days, max_hold_days:D.max_hold_days,
+    cash_pct:D.cash_pct, cash_days:D.cash_days,
+    svxy_trades:sv.length, uvxy_trades:uv.length,
+    svxy_win_rate:sv.length?sv.filter(t=>t.ret>0).length/sv.length:0,
+    uvxy_win_rate:uv.length?uv.filter(t=>t.ret>0).length/uv.length:0,
+    svxy_avg_return:agg(sv,'ret'), uvxy_avg_return:agg(uv,'ret'),
+    svxy_total_pnl:sv.reduce((s,t)=>s+t.pnl,0), uvxy_total_pnl:uv.reduce((s,t)=>s+t.pnl,0),
+    gross_profit:gP, gross_loss:-gL,
+  };
 }
+// ── Active-instrument accessors (driven by the global toggle / CHART_MODE) ──
+function aMode(){ return CHART_MODE==='alt'; }
+function aStats(){ return aMode()&&ALT_STATS?ALT_STATS:DATA.summary; }
+function aTrades(){ return aMode()&&ALT_TRADES?ALT_TRADES:DATA.trades; }
+function aEq(){ return aMode()&&ALT_EQ?ALT_EQ:DATA.equity_curve; }
+function svN(){ return aMode()?'SVIX':'SVXY'; }
+function uvN(){ return aMode()?'UVIX':'UVXY'; }
+function tIsSV(t){ return t.type==='LONG_VOL_SELLER'; }
+function tInstr(t){ return tIsSV(t)?svN():uvN(); }
+function tRet(t){ return aMode()? t.ret : t.pnl_pct; }
+function tPnl(t){ return aMode()? t.pnl : t.pnl_dollar; }
 
 // ── Position state map ────────────────────────────────────────────────────
 function buildPositionState(){
@@ -804,24 +799,35 @@ function buildPositionState(){
   DATA.equity_curve.forEach(b=>m[b.date]='CASH');
   DATA.trades.forEach(t=>{
     const en=new Date(t.entry_date),ex=new Date(t.exit_date);
-    DATA.equity_curve.forEach(b=>{const d=new Date(b.date);if(d>=en&&d<=ex)m[b.date]=t.type;});
+    const lbl=t.type==='LONG_VOL_SELLER'?'SVXY':'UVXY';
+    DATA.equity_curve.forEach(b=>{const d=new Date(b.date);if(d>=en&&d<=ex)m[b.date]=lbl;});
   });
   return m;
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
-const TABS=['summary','analytics','overview','trades','monthly','conditions','vix','alt'];
+const TABS=['summary','analytics','trades','monthly','conditions','vix'];
 function switchTab(n){
-  TABS.forEach(t=>{document.getElementById('tab-'+t).style.display=t===n?'':'none';});
+  TABS.forEach(t=>{const el=document.getElementById('tab-'+t); if(el) el.style.display=t===n?'':'none';});
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABS[i]===n));
   if(n==='monthly'&&!window._m){renderMonthly();window._m=true;}
   if(n==='conditions'&&!window._c){renderConditions();window._c=true;}
   if(n==='vix'&&!window._v){renderVIX();window._v=true;}
-  if(n==='alt'&&!window._a){renderAlt();window._a=true;}
+}
+// Global instrument toggle — switches the whole dashboard SVXY/UVXY <-> SVIX/UVIX
+function setInstr(m){
+  if(m===CHART_MODE) return;
+  CHART_MODE=m;
+  const r=document.getElementById('instr-real'), a=document.getElementById('instr-alt');
+  if(r) r.classList.toggle('active', m==='real');
+  if(a) a.classList.toggle('active', m==='alt');
+  const note=document.getElementById('alt-note'); if(note) note.style.display = m==='alt'?'':'none';
+  if(typeof applyChartMode==='function') applyChartMode();   // live chart
+  rerenderActive();                                          // P&L Summary / Trades / Monthly / labels
 }
 
 // ── Chart helpers ─────────────────────────────────────────────────────────
-function mkChart(id,cfg){const c=document.getElementById(id);if(!c)return null;return new Chart(c.getContext('2d'),cfg);}
+function mkChart(id,cfg){const c=document.getElementById(id);if(!c)return null;const ex=Chart.getChart(c);if(ex)ex.destroy();return new Chart(c.getContext('2d'),cfg);}
 function legHtml(items){return items.map(([c,l])=>`<span class="leg-item"><span class="leg-swatch" style="background:${c}"></span>${l}</span>`).join('');}
 
 // ── Main render ───────────────────────────────────────────────────────────
@@ -834,20 +840,29 @@ function updateHdrMeta(){
 }
 function render(){
   updateHdrMeta();
-  renderAnalytics();renderMetrics();buildEqOverview();
+  renderAnalytics();
   renderSigPerf();renderSigDist();renderExitReasons();renderTrades();
   renderSummary();
+}
+// Re-render all instrument-dependent surfaces when the global toggle flips
+function rerenderActive(){
+  renderAnalytics();renderSigPerf();renderSigDist();renderExitReasons();renderTrades();
+  if(window._m){renderMonthly();}
+  const pl=document.getElementById('pos-band-label');
+  if(pl) pl.innerHTML='POSITION &nbsp;<span style="color:var(--teal)">&#9646; '+svN()+'</span> &nbsp;<span style="color:var(--coral)">&#9646; '+uvN()+'</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span>';
+  const tf=document.getElementById('tfilter');
+  if(tf){ tf.options[1].text=svN(); tf.options[2].text=uvN(); }
 }
 
 // ══ ANALYTICS ══════════════════════════════════════════════════════════════
 function renderAnalytics(){
-  const s=DATA.summary;
+  const s=aStats();
 
   // KPI strip
   const kpis=[
     {l:'Total P&L',    v:fmtK(s.final_equity-DATA.meta.start_capital), sub:fmtPct(s.total_return,2)+' total return', c:s.total_return>=0?'pos':'neg'},
     {l:'Max drawdown', v:fmtPct(s.max_drawdown,1), sub:'Peak-to-trough', c:'neg'},
-    {l:'Win rate',     v:(s.win_rate*100).toFixed(1)+'%', sub:DATA.trades.filter(t=>t.pnl_pct>0).length+' wins / '+s.total_trades+' trades', c:s.win_rate>=0.5?'pos':'neg'},
+    {l:'Win rate',     v:(s.win_rate*100).toFixed(1)+'%', sub:aTrades().filter(t=>tRet(t)>0).length+' wins / '+s.total_trades+' trades', c:s.win_rate>=0.5?'pos':'neg'},
     {l:'Profit factor',v:parseFloat(s.profit_factor).toFixed(2)+'×', sub:'Gross wins ÷ gross losses', c:s.profit_factor>=1.5?'pos':s.profit_factor>=1?'neu':'neg'},
     {l:'CAGR',         v:fmtPct(s.cagr,2), sub:'Annualised compound return', c:s.cagr>=0?'pos':'neg'},
     {l:'Sharpe ratio', v:fmtNum(s.sharpe,2), sub:'Annualised risk-adjusted', c:s.sharpe>=1?'pos':s.sharpe>=0?'neu':'neg'},
@@ -862,7 +877,7 @@ function renderAnalytics(){
   const posMap=buildPositionState();
 
   // Equity chart with position background
-  const ec=DATA.equity_curve;
+  const ec=aEq();
   const step=Math.max(1,Math.floor(ec.length/200));
   const eq=ec.filter((_,i)=>i%step===0);
   const spy=(DATA.spy_curve||[]).filter((_,i)=>i%step===0);
@@ -880,7 +895,7 @@ function renderAnalytics(){
   });
 
   document.getElementById('eq-legend').innerHTML=legHtml([
-    [YELLOW,'Strategy'],[GRAY,'SPY'],[TEAL,'SVXY period'],[CORAL,'UVXY period'],[CORAL,'Drawdown'],
+    [YELLOW,'Strategy'],[GRAY,'SPY'],[TEAL,svN()+' period'],[CORAL,uvN()+' period'],[CORAL,'Drawdown'],
   ]);
 
   mkChart('eqChart',{
@@ -907,8 +922,8 @@ function renderAnalytics(){
 
 
   // Profit structure
-  const gP=DATA.trades.filter(t=>t.pnl_pct>0).reduce((a,t)=>a+t.pnl_dollar,0);
-  const gL=DATA.trades.filter(t=>t.pnl_pct<=0).reduce((a,t)=>a+t.pnl_dollar,0);
+  const gP=aTrades().filter(t=>tRet(t)>0).reduce((a,t)=>a+tPnl(t),0);
+  const gL=aTrades().filter(t=>tRet(t)<=0).reduce((a,t)=>a+tPnl(t),0);
   const net=s.final_equity-DATA.meta.start_capital;
   mkChart('profitStructChart',{type:'bar',
     data:{labels:['Gross profit','Gross loss','Net P&L'],
@@ -919,8 +934,9 @@ function renderAnalytics(){
         y:{ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+abbrev(v)},grid:{color:GRID}}}}
   });
 
-  // ROI distribution
-  const hist=DATA.roi_histogram;
+  // ROI distribution (computed from the active trades so it tracks the toggle)
+  const hist={};
+  aTrades().forEach(t=>{ const b=Math.max(-50,Math.min(100,Math.round(tRet(t)*100/5)*5)); hist[b]=(hist[b]||0)+1; });
   const bk=Object.keys(hist).map(Number).sort((a,b)=>a-b);
   mkChart('roiDistChart',{type:'bar',
     data:{labels:bk.map(b=>b+'%'),datasets:[{data:bk.map(b=>hist[String(b)]),
@@ -931,9 +947,9 @@ function renderAnalytics(){
   });
 
   // Trade distribution donut
-  const nW=DATA.trades.filter(t=>t.pnl_pct>0).length;
-  const nL=DATA.trades.filter(t=>t.pnl_pct<=0&&t.pnl_pct<-0.001).length;
-  const nB=DATA.trades.filter(t=>Math.abs(t.pnl_pct)<=0.001).length;
+  const nW=aTrades().filter(t=>tRet(t)>0.001).length;
+  const nL=aTrades().filter(t=>tRet(t)<-0.001).length;
+  const nB=aTrades().filter(t=>Math.abs(tRet(t))<=0.001).length;
   mkChart('tradeDistChart',{type:'doughnut',
     data:{labels:['Winners','Losers','Breakeven'],datasets:[{data:[nW,nL,nB],backgroundColor:[TEAL,CORAL,AMBER],borderWidth:0,hoverOffset:4}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
@@ -952,7 +968,7 @@ function renderAnalytics(){
   </div>`).join('');
 
   // Risk metrics
-  const s2=DATA.summary;
+  const s2=aStats();
   const calmarTip="Calmar Ratio = CAGR ÷ |Max Drawdown|\nMeasures return earned per unit of drawdown risk.\nCurrent: "+fmtNum(s2.calmar,2)+" = "+fmtPct(s2.cagr,1)+" CAGR ÷ "+Math.abs((s2.max_drawdown*100).toFixed(1))+"%\nHigher is better. Target: >1.0";
   document.getElementById('risk-metrics').innerHTML=[
     ['Sharpe ratio',fmtNum(s2.sharpe,3),s2.sharpe>=1?'pos':'neg'],
@@ -1035,10 +1051,10 @@ function buildEqOverview(){
   });
 }
 function renderSigPerf(){
-  const s=DATA.summary;
+  const s=aStats();
   const rows=[
-    {l:'SVXY',pill:'pill-svxy',cnt:s.svxy_trades,wr:(s.svxy_win_rate*100).toFixed(0)+'%',avg:fmtPct(s.svxy_avg_return),pnl:fmtK(s.svxy_total_pnl),col:TEAL},
-    {l:'UVXY',pill:'pill-uvxy',cnt:s.uvxy_trades,wr:(s.uvxy_win_rate*100).toFixed(0)+'%',avg:fmtPct(s.uvxy_avg_return),pnl:fmtK(s.uvxy_total_pnl),col:CORAL},
+    {l:svN(),pill:'pill-svxy',cnt:s.svxy_trades,wr:(s.svxy_win_rate*100).toFixed(0)+'%',avg:fmtPct(s.svxy_avg_return),pnl:fmtK(s.svxy_total_pnl),col:TEAL},
+    {l:uvN(),pill:'pill-uvxy',cnt:s.uvxy_trades,wr:(s.uvxy_win_rate*100).toFixed(0)+'%',avg:fmtPct(s.uvxy_avg_return),pnl:fmtK(s.uvxy_total_pnl),col:CORAL},
   ];
   document.getElementById('sig-perf').innerHTML=rows.map(r=>
     `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
@@ -1061,7 +1077,7 @@ function renderSigDist(){
   const uv=(sc['HOLD_UVXY']||0)+(sc['EXIT_UVXY']||0)+(sc['LONG_UVXY']||0);
   const ca=sc['CASH']||0;
   mkChart('sigDistChart',{type:'doughnut',
-    data:{labels:['In SVXY','In UVXY','Cash'],datasets:[{data:[sv,uv,ca],backgroundColor:[TEAL,CORAL,'rgba(131,116,72,.75)'],borderWidth:0,hoverOffset:4}]},
+    data:{labels:['In '+svN(),'In '+uvN(),'Cash'],datasets:[{data:[sv,uv,ca],backgroundColor:[TEAL,CORAL,'rgba(131,116,72,.75)'],borderWidth:0,hoverOffset:4}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' days'}}}}
   });
 }
@@ -1086,29 +1102,37 @@ function renderExitReasons(){
 function renderTrades(){
   if(!DATA)return;
   const filt=document.getElementById('tfilter')?.value||'ALL';
-  let tr=[...DATA.trades].reverse();
-  if(filt==='SVXY')tr=tr.filter(t=>t.type==='SVXY');
-  if(filt==='UVXY')tr=tr.filter(t=>t.type==='UVXY');
-  if(filt==='WIN') tr=tr.filter(t=>t.pnl_pct>0);
-  if(filt==='LOSS')tr=tr.filter(t=>t.pnl_pct<=0);
-  const pill=i=>i==='SVXY'?`<span class="pill pill-svxy">SVXY</span>`:i==='UVXY'?`<span class="pill pill-uvxy">UVXY</span>`:i;
-  document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>`<tr>
+  const alt=aMode();
+  let tr=[...aTrades()].reverse();
+  if(filt==='SV')  tr=tr.filter(t=>tIsSV(t));
+  if(filt==='UV')  tr=tr.filter(t=>!tIsSV(t));
+  if(filt==='WIN') tr=tr.filter(t=>tRet(t)>0);
+  if(filt==='LOSS')tr=tr.filter(t=>tRet(t)<=0);
+  const pill=t=>tIsSV(t)?`<span class="pill pill-svxy">${svN()}</span>`:`<span class="pill pill-uvxy">${uvN()}</span>`;
+  document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>{const r=tRet(t),p=tPnl(t);return `<tr>
     <td style="color:var(--dim)">${tr.length-i}</td>
-    <td>${pill(t.type)}</td>
+    <td>${pill(t)}</td>
     <td>${t.entry_date}</td><td>${t.exit_date}</td>
     <td style="text-align:right">${t.days}d</td>
-    <td style="text-align:right">${fmtPrice(t.entry_price)}</td>
-    <td style="text-align:right">${fmtPrice(t.exit_price)}</td>
-    <td style="text-align:right;color:${t.pnl_pct>0?TEAL:CORAL};font-weight:600">${fmtPct(t.pnl_pct)}</td>
-    <td style="text-align:right;color:${t.pnl_dollar>0?TEAL:CORAL}">${t.pnl_dollar>0?'+':''}${fmtK(Math.abs(t.pnl_dollar)*Math.sign(t.pnl_dollar))}</td>
+    <td style="text-align:right">${alt?'—':fmtPrice(t.entry_price)}</td>
+    <td style="text-align:right">${alt?'—':fmtPrice(t.exit_price)}</td>
+    <td style="text-align:right;color:${r>0?TEAL:CORAL};font-weight:600">${fmtPct(r)}</td>
+    <td style="text-align:right;color:${p>0?TEAL:CORAL}">${p>0?'+':''}${fmtK(Math.abs(p)*Math.sign(p))}</td>
     <td><span class="eb ${ebClass(t.exit_reason)}">${t.exit_reason}</span></td>
     <td style="text-align:right">${fmtK(t.equity_after)}</td>
-  </tr>`).join('');
+  </tr>`}).join('');
 }
 
 // ══ MONTHLY ═══════════════════════════════════════════════════════════════
+function activeMonthly(){
+  if(!aMode()) return DATA.monthly;
+  const eq=aEq(); const byM={}; eq.forEach(b=>{byM[b.date.slice(0,7)]=b.equity;});
+  const months=Object.keys(byM).sort(); const out=[]; let prev=DATA.meta.start_capital;
+  for(const m of months){const e=byM[m]; out.push({month:m, ret:prev>0?e/prev-1:0}); prev=e;}
+  return out;
+}
 function renderMonthly(){
-  const md=DATA.monthly;
+  const md=activeMonthly();
   mkChart('monthlyChart',{type:'bar',
     data:{labels:md.map(d=>d.month.slice(2)),datasets:[{data:md.map(d=>+(d.ret*100).toFixed(2)),
       backgroundColor:md.map(d=>d.ret>=0?'rgba(1,232,176,.6)':'rgba(255,107,107,.6)'),borderWidth:0,borderRadius:3}]},
