@@ -400,6 +400,8 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); font-weight:700; }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
 .sig-svxy { color:var(--teal); } .sig-uvxy { color:var(--coral); } .sig-neu { color:var(--dim); }
+.sig-cash { color:var(--amber); }
+.sig-upd { font-size:0.62rem; color:var(--dim); margin-top:3px; white-space:nowrap; line-height:1.3; }
 
 /* ── Loading ──────────────────────────────────────────────────────── */
 #loading { display: flex; align-items: center; justify-content: center; min-height: 60vh; flex-direction: column; gap: 16px }
@@ -423,7 +425,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <button id="instr-real" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
         <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
       </span>
-      <span class="hdr-disc">— SVIX/UVIX only launched in 2022, so prior results are based on SVXY/UVXY trade returns scaled to SVIX/UVIX's higher leverage</span>
+      <span class="hdr-disc">NOTE: SVIX/UVIX only launched in 2022, so prior results are simulated based on SVXY/UVXY trade returns, then leverage-scaled</span>
     </div>
   </div>
   <div class="tabs">
@@ -519,7 +521,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           <span><span class="cdl-sw" style="background:var(--teal)"></span> Profit exit</span>
           <span><span class="cdl-sw" style="background:var(--coral)"></span> Loss exit</span>
         </div>
-        <div class="pos-band-label" id="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span></div>
+        <div class="pos-band-label" id="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--amber)">&#9646; CASH</span></div>
         <div id="pos-band" style="width:100%;height:30px"></div>
       </div>
     </div>
@@ -856,7 +858,7 @@ function rerenderActive(){
   renderAnalytics();renderSigPerf();renderSigDist();renderExitReasons();renderTrades();
   if(window._m){renderMonthly();}
   const pl=document.getElementById('pos-band-label');
-  if(pl) pl.innerHTML='POSITION &nbsp;<span style="color:var(--teal)">&#9646; '+svN()+'</span> &nbsp;<span style="color:var(--coral)">&#9646; '+uvN()+'</span> &nbsp;<span style="color:var(--dim)">&#9646; CASH</span>';
+  if(pl) pl.innerHTML='POSITION &nbsp;<span style="color:var(--teal)">&#9646; '+svN()+'</span> &nbsp;<span style="color:var(--coral)">&#9646; '+uvN()+'</span> &nbsp;<span style="color:var(--amber)">&#9646; CASH</span>';
   const tf=document.getElementById('tfilter');
   if(tf){ tf.options[1].text=svN(); tf.options[2].text=uvN(); }
 }
@@ -1534,7 +1536,7 @@ function applyChartMode(){
 function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
 function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-44),to:N+2}); }catch(_){} }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
-function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : 'rgba(131,116,72,.55)'; }
+function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : 'rgba(240,152,47,.45)'; }
 function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVXY' : 'CASH'; }
 
 function renderSummary(){
@@ -1617,7 +1619,7 @@ function renderSummary(){
     const alt = CHART_MODE==='alt';
     const d=time, pos=posByDate[d]||'CASH', pnReal=posNameOf(pos);
     const pn = alt ? (pnReal==='SVXY'?'SVIX':pnReal==='UVXY'?'UVIX':pnReal) : pnReal;
-    const pcls=pnReal==='SVXY'?'sig-svxy':pnReal==='UVXY'?'sig-uvxy':'sig-neu';
+    const pcls=pnReal==='SVXY'?'sig-svxy':pnReal==='UVXY'?'sig-uvxy':'sig-cash';
     let html=`<b>${d}</b> &nbsp; O ${sd.open.toFixed(2)} &middot; H ${sd.high.toFixed(2)} &middot; L ${sd.low.toFixed(2)} &middot; C ${sd.close.toFixed(2)}`
             +` &nbsp;|&nbsp; Position: <b class="${pcls}">${pn}</b>`;
     const evs=evByDate[d];
@@ -1708,6 +1710,26 @@ function renderSignalMonitor(){
       spike?'UVXY':(crush?'SVXY':'NEU')],
   ];
 
+  // ── Per-signal refresh tracking ──────────────────────────────────────
+  // Stamp each reading with the time its value last CHANGED from the prior
+  // reading. Values refresh with the live feed (~every 5 min in market hours);
+  // the reading that actually feeds the trade is whichever value is standing at
+  // the ~7pm ET daily evaluation. The change-time is stamped from the feed's
+  // own generated time, and tracked across polls within the session.
+  const _genStamp = (L&&L.generated_utc) ? toEtClock(L.generated_utc)+' ET' : '—';
+  const _genKey = (L&&L.generated_utc) || '';
+  const _rawVals = [contango,vdelta,vix9d,vix1m,ratio13,movevix];
+  const _r4 = (v)=> (v==null||isNaN(v))?'NA':(+v).toFixed(4);
+  window._sigHist = window._sigHist || {};
+  const _trackUpd=(name,valKey)=>{
+    const h=window._sigHist[name];
+    if(!h){ window._sigHist[name]={v:valKey,at:_genStamp,gen:_genKey}; }
+    else if(valKey!==h.v && _genKey && _genKey!==h.gen){ h.v=valKey; h.at=_genStamp; h.gen=_genKey; }
+    return window._sigHist[name].at;
+  };
+  rows.forEach((r,i)=>{ const at=_trackUpd(r[0],_r4(_rawVals[i])); r[4]=r[4]+`<div class="sig-upd">&#8635; updated ${at}</div>`; });
+  overrideRows.forEach(r=>{ const at=_trackUpd(r[0], spike?'SPIKE':(crush?'CRUSH':'NONE')); r[4]=r[4]+`<div class="sig-upd">&#8635; updated ${at}</div>`; });
+
   // ── Projected end-of-day position: how the live signals combine ──────
   // Indicative read of where the signals are leaning intraday. The OFFICIAL
   // position finalizes after the ~7pm ET signal evaluation (traded next open);
@@ -1716,18 +1738,23 @@ function renderSignalMonitor(){
   const sv = core.filter(v=>v==='SVXY').length;
   const uv = core.filter(v=>v==='UVXY').length;
   const neu = core.filter(v=>v==='NEU').length;
-  // A directional call needs a clear consensus (≥5 of the 6 core signals one
-  // way), or a fired override / outright backwardation. A bare majority (e.g.
-  // 4 of 6) is treated as "no clear edge" → CASH, so the projection never gets
-  // ahead of the signals on the board.
-  const CONS=5;
+  // This mirrors the real entry rule, not a vote. The SVXY (short-vol) entry
+  // requires FULL bullish alignment of the term-structure signals — contango,
+  // VDelta, the two VIX zones and the 1m/3m ratio must ALL read short-vol
+  // simultaneously (plus a BB-trend confirmation checked at evaluation). MOVE
+  // is a cross-asset stress gauge used for risk/exit, not an entry trigger, so
+  // it is excluded here. Backwardation or a confirmed VIX spike flips to UVXY;
+  // a faded spike (crush) flips to SVXY. Anything short of full alignment = CASH.
+  // (rows order: 0 Contango, 1 VDelta, 2 VIX9D, 3 VIX1M, 4 1m/3m ratio, 5 MOVE)
+  const regime = core.slice(0,5);
+  const nBull = regime.filter(v=>v==='SVXY').length;
+  const regimeBull = regime.every(v=>v==='SVXY');
   let proj, why;
-  if(spike){ proj='UVXY'; why='Spike override active — forces long vol'; }
-  else if(crush){ proj='SVXY'; why='Crush override active — forces short vol'; }
-  else if(contango!=null && contango<0){ proj='UVXY'; why='Term structure in backwardation'+(uv>sv?(', '+uv+' signals bearish'):''); }
-  else if(sv>=CONS && (contango==null||contango>=P.ct)){ proj='SVXY'; why=sv+' of '+core.length+' signals favour short vol, term structure in contango'; }
-  else if(uv>=CONS){ proj='UVXY'; why=uv+' of '+core.length+' signals favour long vol'; }
-  else { proj='CASH'; why='no clear consensus ('+sv+' short vol / '+uv+' long vol of '+core.length+') — staying in cash'; }
+  if(spike){ proj='UVXY'; why='spike override — a confirmed VIX spike forces long vol'; }
+  else if(crush){ proj='SVXY'; why='crush override — a faded vol spike forces short vol'; }
+  else if(contango!=null && contango<0){ proj='UVXY'; why='term structure in backwardation — long vol'; }
+  else if(regimeBull){ proj='SVXY'; why='full bullish alignment — every term-structure signal reads short vol (the BB-trend confirmation is checked at evaluation)'; }
+  else { proj='CASH'; why=nBull+' of 5 term-structure signals bullish — the entry needs full alignment to go short vol, so it stays in cash'; }
   const projTag = proj==='SVXY'?'<span class="sig-proj-pos sig-svxy">SVXY · short vol</span>'
                 : proj==='UVXY'?'<span class="sig-proj-pos sig-uvxy">UVXY · long vol</span>'
                 : '<span class="sig-proj-pos sig-neu">CASH</span>';
@@ -1750,7 +1777,7 @@ function renderSignalMonitor(){
     } else {
       nextTxt = 'after the next market close (~7pm ET)';
     }
-    refreshHtml = `<div class="sig-proj-tally">Reading last refreshed <b>${lastTxt}</b> &middot; next refresh ${nextTxt}</div>`;
+    refreshHtml = `<div class="sig-proj-tally">Readings last refreshed <b>${lastTxt}</b> &middot; next refresh ${nextTxt} &middot; the reading standing at the ~7pm&nbsp;ET evaluation is the one that feeds the trade</div>`;
   }
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=projHtml+refreshHtml;
 
