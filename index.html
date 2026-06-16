@@ -148,7 +148,7 @@ body {
 .pb { padding: 14px 16px }
 
 /* ── KPI strip ────────────────────────────────────────────────────── */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px,1fr)); gap: 10px }
+.kpi-grid { display: flex; flex-wrap: wrap; gap: 10px }
 .kpi {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -156,6 +156,10 @@ body {
   border-radius: 6px;
   padding: 12px 14px 10px;
   position: relative;
+  /* Target ~155px and grow to fill the row, but never shrink below the card's
+     own content (default flex min-width:auto), so a wide value like the Alpha %
+     expands its box instead of being clipped. */
+  flex: 1 1 155px;
 }
 .kpi-label {
   font-size: 0.72rem;
@@ -170,6 +174,7 @@ body {
   font-size: 1.55rem;
   font-weight: 700;
   margin-top: 5px;
+  white-space: nowrap;   /* keep the value on one line so the card sizes to it */
 }
 .kpi-sub { font-size: 0.76rem; color: var(--dim); margin-top: 4px }
 
