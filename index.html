@@ -379,6 +379,7 @@ tr:hover td { background: #1f1a10 }
 /* Summary page */
 .cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
 .cdl-info b { color:var(--yellow); }
+.cdl-info b.sig-svxy { color:var(--teal); } .cdl-info b.sig-uvxy { color:var(--coral); } .cdl-info b.sig-cash { color:var(--amber); }
 .pos-band-label { font-size:0.64rem; color:var(--dim); letter-spacing:0.05em; margin:10px 0 3px; text-transform:uppercase; }
 .cdl-legend { display:flex; flex-wrap:wrap; align-items:center; gap:13px; margin-top:8px; font-size:0.68rem; color:var(--dim); }
 .cdl-legend > span { display:inline-flex; align-items:center; gap:5px; }
@@ -1528,7 +1529,7 @@ function displayMarkers(){
     const sv=_oty==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     const ok = !alt || ((sv?svC:uvC)[_ostart]!=null);   // alt needs a real SVIX/UVIX candle
     if(ok) markers.push({time:_ostart,position:mp,color:ENTRY,shape:'arrowUp',size:0,
-      text:'▲ '+(alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'))+' (open)'});
+      text:'▲ '+(alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'))});
   }
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
 }

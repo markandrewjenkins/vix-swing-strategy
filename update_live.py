@@ -174,16 +174,46 @@ def last_official(path: str = "backtest_results.json") -> dict:
         if not bars:
             return {}
         b = bars[-1]
+        # Find the entry anchor of the currently-open position: walk back over the
+        # trailing run of non-CASH bars and take the price at its first bar. Lets
+        # us compute a LIVE % return (entry → live quote) instead of the stale
+        # backtest open_pnl, which is ~0 on the entry bar.
+        entry_price, entry_date = None, None
+        pos = b.get("position")
+        if pos and pos != "CASH":
+            i = len(bars) - 1
+            while i >= 0 and bars[i].get("position") == pos:
+                start = bars[i]
+                i -= 1
+            entry_date = start.get("date")
+            entry_price = (start.get("svxy_price") if pos == "LONG_VOL_SELLER"
+                           else start.get("uvxy_price"))
         return {
-            "date":       b.get("date"),
-            "position":   b.get("position"),
-            "signal":     b.get("signal"),
-            "open_pnl":   b.get("open_pnl_pct"),
-            "equity":     b.get("equity"),
+            "date":        b.get("date"),
+            "position":    pos,
+            "signal":      b.get("signal"),
+            "open_pnl":    b.get("open_pnl_pct"),
+            "equity":      b.get("equity"),
+            "entry_date":  entry_date,
+            "entry_price": entry_price,
         }
     except Exception as e:
         print(f"  backtest_results.json read FAILED: {e}")
         return {}
+
+
+def _live_official(quotes: dict) -> dict:
+    """last_official() + a LIVE open P&L (entry price → current quote), so the
+    header shows the open trade's return to date rather than a stale ~0%."""
+    o = last_official()
+    pos, ep = o.get("position"), o.get("entry_price")
+    if pos and pos != "CASH" and ep:
+        sym = "svxy" if pos == "LONG_VOL_SELLER" else "uvxy"
+        px = (quotes.get(sym) or {}).get("price")
+        if px:
+            o["open_pnl"] = round(px / ep - 1.0, 6)
+            o["open_pnl_live"] = True
+    return o
 
 
 def main() -> None:
@@ -299,7 +329,7 @@ def main() -> None:
         "cboe_refreshed": refresh_cboe,
         # Strategy's last OFFICIAL state (signals finalize ~7pm ET each day;
         # trades execute the next market open — intraday readings are indicative).
-        "official": last_official(),
+        "official": _live_official(quotes),
         "note": ("Term structure is CBOE end-of-day (re-fetched only after the "
                  "~5:30pm ET post; cached intraday). VIX spot & ETF quotes are "
                  "Yahoo intraday (~15-min delayed). Live signals refresh ~every "
