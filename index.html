@@ -341,7 +341,10 @@ tr:hover td { background: #1f1a10 }
 .live-chg { font-size: 0.62rem; font-weight: 700; color: var(--dim, #909090); }
 .live-chg.up { color: var(--teal, #00e5a0); } .live-chg.down { color: var(--coral, #ff4560); }
 .live-status { display: inline-flex; align-items: baseline; align-self: flex-end; }
-.hdr-disc { font-size: 0.86em; color: var(--dim); opacity: 0.85; }
+.hdr-metarow { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 3px; }
+.hdr-metarow .hdr-meta { margin-top: 0; }
+.instr-inline .cdl-seg { font-size: 0.62rem; padding: 1px 8px; }
+.hdr-disc { font-size: 0.7rem; color: var(--dim); opacity: 0.85; }
 @keyframes livepulse { 0%,100% { opacity: 1 } 50% { opacity: 0.25 } }
 #live-strip.stale .live-dot { background: var(--gray, #666); box-shadow: none; animation: none; }
 .live-item { display: inline-flex; align-items: baseline; gap: 6px; }
@@ -411,15 +414,16 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
 <div class="topbar">
 <div class="hdr">
-  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-    <div>
-      <div class="hdr-title">VIX SWING STRATEGY</div>
-      <div class="hdr-meta" id="hdr-meta">Loading...</div>
+  <div>
+    <div class="hdr-title">VIX SWING STRATEGY</div>
+    <div class="hdr-metarow">
+      <span class="hdr-meta" id="hdr-meta">Loading...</span>
+      <span class="cdl-toggle-group instr-inline" title="Switch the dashboard between the SVXY/UVXY pair and the SVIX/UVIX pair">
+        <button id="instr-real" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
+        <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
+      </span>
+      <span class="hdr-disc">— SVIX/UVIX only launched in 2022, so earlier dates are simulated by scaling SVXY/UVXY trade returns to SVIX/UVIX's higher leverage (≈&minus;1× / 2× VIX vs &minus;0.5× / 1.5×)</span>
     </div>
-    <span class="cdl-toggle-group" title="Switch the whole dashboard between the SVXY/UVXY pair and the SVIX/UVIX pair">
-      <button id="instr-real" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
-      <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
-    </span>
   </div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('summary')">Live Chart w/ Signals</button>
@@ -838,8 +842,7 @@ function updateHdrMeta(){
   const m=DATA.meta;
   const lastDate=(OHLC&&OHLC.length)?OHLC[OHLC.length-1][0]:m.end_date;
   const tdays=(OHLC&&OHLC.length)?OHLC.filter(r=>r[0]>=m.start_date).length:m.trading_days;
-  el.innerHTML=m.start_date+' — '+lastDate+'  ·  '+tdays.toLocaleString()+' trading days  ·  Toggle SVXY-UVXY or SVIX-UVIX '
-    +'<span class="hdr-disc">— SVIX/UVIX pre-2022 is leverage-simulated</span>';
+  el.textContent=m.start_date+' — '+lastDate+'  ·  '+tdays.toLocaleString()+' trading days  ·';
 }
 function render(){
   updateHdrMeta();
