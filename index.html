@@ -1449,8 +1449,11 @@ async function loadLive(){
         }
       }catch(_){}
     }
-    // Refine the forming candle's close with the latest live quote (never fabricate flat candles)
-    if(CHART_MODE==='real' && candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
+    // Refine the forming candle's close with the latest live quote (never fabricate flat candles).
+    // Only in the post-close settling window (16:15–20:15 ET): the daily close clears the ~15-min
+    // delay around 4:15pm, and there's no meaningful daily bar to refine before then.
+    const _dec=_etNow().sod/3600, _inSettle=(_dec>=16.25 && _dec<20.25);
+    if(_inSettle && CHART_MODE==='real' && candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
       const q=L.market.quotes.svxy, px=q.price, today=(L.generated_utc||'').slice(0,10), last=CANDLES[CANDLES.length-1];
       const qFresh = q.time ? (Date.now()-new Date(q.time).getTime())/60000 < 30 : false;  // ignore stale quotes
       if(px!=null && last && today===last.time && qFresh){
@@ -1516,6 +1519,17 @@ function displayMarkers(){
       markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?'SVXY':'UVXY')});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
     } });
+  // Currently-OPEN position has no closed-trade row, so the loop above skips its
+  // entry. Add the entry arrow explicitly so the chart shows where it was opened.
+  const _bh=DATA.bar_history||[]; let _oty=null,_ostart=null;
+  for(let i=_bh.length-1;i>=0;i--){ const p=_bh[i].position; if(p&&p!=='CASH'){_oty=p;_ostart=_bh[i].date;} else break; }
+  const _lastEx=DATA.trades.length?DATA.trades[DATA.trades.length-1].exit_date:'';
+  if(_oty && _ostart && _ostart>_lastEx){
+    const sv=_oty==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
+    const ok = !alt || ((sv?svC:uvC)[_ostart]!=null);   // alt needs a real SVIX/UVIX candle
+    if(ok) markers.push({time:_ostart,position:mp,color:ENTRY,shape:'arrowUp',size:0,
+      text:'▲ '+(alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'))+' (open)'});
+  }
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
 }
 function applyChartMode(){

@@ -15,6 +15,36 @@ from __future__ import annotations
 import json, urllib.request, urllib.parse
 from datetime import datetime, timezone
 
+try:
+    from zoneinfo import ZoneInfo
+    _ET = ZoneInfo("America/New_York")
+except Exception:                       # pragma: no cover
+    _ET = None
+
+
+def _et_now():
+    now = datetime.now(tz=timezone.utc)
+    return now.astimezone(_ET) if _ET else now
+
+
+def drop_forming_today(rows):
+    """Suppress the current-day daily bar until the close has settled.
+
+    Yahoo's 1d series returns a *partial* bar for today the moment the session
+    opens (and even pre-market), which renders as a degenerate flat/line candle
+    that doesn't reflect a real day. The daily close isn't meaningful until the
+    4pm ET close clears the ~15-min quote delay, so we only keep today's bar
+    once it's past 16:15 ET. Before then, the latest bar shown is yesterday's.
+    """
+    if not rows:
+        return rows
+    et = _et_now()
+    today = et.strftime("%Y-%m-%d")
+    settled = (et.hour > 16) or (et.hour == 16 and et.minute >= 15)
+    if rows[-1][0] == today and not settled:
+        return rows[:-1]
+    return rows
+
 HDRS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -61,7 +91,7 @@ def main():
                               ("UVIX", "uvix_ohlc.json", "2022-01-01"),
                               ("TQQQ", "tqqq_ohlc.json", "2011-10-01")]:
         try:
-            rows = fetch_ohlc(sym, start)
+            rows = drop_forming_today(fetch_ohlc(sym, start))
         except Exception as e:
             print(f"  {sym} FAILED: {e}")
             continue
