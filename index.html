@@ -498,11 +498,6 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
 <div id="main-content" class="body">
 
-  <!-- Shown only when the global toggle is on SVIX/UVIX -->
-  <div id="alt-note" class="note-box" style="display:none">
-    <strong>SVIX / UVIX — simulated.</strong> The real ETFs only launched in 2022, so for the full history each trade's return is the SVXY/UVXY result scaled by the leverage ratio (SVIX ≈ −1× VIX vs SVXY ≈ −0.5×; UVIX ≈ 2× vs UVXY ≈ 1.5×), calibrated from the 2022+ overlap. Entries, exits and cash periods are identical to the live strategy. Figures are illustrative and ignore the path-dependence of leveraged ETFs.
-  </div>
-
   <!-- ══ P&L SUMMARY TAB ══════════════════════════════════════════════ -->
   <div id="tab-summary">
     <div class="panel">
@@ -834,7 +829,6 @@ function setInstr(m){
   const r=document.getElementById('instr-real'), a=document.getElementById('instr-alt');
   if(r) r.classList.toggle('active', m==='real');
   if(a) a.classList.toggle('active', m==='alt');
-  const note=document.getElementById('alt-note'); if(note) note.style.display = m==='alt'?'':'none';
   if(typeof applyChartMode==='function') applyChartMode();   // live chart
   rerenderActive();                                          // P&L Summary / Trades / Monthly / labels
 }
@@ -865,6 +859,36 @@ function rerenderActive(){
   if(pl) pl.innerHTML='POSITION &nbsp;<span style="color:var(--teal)">&#9646; '+svN()+'</span> &nbsp;<span style="color:var(--coral)">&#9646; '+uvN()+'</span> &nbsp;<span style="color:var(--amber)">&#9646; CASH</span>';
   const tf=document.getElementById('tfilter');
   if(tf){ tf.options[1].text=svN(); tf.options[2].text=uvN(); }
+  updateLivePosition();   // header position follows the toggled instrument
+}
+
+// Header "CURRENT POSITION" + live open P&L, following the SVXY/UVXY↔SVIX/UVIX toggle.
+function updateLivePosition(src){
+  const L = src || LIVE; if(!L || !L.official) return;
+  const o = L.official, raw = o.position || 'CASH';
+  const sv = raw==='LONG_VOL_SELLER', uv = raw==='LONG_VOL';
+  const name = sv?svN():uv?uvN():'CASH';
+  const pcls = sv?'pos-svxy':uv?'pos-uvxy':'pos-cash';
+  const posEl=document.getElementById('lv-pos');
+  if(posEl){ posEl.textContent=name; posEl.className='live-val '+pcls; }
+  // open P&L: real SVXY/UVXY live return from the feed; in alt mode use the
+  // SVIX/UVIX candle entry + live quote (fall back to leverage-scaling).
+  let pnl = o.open_pnl;
+  if(aMode() && (sv||uv) && o.entry_date){
+    let alt=null;
+    try{ const [svM,uvM]=altCloseMaps(); const ec=(sv?svM:uvM)[o.entry_date];
+      const aq=(L.market&&L.market.quotes)?(sv?L.market.quotes.svix:L.market.quotes.uvix):null;
+      const apx=aq?aq.price:null;
+      if(ec!=null && apx!=null) alt=apx/ec-1;
+    }catch(_){}
+    if(alt==null && o.open_pnl!=null){ const lv=altLeverage(); alt=o.open_pnl*(sv?lv.svF:lv.uvF); }
+    if(alt!=null) pnl=alt;
+  }
+  const pnlEl=document.getElementById('lv-pospnl');
+  if(pnlEl){
+    pnlEl.textContent = (raw==='CASH' || pnl==null) ? '' : ((pnl>=0?'+':'')+(pnl*100).toFixed(2)+'%');
+    pnlEl.className = 'live-chg ' + (pnl>0?'up':pnl<0?'down':'');
+  }
 }
 
 // ══ ANALYTICS ══════════════════════════════════════════════════════════════
@@ -1375,16 +1399,8 @@ async function loadLive(){
     const price = (v) => v==null||isNaN(v)?'—':'$'+(+v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
     const clsOf = (v) => v>0?'up':v<0?'down':'';
 
-    // ── Current position + open P&L ──────────────────────────────────────
-    const pos = (o.position||'CASH').replace('LONG_VOL_SELLER','SVXY')
-                  .replace('LONG_VOL','UVXY');
-    const pcls = pos.indexOf('SVXY')>=0?'pos-svxy':pos.indexOf('UVXY')>=0?'pos-uvxy':'pos-cash';
-    setVal('lv-pos', pos, pcls);
-    const pnlEl = document.getElementById('lv-pospnl');
-    if(pnlEl){
-      pnlEl.textContent = (pos==='CASH' || o.open_pnl==null) ? '' : signed(o.open_pnl*100,2,'%');
-      pnlEl.className = 'live-chg ' + clsOf(o.open_pnl);
-    }
+    // ── Current position + open P&L (instrument-aware; see updateLivePosition) ──
+    updateLivePosition(L);
 
     // ── VIX term structure (CBOE EOD; VIX1M = live spot when available) ──
     const cv = m.curve||{};
@@ -1554,7 +1570,7 @@ function applyChartMode(){
 function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
 function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-44),to:N+2}); }catch(_){} }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
-function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : 'rgba(240,152,47,.45)'; }
+function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : AMBER; }
 function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVXY' : 'CASH'; }
 
 function renderSummary(){
