@@ -28,6 +28,7 @@
   --coral:   #f2563a;
   --gray:    #837448;
   --cash:    #2a2415;
+  --cashc:   #e1b954;
   --pos: var(--teal);
   --neg: var(--coral);
   --neu: var(--cyan);
@@ -379,7 +380,7 @@ tr:hover td { background: #1f1a10 }
 /* Summary page */
 .cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
 .cdl-info b { color:var(--yellow); }
-.cdl-info b.sig-svxy { color:var(--teal); } .cdl-info b.sig-uvxy { color:var(--coral); } .cdl-info b.sig-cash { color:var(--amber); }
+.cdl-info b.sig-svxy { color:var(--teal); } .cdl-info b.sig-uvxy { color:var(--coral); } .cdl-info b.sig-cash { color:var(--cashc); }
 .pos-band-label { font-size:0.64rem; color:var(--dim); letter-spacing:0.05em; margin:10px 0 3px; text-transform:uppercase; }
 .cdl-legend { display:flex; flex-wrap:wrap; align-items:center; gap:13px; margin-top:8px; font-size:0.68rem; color:var(--dim); }
 .cdl-legend > span { display:inline-flex; align-items:center; gap:5px; }
@@ -401,11 +402,9 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); font-weight:700; }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
 .sig-svxy { color:var(--teal); } .sig-uvxy { color:var(--coral); } .sig-neu { color:var(--dim); }
-.sig-cash { color:var(--amber); }
-.sig-upd { font-size:0.62rem; color:var(--dim); margin-top:4px; white-space:nowrap; line-height:1.5; cursor:help; }
-.sig-cad { display:inline-block; font-size:0.56rem; font-weight:700; letter-spacing:0.04em; padding:1px 5px; border-radius:3px; }
-.sig-cad-live { color:var(--teal); border:1px solid rgba(82,230,189,.4); background:rgba(82,230,189,.07); }
-.sig-cad-eod  { color:var(--amber); border:1px solid rgba(240,152,47,.4); background:rgba(240,152,47,.07); }
+.sig-cash { color:var(--cashc); }
+.sig-info { font-size:0.85rem; cursor:help; vertical-align:middle; opacity:0.8; }
+.sig-info:hover { opacity:1; }
 
 /* ── Loading ──────────────────────────────────────────────────────── */
 #loading { display: flex; align-items: center; justify-content: center; min-height: 60vh; flex-direction: column; gap: 16px }
@@ -515,12 +514,11 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div class="cdl-legend">
           <span><span class="cdl-cndl up"></span> Up day</span>
           <span><span class="cdl-cndl dn"></span> Down day</span>
-          <span class="cdl-legend-sep">·</span>
           <span><span style="color:#fff3c8">&#9650;</span> Entry</span>
           <span><span class="cdl-sw" style="background:var(--teal)"></span> Profit exit</span>
           <span><span class="cdl-sw" style="background:var(--coral)"></span> Loss exit</span>
         </div>
-        <div class="pos-band-label" id="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--amber)">&#9646; CASH</span></div>
+        <div class="pos-band-label" id="pos-band-label">POSITION &nbsp;<span style="color:var(--teal)">&#9646; SVXY</span> &nbsp;<span style="color:var(--coral)">&#9646; UVXY</span> &nbsp;<span style="color:var(--cashc)">&#9646; CASH</span></div>
         <div id="pos-band" style="width:100%;height:30px"></div>
       </div>
     </div>
@@ -643,7 +641,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 <script>
 // ── Palette ───────────────────────────────────────────────────────────────
 const YELLOW='#e8b94f', CYAN='#54d2ef', TEAL='#52e6bd', PURPLE='#dba24f';
-const PINK='#e8b94f', CORAL='#f2563a', AMBER='#f0982f', GRAY='#837448';
+const PINK='#e8b94f', CORAL='#f2563a', AMBER='#f0982f', GRAY='#837448', CASHC='#e1b954';
 const DIM='#998544';
 const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
@@ -856,7 +854,7 @@ function rerenderActive(){
   renderAnalytics();renderSigPerf();renderSigDist();renderExitReasons();renderTrades();
   if(window._m){renderMonthly();}
   const pl=document.getElementById('pos-band-label');
-  if(pl) pl.innerHTML='POSITION &nbsp;<span style="color:var(--teal)">&#9646; '+svN()+'</span> &nbsp;<span style="color:var(--coral)">&#9646; '+uvN()+'</span> &nbsp;<span style="color:var(--amber)">&#9646; CASH</span>';
+  if(pl) pl.innerHTML='POSITION &nbsp;<span style="color:var(--teal)">&#9646; '+svN()+'</span> &nbsp;<span style="color:var(--coral)">&#9646; '+uvN()+'</span> &nbsp;<span style="color:var(--cashc)">&#9646; CASH</span>';
   const tf=document.getElementById('tfilter');
   if(tf){ tf.options[1].text=svN(); tf.options[2].text=uvN(); }
   updateLivePosition();   // header position follows the toggled instrument
@@ -1433,14 +1431,19 @@ async function loadLive(){
     const ageMin = gen ? (Date.now()-gen.getTime())/60000 : null;
     const _t = _etNow(); const _dec = _t.sod/3600; const _wk = _t.wd!=='Sat'&&_t.wd!=='Sun';
     const regular = _wk && _dec>=9.5 && _dec<16;
+    const settle  = _wk && _dec>=16 && _dec<20.25;   // after-hours: close settles, CBOE EOD posts
+    const premkt  = _wk && _dec>=4  && _dec<9.5;
     const fresh = ageMin!=null && ageMin<=20;
     const live = regular && fresh;
-    strip.classList.toggle('stale', !live);
+    strip.classList.toggle('stale', !(live||settle));
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
-    if(feed) feed.textContent = live ? 'LIVE' : (regular ? 'DELAYED' : 'PAUSED');
+    if(feed) feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'CLOSED';
     if(note) note.textContent = live ? 'Updating live every 5 mins'
-                                     : (regular ? 'Awaiting next refresh' : 'Market closed — last close shown');
-    if(delay) delay.style.display = (live||regular) ? '' : 'none';   // delay note only when trading
+                              : regular ? 'Awaiting next refresh'
+                              : settle  ? 'After-hours — close settling, signals finalise ~7pm ET'
+                              : premkt  ? 'Awaiting the open'
+                              : 'Market closed — last close shown';
+    if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';   // delay note only when data moves
     document.getElementById('lv-updated').textContent =
         toEtClock(L.generated_utc)+' ET';
 
@@ -1570,7 +1573,7 @@ function applyChartMode(){
 function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
 function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-44),to:N+2}); }catch(_){} }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
-function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : AMBER; }
+function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : CASHC; }
 function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVXY' : 'CASH'; }
 
 function renderSummary(){
@@ -1764,20 +1767,20 @@ function renderSignalMonitor(){
     else if(valKey!==h.v && _genKey && _genKey!==h.gen){ h.v=valKey; h.at=_genStamp; h.gen=_genKey; }
     return window._sigHist[name].at;
   };
-  const cadBadge=(cad)=> cad==='eod'
-    ? '<span class="sig-cad sig-cad-eod">EOD &middot; ~5:30pm ET</span>'
-    : '<span class="sig-cad sig-cad-live">LIVE &middot; ~5 min</span>';
-  const annotate=(name,key,valKey,cadFallback,expFallback)=>{
+  // Compact clock icon next to each value; hover for "data as at" + next update.
+  // Icon colour encodes cadence: teal = live (~5 min), amber = EOD-only.
+  const annotate=(name,key,valKey,cadFallback)=>{
     const m = ST[key] || {};
     const cad = m.cadence || cadFallback;
     const changed = m.changed_utc ? (toEtClock(m.changed_utc)+' ET') : _fallbackChanged(name,valKey);
-    const exp = (m.expected || expFallback || '').replace(/"/g,'&quot;');
-    return `<div class="sig-upd" title="${exp}">${cadBadge(cad)}<br>&#8635; changed ${changed}</div>`;
+    const upd = cad==='eod' ? 'after the CBOE close (~5:30pm ET)' : 'every ~5 min during market hours';
+    const tip = `Data as at: ${changed}\nExpected update: ${upd}\n(Decision finalises ~7pm ET)`;
+    const col = cad==='eod' ? 'var(--amber)' : 'var(--teal)';
+    return ` <span class="sig-info" style="color:${col}" title="${tip}">&#9201;</span>`;
   };
   const _rawVals=[contango,vdelta,vix9d,vix1m,ratio13,movevix];
-  rows.forEach((r,i)=>{ r[4]=r[4]+annotate(r[0],sigKeys[i],_r4(_rawVals[i]),(i===2?'eod':'live'),''); });
-  overrideRows.forEach(r=>{ r[4]=r[4]+annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'eod',
-      'Close-to-close move — confirmed only at the 4pm close, then feeds the ~7pm evaluation.'); });
+  rows.forEach((r,i)=>{ r[4]=r[4]+annotate(r[0],sigKeys[i],_r4(_rawVals[i]),(i===2?'eod':'live')); });
+  overrideRows.forEach(r=>{ r[4]=r[4]+annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'eod'); });
 
   // ── Projected end-of-day position: how the live signals combine ──────
   // Indicative read of where the signals are leaning intraday. The OFFICIAL
@@ -1826,10 +1829,7 @@ function renderSignalMonitor(){
     } else {
       nextTxt = 'after the next market close (~7pm ET)';
     }
-    refreshHtml = `<div class="sig-proj-tally">Feed refreshed <b>${lastTxt}</b> &middot; next ${nextTxt}.`
-      + ` <span class="sig-cad sig-cad-live">LIVE</span> signals refresh ~every 5 min so you can see where the reading is heading;`
-      + ` <span class="sig-cad sig-cad-eod">EOD</span> signals only print after CBOE posts (~5:30pm&nbsp;ET).`
-      + ` All readings finalise at the ~7pm&nbsp;ET evaluation that sets the next-open trade. Hover any signal's badge for its specifics.</div>`;
+    refreshHtml = `<div class="sig-proj-tally">Feed refreshed <b>${lastTxt}</b> &middot; next ${nextTxt} &middot; hover the &#9201; on a signal for its data time. Readings finalise at the ~7pm&nbsp;ET evaluation.</div>`;
   }
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=projHtml+refreshHtml;
 
