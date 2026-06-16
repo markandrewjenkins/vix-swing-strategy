@@ -1452,7 +1452,7 @@ async function loadLive(){
     // Refine the forming candle's close with the latest live quote (never fabricate flat candles).
     // Only in the post-close settling window (16:15–20:15 ET): the daily close clears the ~15-min
     // delay around 4:15pm, and there's no meaningful daily bar to refine before then.
-    const _dec=_etNow().sod/3600, _inSettle=(_dec>=16.25 && _dec<20.25);
+    const _inSettle=(_dec>=16.25 && _dec<20.25);   // _dec computed above (feed-freshness block)
     if(_inSettle && CHART_MODE==='real' && candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
       const q=L.market.quotes.svxy, px=q.price, today=(L.generated_utc||'').slice(0,10), last=CANDLES[CANDLES.length-1];
       const qFresh = q.time ? (Date.now()-new Date(q.time).getTime())/60000 < 30 : false;  // ignore stale quotes
