@@ -28,10 +28,60 @@ Run:
 
 from __future__ import annotations
 
-import io, json, urllib.request, urllib.parse
+import io, json, os, urllib.request, urllib.parse
 from datetime import datetime, timezone
 
 import pandas as pd
+
+try:
+    from zoneinfo import ZoneInfo
+    _ET = ZoneInfo("America/New_York")
+except Exception:                       # pragma: no cover
+    _ET = None
+
+
+def et_now() -> datetime:
+    """Current time in US/Eastern (falls back to UTC if zoneinfo unavailable)."""
+    now = datetime.now(tz=timezone.utc)
+    return now.astimezone(_ET) if _ET else now
+
+
+def load_prev(path: str = "live_status.json") -> dict:
+    """Load the previous live_status.json so we can carry forward EOD data and
+    per-signal change timestamps. Returns {} if missing/unreadable."""
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as fh:
+                return json.load(fh)
+    except Exception as e:
+        print(f"  prev live_status.json read FAILED: {e}")
+    return {}
+
+
+# ── Per-signal cadence metadata (non-proprietary; describes data availability) ─
+# cadence: "live" = refreshes intraday (~5 min); "eod" = only changes after the
+# CBOE end-of-day print (~5:30pm ET). `expected` explains when the print that
+# feeds the next-open trade decision actually lands.
+SIG_INFO = {
+    "vix9d": ("eod",
+              "CBOE end-of-day only. Unchanged through the session — tonight's "
+              "print posts ~5:30pm ET and feeds the ~7pm evaluation."),
+    "vix1m": ("live",
+              "Live VIX spot, refreshes ~every 5 min. The 4pm close value is the "
+              "one that feeds the ~7pm evaluation."),
+    "contango": ("live",
+                 "Moves intraday with VIX; the VIX3M leg is fixed until CBOE's "
+                 "EOD print (~5:30pm ET). Finalises for the ~7pm evaluation."),
+    "vdelta": ("live",
+               "Moves intraday with VIX; the VIX9D leg is fixed until CBOE's EOD "
+               "print (~5:30pm ET)."),
+    "ratio_1m_3m": ("live",
+                    "Live VIX ÷ CBOE VIX3M; moves intraday, VIX3M leg fixed "
+                    "until the EOD print (~5:30pm ET)."),
+    "move_vix_ratio": ("live",
+                       "ICE MOVE ÷ VIX; refreshes intraday when MOVE is "
+                       "available, combined with the 4pm VIX close at ~7pm."),
+}
 
 HDRS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -139,17 +189,38 @@ def last_official(path: str = "backtest_results.json") -> dict:
 def main() -> None:
     print("Fetching live market state ...")
 
-    # Term structure (CBOE EOD). vix1m proxy = VIX index, matching the backtest.
-    curve = {}
-    for key, sym in [("vix9d", "VIX9D"), ("vix1m", "VIX"), ("vix3m", "VIX3M"),
-                     ("vix6m", "VIX6M"), ("vix1y", "VIX1Y"), ("vvix", "VVIX")]:
-        val, prev, dt = cboe_last(sym)
-        curve[key] = val
-        curve[key + "_date"] = dt
-        curve[key + "_chg"] = round(val / prev - 1.0, 6) if (val and prev) else None
-        print(f"  cboe  {sym:6s} {val}")
+    prev = load_prev()
+    prev_curve = ((prev.get("market") or {}).get("curve")) or {}
+    now_iso = datetime.now(tz=timezone.utc).isoformat(timespec="seconds")
 
-    # Live spot / ETF quotes (Yahoo intraday).
+    # ── Decide whether to re-fetch the CBOE end-of-day term structure ─────────
+    # The CBOE history CSVs only gain a new row after the close (posted ~5:30pm
+    # ET). Through the trading day they still show *yesterday's* close, so
+    # polling them every 5 min is wasted work. Fetch only when (a) we have no
+    # cached curve, or (b) it's past the EOD-post window and a fresh print may
+    # be available. The rest of the day we carry the cached values forward.
+    et = et_now()
+    after_eod_post = (et.hour > 17) or (et.hour == 17 and et.minute >= 30)
+    have_cached = any(prev_curve.get(k) is not None for k in ("vix9d", "vix3m"))
+    refresh_cboe = (not have_cached) or after_eod_post
+
+    curve = {}
+    if refresh_cboe:
+        # Term structure (CBOE EOD). vix1m proxy = VIX index, matching backtest.
+        for key, sym in [("vix9d", "VIX9D"), ("vix1m", "VIX"), ("vix3m", "VIX3M"),
+                         ("vix6m", "VIX6M"), ("vix1y", "VIX1Y"), ("vvix", "VVIX")]:
+            val, pv, dt = cboe_last(sym)
+            curve[key] = val
+            curve[key + "_date"] = dt
+            curve[key + "_chg"] = round(val / pv - 1.0, 6) if (val and pv) else None
+            print(f"  cboe  {sym:6s} {val}")
+    else:
+        curve = dict(prev_curve)
+        print(f"  cboe  reused cached EOD curve "
+              f"(date={curve.get('vix9d_date')}, ET={et.strftime('%H:%M')}) "
+              f"— not yet past the ~5:30pm post window")
+
+    # Live spot / ETF quotes (Yahoo intraday) — always refreshed.
     quotes = {sym.lower().lstrip("^"): yahoo_quote(sym)
               for sym in ["^VIX", "SVXY", "UVXY", "SVIX", "UVIX",
                           "TQQQ", "SQQQ", "SPY", "^GSPC", "^MOVE"]}
@@ -157,6 +228,7 @@ def main() -> None:
     # Live VIX spot overrides the EOD VIX1M for the freshest front-end reading.
     vix_spot = quotes["vix"]["price"]
     vix1m = vix_spot if vix_spot is not None else curve.get("vix1m")
+    move  = quotes.get("move", {}).get("price")
 
     # Generic, non-proprietary derived readings.
     def ratio(a, b):
@@ -164,12 +236,49 @@ def main() -> None:
     contango   = ratio(curve.get("vix3m"), vix1m)
     backend    = ratio(curve.get("vix6m"), curve.get("vix3m"))
     vdelta     = (vix1m - curve["vix9d"]) if (vix1m and curve.get("vix9d")) else None
+    # Matches the backtest definitions: ratio_1m_3m = VIX1M/VIX3M, MOVE/VIX1M.
+    ratio_1m_3m = (vix1m / curve["vix3m"]) if (vix1m and curve.get("vix3m")) else None
+    move_vix    = (move / vix1m) if (move and vix1m) else None
     regime     = None
     if contango is not None:
         regime = "contango" if contango > 0 else "backwardation"
 
+    # ── Per-signal change-time tracking (persisted across runs) ───────────────
+    # Stamp each signal with the time its value last *changed*. We carry the
+    # prior timestamp forward when the value is unchanged, so the "last changed"
+    # clock survives across runs/sessions (the dashboard reset on every reload).
+    prev_timing = prev.get("signal_timing") or {}
+
+    def _r(v):
+        return None if v is None else round(float(v), 4)
+
+    tracked = {
+        "vix9d":          curve.get("vix9d"),
+        "vix1m":          vix1m,
+        "contango":       contango,
+        "vdelta":         vdelta,
+        "ratio_1m_3m":    ratio_1m_3m,
+        "move_vix_ratio": move_vix,
+    }
+    signal_timing = {}
+    for key, val in tracked.items():
+        cadence, expected = SIG_INFO[key]
+        new_v = _r(val)
+        pv = prev_timing.get(key) or {}
+        old_v = pv.get("value")
+        if new_v != old_v:
+            changed_utc = now_iso                       # value moved this run
+        else:
+            changed_utc = pv.get("changed_utc") or now_iso
+        signal_timing[key] = {
+            "value":       new_v,
+            "changed_utc": changed_utc,
+            "cadence":     cadence,
+            "expected":    expected,
+        }
+
     status = {
-        "generated_utc": datetime.now(tz=timezone.utc).isoformat(timespec="seconds"),
+        "generated_utc": now_iso,
         "market": {
             "vix_spot": vix_spot,
             "vix1m_used": round(vix1m, 4) if vix1m else None,
@@ -180,19 +289,28 @@ def main() -> None:
             "contango": round(contango, 6) if contango is not None else None,
             "backend_slope": round(backend, 6) if backend is not None else None,
             "vdelta": round(vdelta, 4) if vdelta is not None else None,
+            "ratio_1m_3m": round(ratio_1m_3m, 4) if ratio_1m_3m is not None else None,
+            "move_vix_ratio": round(move_vix, 2) if move_vix is not None else None,
             "regime": regime,
         },
+        # When each signal's decision-relevant print lands, and when each value
+        # last changed (carried forward across runs).
+        "signal_timing": signal_timing,
+        "cboe_refreshed": refresh_cboe,
         # Strategy's last OFFICIAL state (signals finalize ~7pm ET each day;
         # trades execute the next market open — intraday readings are indicative).
         "official": last_official(),
-        "note": ("Term structure is CBOE end-of-day; VIX spot & ETF quotes are "
-                 "Yahoo intraday (~15-min delayed). Signals finalize ~7pm ET each "
-                 "day; trades execute the next market open — no intraday repaint."),
+        "note": ("Term structure is CBOE end-of-day (re-fetched only after the "
+                 "~5:30pm ET post; cached intraday). VIX spot & ETF quotes are "
+                 "Yahoo intraday (~15-min delayed). Live signals refresh ~every "
+                 "5 min so you can see where the EOD reading is heading; signals "
+                 "finalize at the ~7pm ET evaluation and trade the next open."),
     }
 
     with open("live_status.json", "w", encoding="utf-8") as fh:
         json.dump(status, fh, indent=2)
-    print(f"Wrote live_status.json  (regime={regime}, contango={status['derived']['contango']})")
+    print(f"Wrote live_status.json  (regime={regime}, "
+          f"contango={status['derived']['contango']}, cboe_refreshed={refresh_cboe})")
 
 
 if __name__ == "__main__":

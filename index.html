@@ -401,7 +401,10 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
 .sig-svxy { color:var(--teal); } .sig-uvxy { color:var(--coral); } .sig-neu { color:var(--dim); }
 .sig-cash { color:var(--amber); }
-.sig-upd { font-size:0.62rem; color:var(--dim); margin-top:3px; white-space:nowrap; line-height:1.3; }
+.sig-upd { font-size:0.62rem; color:var(--dim); margin-top:4px; white-space:nowrap; line-height:1.5; cursor:help; }
+.sig-cad { display:inline-block; font-size:0.56rem; font-weight:700; letter-spacing:0.04em; padding:1px 5px; border-radius:3px; }
+.sig-cad-live { color:var(--teal); border:1px solid rgba(82,230,189,.4); background:rgba(82,230,189,.07); }
+.sig-cad-eod  { color:var(--amber); border:1px solid rgba(240,152,47,.4); background:rgba(240,152,47,.07); }
 
 /* ── Loading ──────────────────────────────────────────────────────── */
 #loading { display: flex; align-items: center; justify-content: center; min-height: 60vh; flex-direction: column; gap: 16px }
@@ -1673,7 +1676,8 @@ function renderSignalMonitor(){
   const cv = (L&&L.market&&L.market.curve)?L.market.curve:{};
   const vix9d = cv.vix9d!=null?cv.vix9d:null;
   const vix1m = (L&&L.market&&L.market.vix1m_used!=null)?L.market.vix1m_used:null;
-  const ratio13=b.ratio_1m_3m, movevix=b.move_vix_ratio;
+  const ratio13 = (L&&L.derived&&L.derived.ratio_1m_3m!=null)?L.derived.ratio_1m_3m:b.ratio_1m_3m;
+  const movevix = (L&&L.derived&&L.derived.move_vix_ratio!=null)?L.derived.move_vix_ratio:b.move_vix_ratio;
   const P={ct:0.033,ch:0.146,bvd:0.32,xvd:-2.43,b9lo:14.8,b9hi:31.0,b1lo:8.0,b1hi:22.8,br13:0.932,xr13:1.096};
   const tag=(k)=>k==='SVXY'?'<span class="sig-ind sig-svxy">SVXY</span>':k==='UVXY'?'<span class="sig-ind sig-uvxy">UVXY</span>':'<span class="sig-ind sig-neu">Cash</span>';
   const num=(v,d=2)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v).toFixed(d);
@@ -1710,25 +1714,39 @@ function renderSignalMonitor(){
       spike?'UVXY':(crush?'SVXY':'NEU')],
   ];
 
-  // ── Per-signal refresh tracking ──────────────────────────────────────
-  // Stamp each reading with the time its value last CHANGED from the prior
-  // reading. Values refresh with the live feed (~every 5 min in market hours);
-  // the reading that actually feeds the trade is whichever value is standing at
-  // the ~7pm ET daily evaluation. The change-time is stamped from the feed's
-  // own generated time, and tracked across polls within the session.
+  // ── Per-signal refresh + data-availability annotations ───────────────
+  // Each signal carries: a cadence badge (does the data move intraday, or only
+  // after the CBOE end-of-day print?), the time its value last CHANGED (carried
+  // forward across runs by update_live.py → live_status.json), and a tooltip
+  // explaining when the print that feeds the next-open decision lands.
+  // Spike/Crush has no live feed value — it's a daily close-to-close move.
+  const ST = (L && L.signal_timing) || {};
+  const sigKeys = ['contango','vdelta','vix9d','vix1m','ratio_1m_3m','move_vix_ratio'];
+  // Session-scoped fallback if the feed predates signal_timing.
   const _genStamp = (L&&L.generated_utc) ? toEtClock(L.generated_utc)+' ET' : '—';
   const _genKey = (L&&L.generated_utc) || '';
-  const _rawVals = [contango,vdelta,vix9d,vix1m,ratio13,movevix];
   const _r4 = (v)=> (v==null||isNaN(v))?'NA':(+v).toFixed(4);
   window._sigHist = window._sigHist || {};
-  const _trackUpd=(name,valKey)=>{
+  const _fallbackChanged=(name,valKey)=>{
     const h=window._sigHist[name];
     if(!h){ window._sigHist[name]={v:valKey,at:_genStamp,gen:_genKey}; }
     else if(valKey!==h.v && _genKey && _genKey!==h.gen){ h.v=valKey; h.at=_genStamp; h.gen=_genKey; }
     return window._sigHist[name].at;
   };
-  rows.forEach((r,i)=>{ const at=_trackUpd(r[0],_r4(_rawVals[i])); r[4]=r[4]+`<div class="sig-upd">&#8635; updated ${at}</div>`; });
-  overrideRows.forEach(r=>{ const at=_trackUpd(r[0], spike?'SPIKE':(crush?'CRUSH':'NONE')); r[4]=r[4]+`<div class="sig-upd">&#8635; updated ${at}</div>`; });
+  const cadBadge=(cad)=> cad==='eod'
+    ? '<span class="sig-cad sig-cad-eod">EOD &middot; ~5:30pm ET</span>'
+    : '<span class="sig-cad sig-cad-live">LIVE &middot; ~5 min</span>';
+  const annotate=(name,key,valKey,cadFallback,expFallback)=>{
+    const m = ST[key] || {};
+    const cad = m.cadence || cadFallback;
+    const changed = m.changed_utc ? (toEtClock(m.changed_utc)+' ET') : _fallbackChanged(name,valKey);
+    const exp = (m.expected || expFallback || '').replace(/"/g,'&quot;');
+    return `<div class="sig-upd" title="${exp}">${cadBadge(cad)}<br>&#8635; changed ${changed}</div>`;
+  };
+  const _rawVals=[contango,vdelta,vix9d,vix1m,ratio13,movevix];
+  rows.forEach((r,i)=>{ r[4]=r[4]+annotate(r[0],sigKeys[i],_r4(_rawVals[i]),(i===2?'eod':'live'),''); });
+  overrideRows.forEach(r=>{ r[4]=r[4]+annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'eod',
+      'Close-to-close move — confirmed only at the 4pm close, then feeds the ~7pm evaluation.'); });
 
   // ── Projected end-of-day position: how the live signals combine ──────
   // Indicative read of where the signals are leaning intraday. The OFFICIAL
@@ -1777,7 +1795,10 @@ function renderSignalMonitor(){
     } else {
       nextTxt = 'after the next market close (~7pm ET)';
     }
-    refreshHtml = `<div class="sig-proj-tally">Readings last refreshed <b>${lastTxt}</b> &middot; next refresh ${nextTxt} &middot; the reading standing at the ~7pm&nbsp;ET evaluation is the one that feeds the trade</div>`;
+    refreshHtml = `<div class="sig-proj-tally">Feed refreshed <b>${lastTxt}</b> &middot; next ${nextTxt}.`
+      + ` <span class="sig-cad sig-cad-live">LIVE</span> signals refresh ~every 5 min so you can see where the reading is heading;`
+      + ` <span class="sig-cad sig-cad-eod">EOD</span> signals only print after CBOE posts (~5:30pm&nbsp;ET).`
+      + ` All readings finalise at the ~7pm&nbsp;ET evaluation that sets the next-open trade. Hover any signal's badge for its specifics.</div>`;
   }
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=projHtml+refreshHtml;
 

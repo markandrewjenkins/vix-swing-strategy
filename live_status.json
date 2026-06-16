@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-06-16T20:55:35+00:00",
+  "generated_utc": "2026-06-16T21:54:53+00:00",
   "market": {
     "vix_spot": 16.41,
     "vix1m_used": 16.41,
@@ -76,7 +76,7 @@
         "price": 7511.35,
         "prev_close": 7554.29,
         "change_pct": -0.005684,
-        "time": "2026-06-16T20:20:01+00:00"
+        "time": "2026-06-16T20:56:16+00:00"
       },
       "move": {
         "price": 67.2765,
@@ -90,8 +90,49 @@
     "contango": 0.179768,
     "backend_slope": 0.124483,
     "vdelta": 0.83,
+    "ratio_1m_3m": 0.8476,
+    "move_vix_ratio": 4.1,
     "regime": "contango"
   },
+  "signal_timing": {
+    "vix9d": {
+      "value": 15.58,
+      "changed_utc": "2026-06-16T21:47:47+00:00",
+      "cadence": "eod",
+      "expected": "CBOE end-of-day only. Unchanged through the session \u2014 tonight's print posts ~5:30pm ET and feeds the ~7pm evaluation."
+    },
+    "vix1m": {
+      "value": 16.41,
+      "changed_utc": "2026-06-16T21:47:47+00:00",
+      "cadence": "live",
+      "expected": "Live VIX spot, refreshes ~every 5 min. The 4pm close value is the one that feeds the ~7pm evaluation."
+    },
+    "contango": {
+      "value": 0.1798,
+      "changed_utc": "2026-06-16T21:47:47+00:00",
+      "cadence": "live",
+      "expected": "Moves intraday with VIX; the VIX3M leg is fixed until CBOE's EOD print (~5:30pm ET). Finalises for the ~7pm evaluation."
+    },
+    "vdelta": {
+      "value": 0.83,
+      "changed_utc": "2026-06-16T21:47:47+00:00",
+      "cadence": "live",
+      "expected": "Moves intraday with VIX; the VIX9D leg is fixed until CBOE's EOD print (~5:30pm ET)."
+    },
+    "ratio_1m_3m": {
+      "value": 0.8476,
+      "changed_utc": "2026-06-16T21:47:47+00:00",
+      "cadence": "live",
+      "expected": "Live VIX \u00f7 CBOE VIX3M; moves intraday, VIX3M leg fixed until the EOD print (~5:30pm ET)."
+    },
+    "move_vix_ratio": {
+      "value": 4.0997,
+      "changed_utc": "2026-06-16T21:47:47+00:00",
+      "cadence": "live",
+      "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
+    }
+  },
+  "cboe_refreshed": true,
   "official": {
     "date": "2026-06-12",
     "position": "LONG_VOL_SELLER",
@@ -99,5 +140,5 @@
     "open_pnl": 0.0,
     "equity": 79151131.96
   },
-  "note": "Term structure is CBOE end-of-day; VIX spot & ETF quotes are Yahoo intraday (~15-min delayed). Signals finalize ~7pm ET each day; trades execute the next market open \u2014 no intraday repaint."
+  "note": "Term structure is CBOE end-of-day (re-fetched only after the ~5:30pm ET post; cached intraday). VIX spot & ETF quotes are Yahoo intraday (~15-min delayed). Live signals refresh ~every 5 min so you can see where the EOD reading is heading; signals finalize at the ~7pm ET evaluation and trade the next open."
 }
