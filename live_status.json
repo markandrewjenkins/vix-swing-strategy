@@ -1,8 +1,8 @@
 {
-  "generated_utc": "2026-06-16T20:10:35+00:00",
+  "generated_utc": "2026-06-16T20:15:32+00:00",
   "market": {
-    "vix_spot": 16.18,
-    "vix1m_used": 16.18,
+    "vix_spot": 16.27,
+    "vix1m_used": 16.27,
     "curve": {
       "vix9d": 15.58,
       "vix9d_date": "2026-06-15",
@@ -25,34 +25,34 @@
     },
     "quotes": {
       "vix": {
-        "price": 16.18,
+        "price": 16.27,
         "prev_close": 16.2,
-        "change_pct": -0.001235,
-        "time": "2026-06-16T19:55:16+00:00"
+        "change_pct": 0.004321,
+        "time": "2026-06-16T20:00:16+00:00"
       },
       "svxy": {
-        "price": 56.74,
+        "price": 56.76,
         "prev_close": 56.85,
-        "change_pct": -0.001935,
-        "time": "2026-06-16T19:59:58+00:00"
+        "change_pct": -0.001583,
+        "time": "2026-06-16T20:00:00+00:00"
       },
       "uvxy": {
-        "price": 25.835,
+        "price": 25.84,
         "prev_close": 25.77,
-        "change_pct": 0.002522,
-        "time": "2026-06-16T19:59:59+00:00"
+        "change_pct": 0.002716,
+        "time": "2026-06-16T20:00:00+00:00"
       },
       "svix": {
-        "price": 23.51,
+        "price": 23.58,
         "prev_close": 23.53,
-        "change_pct": -0.00085,
-        "time": "2026-06-16T19:59:59+00:00"
+        "change_pct": 0.002125,
+        "time": "2026-06-16T20:00:00+00:00"
       },
       "uvix": {
-        "price": 3.275,
+        "price": 3.27,
         "prev_close": 3.28,
-        "change_pct": -0.001524,
-        "time": "2026-06-16T19:59:58+00:00"
+        "change_pct": -0.003049,
+        "time": "2026-06-16T20:00:00+00:00"
       },
       "tqqq": {
         "price": 79.93,
@@ -67,16 +67,16 @@
         "time": "2026-06-16T20:00:01+00:00"
       },
       "spy": {
-        "price": 750.35,
+        "price": 750.33,
         "prev_close": 754.83,
-        "change_pct": -0.005935,
+        "change_pct": -0.005962,
         "time": "2026-06-16T20:00:00+00:00"
       },
       "gspc": {
         "price": 7511.35,
         "prev_close": 7554.29,
         "change_pct": -0.005684,
-        "time": "2026-06-16T20:10:33+00:00"
+        "time": "2026-06-16T20:15:31+00:00"
       },
       "move": {
         "price": 69.3774,
@@ -87,9 +87,9 @@
     }
   },
   "derived": {
-    "contango": 0.196539,
+    "contango": 0.18992,
     "backend_slope": 0.124483,
-    "vdelta": 0.6,
+    "vdelta": 0.69,
     "regime": "contango"
   },
   "official": {
