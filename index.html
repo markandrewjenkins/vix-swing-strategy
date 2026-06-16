@@ -418,11 +418,12 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <div class="hdr-title">VIX SWING STRATEGY</div>
     <div class="hdr-metarow">
       <span class="hdr-meta" id="hdr-meta">Loading...</span>
+      <span class="hdr-meta">Select ETFs:</span>
       <span class="cdl-toggle-group instr-inline" title="Switch the dashboard between the SVXY/UVXY pair and the SVIX/UVIX pair">
         <button id="instr-real" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
         <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
       </span>
-      <span class="hdr-disc">— SVIX/UVIX only launched in 2022, so earlier dates are simulated by scaling SVXY/UVXY trade returns to SVIX/UVIX's higher leverage (≈&minus;1× / 2× VIX vs &minus;0.5× / 1.5×)</span>
+      <span class="hdr-disc">— SVIX/UVIX only launched in 2022, so prior results are based on SVXY/UVXY trade returns scaled to SVIX/UVIX's higher leverage</span>
     </div>
   </div>
   <div class="tabs">
@@ -451,11 +452,11 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <span class="live-item"><span class="live-lbl">VIX1Y</span><span class="live-val" id="lv-vix1y">—</span><span class="live-chg" id="lv-vix1y-c"></span></span>
         <span class="live-item"><span class="live-lbl">VVIX</span><span class="live-val" id="lv-vvix">—</span><span class="live-chg" id="lv-vvix-c"></span></span>
         <span class="live-item"><span class="live-lbl">MOVE</span><span class="live-val" id="lv-move">—</span><span class="live-chg" id="lv-move-c"></span></span>
-        <span class="live-item live-status" style="margin-left:auto;gap:10px">
+        <span class="live-item live-status" style="margin-left:auto;gap:14px">
           <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
-          <span class="live-lbl" id="lv-feed-note">quotes ~15&nbsp;min delayed</span>
-          <span class="live-lbl">Last refresh:</span>
-          <span class="live-val" id="lv-updated">—</span>
+          <span class="live-lbl" id="lv-feed-note">Updating live every 5 mins</span>
+          <span class="live-lbl" id="lv-delay">Quotes are delayed 15 mins</span>
+          <span class="live-lbl">Last Refresh:&nbsp;<span class="live-val" id="lv-updated">—</span></span>
         </span>
       </div>
       <div class="live-row">
@@ -1413,11 +1414,11 @@ async function loadLive(){
     const fresh = ageMin!=null && ageMin<=20;
     const live = regular && fresh;
     strip.classList.toggle('stale', !live);
-    const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note');
+    const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed) feed.textContent = live ? 'LIVE' : (regular ? 'DELAYED' : 'PAUSED');
-    if(note) note.textContent = live ? 'updating live · quotes ~15 min delayed'
-                                     : (regular ? 'awaiting next refresh · quotes ~15 min delayed'
-                                                : 'market closed · last close shown');
+    if(note) note.textContent = live ? 'Updating live every 5 mins'
+                                     : (regular ? 'Awaiting next refresh' : 'Market closed — last close shown');
+    if(delay) delay.style.display = (live||regular) ? '' : 'none';   // delay note only when trading
     document.getElementById('lv-updated').textContent =
         toEtClock(L.generated_utc)+' ET';
 
@@ -1445,17 +1446,20 @@ async function loadLive(){
     }
     // Refine the forming candle's close with the latest live quote (never fabricate flat candles)
     if(CHART_MODE==='real' && candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
-      const px=L.market.quotes.svxy.price, today=(L.generated_utc||'').slice(0,10), last=CANDLES[CANDLES.length-1];
-      if(px!=null && last && today===last.time){
-        const nc={time:last.time,open:last.open,high:Math.max(last.high,px),low:Math.min(last.low,px),close:px};
+      const q=L.market.quotes.svxy, px=q.price, today=(L.generated_utc||'').slice(0,10), last=CANDLES[CANDLES.length-1];
+      const qFresh = q.time ? (Date.now()-new Date(q.time).getTime())/60000 < 30 : false;  // ignore stale quotes
+      if(px!=null && last && today===last.time && qFresh){
+        const hi=Math.max(last.high,last.open,px), lo=Math.min(last.low,last.open,px);  // keep the candle sane
+        const nc={time:last.time,open:last.open,high:hi,low:lo,close:px};
         CANDLES[CANDLES.length-1]=nc; candleSeries.update(nc);
       }
     }
   }catch(e){
     strip.classList.add('stale');
-    const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note');
+    const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed) feed.textContent='OFFLINE';
     if(note) note.textContent='live feed unavailable';
+    if(delay) delay.style.display='none';
     document.getElementById('lv-updated').textContent = '—';
   }
 }
@@ -1464,12 +1468,12 @@ async function loadLive(){
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
-function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'after hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
+function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'Market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'After hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
   const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color,sep;
   const DASH='\u00a0-\u00a0', GAP='\u00a0\u00a0';   // snug gap for closed/pre, dash for open/after
-  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; sep=DASH; }
+  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; sep=GAP; }
   else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; sep=GAP; }
   else if(isWk&&dec>=16&&dec<20){ label='After hours'; color=CYAN; sep=GAP; }
   else { label='Market closed'; color=GRAY; sep=GAP; }
@@ -1484,7 +1488,11 @@ let CHART_MODE='real';
 function displayCandles(){
   const src = CHART_MODE==='alt' ? ALT_SVIX : OHLC;
   if(!src) return [];
-  return src.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
+  const out = src.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
+  // Drop a degenerate forming bar (zero range = just-opened placeholder before
+  // real intraday data) so it doesn't render as a weird flat/line candle.
+  while(out.length){ const l=out[out.length-1]; if(l.open===l.high && l.high===l.low && l.low===l.close) out.pop(); else break; }
+  return out;
 }
 function displayMarkers(){
   const alt=CHART_MODE==='alt'; const markers=[];
@@ -1539,6 +1547,14 @@ function renderSummary(){
   // lines up exactly with the entry/exit markers.
   const posByDate={}; const _allTimes=(OHLC||[]).map(r=>r[0]);
   DATA.trades.forEach(t=>{ const ty=t.type; for(const tm of _allTimes){ if(tm>=t.entry_date && tm<=t.exit_date) posByDate[tm]=ty; } });
+  // Overlay the currently-OPEN position (entered but not yet exited → no closed trade
+  // row), so recent bars match the header's live position instead of showing CASH.
+  const _bh=DATA.bar_history||[]; let _openTy=null,_openStart=null;
+  for(let i=_bh.length-1;i>=0;i--){ const p=_bh[i].position; if(p&&p!=='CASH'){_openTy=p;_openStart=_bh[i].date;} else break; }
+  const _lastExit=DATA.trades.length?DATA.trades[DATA.trades.length-1].exit_date:'';
+  if(_openTy && _openStart && _openStart>_lastExit){
+    for(const tm of _allTimes){ if(tm>=_openStart) posByDate[tm]=_openTy; }
+  }
   POSBYDATE=posByDate;
   const startCap=DATA.meta.start_capital;
   const evByDate={};
@@ -1700,13 +1716,18 @@ function renderSignalMonitor(){
   const sv = core.filter(v=>v==='SVXY').length;
   const uv = core.filter(v=>v==='UVXY').length;
   const neu = core.filter(v=>v==='NEU').length;
+  // A directional call needs a clear consensus (≥5 of the 6 core signals one
+  // way), or a fired override / outright backwardation. A bare majority (e.g.
+  // 4 of 6) is treated as "no clear edge" → CASH, so the projection never gets
+  // ahead of the signals on the board.
+  const CONS=5;
   let proj, why;
   if(spike){ proj='UVXY'; why='Spike override active — forces long vol'; }
   else if(crush){ proj='SVXY'; why='Crush override active — forces short vol'; }
   else if(contango!=null && contango<0){ proj='UVXY'; why='Term structure in backwardation'+(uv>sv?(', '+uv+' signals bearish'):''); }
-  else if(sv>uv && (contango==null||contango>=P.ct)){ proj='SVXY'; why=sv+' of '+core.length+' signals favour short vol, term structure in contango'; }
-  else if(uv>sv){ proj='UVXY'; why=uv+' of '+core.length+' signals favour long vol'; }
-  else { proj='CASH'; why='signals mixed — no clear edge'; }
+  else if(sv>=CONS && (contango==null||contango>=P.ct)){ proj='SVXY'; why=sv+' of '+core.length+' signals favour short vol, term structure in contango'; }
+  else if(uv>=CONS){ proj='UVXY'; why=uv+' of '+core.length+' signals favour long vol'; }
+  else { proj='CASH'; why='no clear consensus ('+sv+' short vol / '+uv+' long vol of '+core.length+') — staying in cash'; }
   const projTag = proj==='SVXY'?'<span class="sig-proj-pos sig-svxy">SVXY · short vol</span>'
                 : proj==='UVXY'?'<span class="sig-proj-pos sig-uvxy">UVXY · long vol</span>'
                 : '<span class="sig-proj-pos sig-neu">CASH</span>';
@@ -1715,7 +1736,23 @@ function renderSignalMonitor(){
     + (off?(`; last official: <b>${off}</b>`):``) + `.</span>`
     + `<div class="sig-proj-tally">Signal tally: <span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span>`
     + (spike?(` &middot; <span class="vt-uv">SPIKE override</span>`):(crush?(` &middot; <span class="vt-sv">CRUSH override</span>`):``)) + `</div>`;
-  const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=projHtml;
+
+  // ── Refresh clock: when this reading was taken and when the next is due ──
+  let refreshHtml='';
+  if(L && L.generated_utc){
+    const lastTxt = toEtClock(L.generated_utc)+' ET';
+    const _t=_etNow(); const _dec=_t.sod/3600; const _wk=_t.wd!=='Sat'&&_t.wd!=='Sun';
+    const reg = _wk && _dec>=9.5 && _dec<16;
+    let nextTxt;
+    if(reg){
+      const nxt = new Date(new Date(L.generated_utc).getTime()+5*60000);
+      nextTxt = '~'+toEtClock(nxt.toISOString())+' ET (every 5 min during market hours)';
+    } else {
+      nextTxt = 'after the next market close (~7pm ET)';
+    }
+    refreshHtml = `<div class="sig-proj-tally">Reading last refreshed <b>${lastTxt}</b> &middot; next refresh ${nextTxt}</div>`;
+  }
+  const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=projHtml+refreshHtml;
 
   const head='<thead><tr><th>Indicator</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th>Current</th><th>Signal</th></tr></thead>';
   const rowHtml=(r,cls='')=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
