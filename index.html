@@ -405,10 +405,14 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj .sig-proj-note { color:var(--dim); font-size:0.74rem; }
 .sig-proj .sig-proj-tally { color:var(--dim); font-size:0.72rem; margin-top:3px; }
 .sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); font-weight:700; }
-.sig-proj-grid { display:grid; grid-template-columns:auto auto; gap:3px 26px; justify-content:start; font-size:0.82rem; margin-bottom:6px; }
-.sig-proj-grid > div { white-space:nowrap; }
-.sig-proj-grid .lbl { color:var(--dim); margin-right:7px; }
-.sig-proj-grid b { font-weight:700; }
+.sig-proj-row1 { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:4px 24px; font-size:0.82rem; }
+.sig-proj-row1 > div { white-space:nowrap; }
+.sig-proj-row1 b { font-weight:700; }
+.sig-proj .lbl { color:var(--dim); margin-right:7px; }
+.sig-proj-meta { color:var(--dim); }
+.sig-proj-meta b { color:var(--text); }
+.sig-proj-projline { margin:5px 0 7px; white-space:nowrap; }
+.sig-proj-projline b { font-size:1.18rem; font-weight:700; letter-spacing:0.02em; }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
 .sig-svxy { color:var(--teal); } .sig-uvxy { color:var(--coral); } .sig-neu { color:var(--dim); }
 .sig-cash { color:var(--cashc); }
@@ -1744,10 +1748,10 @@ function renderSignalMonitor(){
     ['VIX1M / VIX3M Ratio','Slope of the near curve.',
       'Upward-sloping (contango)','Inverted (backwardation)', num(ratio13,2),
       ratio13<P.br13?'SVXY':(ratio13>=P.xr13?'UVXY':'NEU')],
-    ['MOVE / VIX Ratio','Bond vol vs equity vol stress.',
-      'Low cross-asset stress','High cross-asset stress', num(movevix,2),
-      (movevix!=null&&movevix>11)?'UVXY':((movevix!=null&&movevix<2)?'SVXY':'NEU')],
   ];
+  // MOVE/VIX is NOT an entry trigger — it's a cross-asset stress overlay that
+  // only exits SVXY (high) or blocks/exits UVXY (low). It lives in Exit Rules.
+  const moveSig = (movevix!=null&&movevix>11)?'high':((movevix!=null&&movevix<2)?'low':'mid');
 
   // Spike / Crush is an OVERRIDE — evaluated separately from the weighted
   // term-structure signals above; a fired event forces the position regardless.
@@ -1765,7 +1769,7 @@ function renderSignalMonitor(){
   // explaining when the print that feeds the next-open decision lands.
   // Spike/Crush has no live feed value — it's a daily close-to-close move.
   const ST = (L && L.signal_timing) || {};
-  const sigKeys = ['contango','vdelta','vix9d','vix1m','ratio_1m_3m','move_vix_ratio'];
+  const sigKeys = ['contango','vdelta','vix9d','vix1m','ratio_1m_3m'];
   // Session-scoped fallback if the feed predates signal_timing.
   const _genStamp = (L&&L.generated_utc) ? toEtClock(L.generated_utc)+' ET' : '—';
   const _genKey = (L&&L.generated_utc) || '';
@@ -1788,7 +1792,7 @@ function renderSignalMonitor(){
     const col = cad==='eod' ? 'var(--amber)' : 'var(--teal)';
     return ` <span class="sig-info" style="color:${col}" title="${tip}">&#9201;</span>`;
   };
-  const _rawVals=[contango,vdelta,vix9d,vix1m,ratio13,movevix];
+  const _rawVals=[contango,vdelta,vix9d,vix1m,ratio13];
   rows.forEach((r,i)=>{ r[4]=r[4]+annotate(r[0],sigKeys[i],_r4(_rawVals[i]),(i===2?'eod':'live')); });
   overrideRows.forEach(r=>{ r[4]=r[4]+annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'eod'); });
 
@@ -1796,21 +1800,20 @@ function renderSignalMonitor(){
   // Indicative read of where the signals are leaning intraday. The OFFICIAL
   // position finalizes after the ~7pm ET signal evaluation (traded next open);
   // this tally lets you see the EOD call taking shape mid-session.
-  const core = rows.map(r=>r[5]);
+  const core = rows.map(r=>r[5]);   // the 5 term-structure entry signals
   const sv = core.filter(v=>v==='SVXY').length;
   const uv = core.filter(v=>v==='UVXY').length;
   const neu = core.filter(v=>v==='NEU').length;
   // This mirrors the real entry rule, not a vote. The SVXY (short-vol) entry
-  // requires FULL bullish alignment of the term-structure signals — contango,
+  // requires FULL bullish alignment of the 5 term-structure signals — contango,
   // VDelta, the two VIX zones and the 1m/3m ratio must ALL read short-vol
-  // simultaneously (plus a BB-trend confirmation checked at evaluation). MOVE
-  // is a cross-asset stress gauge used for risk/exit, not an entry trigger, so
-  // it is excluded here. Backwardation or a confirmed VIX spike flips to UVXY;
-  // a faded spike (crush) flips to SVXY. Anything short of full alignment = CASH.
-  // (rows order: 0 Contango, 1 VDelta, 2 VIX9D, 3 VIX1M, 4 1m/3m ratio, 5 MOVE)
-  const regime = core.slice(0,5);
+  // simultaneously (plus a BB-trend confirmation checked at evaluation).
+  // Backwardation or a confirmed VIX spike flips to UVXY; a faded spike (crush)
+  // flips to SVXY. Anything short of full alignment = CASH. (MOVE/VIX is a
+  // risk/exit overlay, not an entry trigger — shown under Exit Rules.)
+  const regime = core;
   const nBull = regime.filter(v=>v==='SVXY').length;
-  const regimeBull = regime.every(v=>v==='SVXY');
+  const regimeBull = regime.length>0 && regime.every(v=>v==='SVXY');
   let proj, why;
   if(spike){ proj='UVXY'; why='spike override — a confirmed VIX spike forces long vol'; }
   else if(crush){ proj='SVXY'; why='crush override — a faded vol spike forces short vol'; }
@@ -1826,26 +1829,29 @@ function renderSignalMonitor(){
     const d=k==='sv'?' &middot; short vol':k==='uv'?' &middot; long vol':''; return `<b class="${cls}">${nm}${d}</b>`; };
   const ovr = spike?' <span class="vt-uv">(spike override)</span>':crush?' <span class="vt-sv">(crush override)</span>':'';
 
-  // How many of the 6 indicators have their decision-relevant value in: live
-  // ones are always current; EOD ones (e.g. VIX9D) only after the ~5:30pm post.
+  // How many of the 5 entry indicators have their decision-relevant value in:
+  // live ones are always current; EOD ones (e.g. VIX9D) only after the ~5:30pm post.
   const _t=_etNow(); const _dec=_t.sod/3600; const _wk=_t.wd!=='Sat'&&_t.wd!=='Sun';
   const eodPending = _wk && _dec<17.5;          // today's CBOE EOD not posted yet
+  const nSig = sigKeys.length;
   let refreshed=0;
   sigKeys.forEach((k,i)=>{ const v=_rawVals[i]; const has=v!=null&&!isNaN(v);
     const cad=(ST[k]&&ST[k].cadence)||(i===2?'eod':'live');
     if(has && (cad==='live' || !eodPending)) refreshed++; });
   const lastTxt = (L&&L.generated_utc)?toEtClock(L.generated_utc)+' ET':'—';
-  const allIn = refreshed>=6;
+  const allIn = refreshed>=nSig;
   const note = allIn
     ? `All daily indicators are in as of <b>${lastTxt}</b> — the Projected Position becomes the next-open trade if it differs from the Current Position.`
-    : `${refreshed} of 6 indicators in as of <b>${lastTxt}</b> — the end-of-day readings post after ~5:30pm&nbsp;ET, after which the projection firms up for the next open.`;
+    : `${refreshed} of ${nSig} indicators in as of <b>${lastTxt}</b> — the end-of-day readings post after ~5:30pm&nbsp;ET, after which the projection firms up for the next open.`;
 
-  const html = `<div class="sig-proj-grid">`
-    + `<div><span class="lbl">Current position</span>${chip(off)}</div>`
-    + `<div><span class="lbl">Projected (next open)</span>${chip(proj)}${ovr}</div>`
-    + `<div title="MOVE/VIX is a cross-asset stress gauge, not an entry trigger — an SVXY signal needs the term-structure indicators aligned, so a neutral (cash) MOVE doesn't block it."><span class="lbl">Indicator mix</span><span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span></div>`
-    + `<div><span class="lbl">Indicators refreshed</span><b>${refreshed} of 6</b></div>`
-    + `</div>`
+  const html =
+      `<div class="sig-proj-row1">`
+    +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
+    +   `<div class="sig-proj-meta"><span class="lbl">Indicator mix</span>`
+    +     `<span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span>`
+    +     `<span class="lbl" style="margin-left:20px">Refreshed</span><b>${refreshed} of ${nSig}</b></div>`
+    +   `</div>`
+    + `<div class="sig-proj-projline"><span class="lbl">Projected (next open)</span>${chip(proj)}${ovr}</div>`
     + `<div class="sig-proj-note">${note} Hover the &#9201; beside any value below for its refresh timing.</div>`;
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=html;
 
@@ -1867,6 +1873,8 @@ function renderSignalMonitor(){
     ['Trailing Stop','Gave back too much from the running peak — trails the high.', pnlCur],
     ['Time Stop','Held the maximum number of days — closes on elapsed time.', inPos?dimc('In position'):dimc('N/A')],
     ['Negative Vol Carry','Roll yield turned unfavourable (backwardation) — carry no longer pays.', pct(contango,1)],
+    ['MOVE / VIX Ratio','Cross-asset stress overlay (bond vs equity vol). High (&ge;11) exits SVXY; low (&le;2) blocks/exits UVXY. Not an entry trigger.',
+      num(movevix,2)+(moveSig==='high'?' <span class="neg">HIGH</span>':moveSig==='low'?' <span class="pos">LOW</span>':'')],
   ];
   const exitDivider='<tr class="sig-divider"><td colspan="6">Exit rules - any one closes the open position</td></tr>';
   const naCell='<span style="color:var(--dim)">N/A</span>';
