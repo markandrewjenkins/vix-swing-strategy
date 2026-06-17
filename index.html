@@ -1854,7 +1854,10 @@ function renderSignalMonitor(histBar){
     // How many of the 5 entry indicators have their decision value in: live ones
     // are always current; EOD ones (VIX9D) only after the ~5:30pm post.
     const _t=_etNow(); const _dec=_t.sod/3600; const _wk=_t.wd!=='Sat'&&_t.wd!=='Sun';
-    const eodPending = _wk && _dec<17.5;
+    // EOD indicators (VIX9D) only go "pending" in the gap between today's close
+    // and the CBOE post (~4:00–5:30pm ET). At all other times the latest posted
+    // EOD value is the current one, so it counts as refreshed (matches the grid).
+    const eodPending = _wk && _dec>=16 && _dec<17.5;
     const nSig = sigKeys.length;
     let refreshed=0;
     sigKeys.forEach((k,i)=>{ const v=_rawVals[i]; const has=v!=null&&!isNaN(v);
