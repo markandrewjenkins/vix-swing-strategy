@@ -412,6 +412,7 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj-meta { color:var(--dim); }
 .sig-proj-meta b { color:var(--text); }
 .sig-proj-projline { margin:5px 0 7px; white-space:nowrap; }
+.sig-proj-projline .lbl { color:var(--white); font-weight:700; }
 .sig-proj-projline b { font-size:1.18rem; font-weight:700; letter-spacing:0.02em; }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
 .sig-svxy { color:var(--teal); } .sig-uvxy { color:var(--coral); } .sig-neu { color:var(--dim); }
@@ -1699,13 +1700,15 @@ function renderSummary(){
   sumMain.subscribeCrosshairMove(param=>{
     const sd=param.seriesData&&candleSeries?param.seriesData.get(candleSeries):null;
     renderInfo(param.time, sd);
+    monitorHover(param.time);
   });
   // Hovering the position band: drive the candle crosshair AND the same readout
   sumPos.subscribeCrosshairMove(param=>{
     if(param && param.time && OHLCBYTIME[param.time]){
       sumMain.setCrosshairPosition(OHLCBYTIME[param.time].close, param.time, candleSeries);
       renderInfo(param.time, OHLCBYTIME[param.time]);
-    } else { sumMain.clearCrosshairPosition(); renderInfo(null); }
+      monitorHover(param.time);
+    } else { sumMain.clearCrosshairPosition(); renderInfo(null); monitorHover(null); }
   });
 
   if(!window._sumResize){ window.addEventListener('resize',()=>{
@@ -1715,15 +1718,17 @@ function renderSummary(){
   renderSignalMonitor();
 }
 
-function renderSignalMonitor(){
+function renderSignalMonitor(histBar){
   if(!document.getElementById('signal-monitor')) return;
-  const b=DATA.bar_history[DATA.bar_history.length-1];
-  const L=LIVE;
+  // histBar set → show that hovered chart bar's readings; otherwise live/today.
+  const hist = !!histBar;
+  const b = histBar || DATA.bar_history[DATA.bar_history.length-1];
+  const L = hist ? null : LIVE;
   const contango = (L&&L.derived&&L.derived.contango!=null)?L.derived.contango:b.contango;
   const vdelta   = (L&&L.derived&&L.derived.vdelta!=null)?L.derived.vdelta:b.vdelta;
   const cv = (L&&L.market&&L.market.curve)?L.market.curve:{};
-  const vix9d = cv.vix9d!=null?cv.vix9d:null;
-  const vix1m = (L&&L.market&&L.market.vix1m_used!=null)?L.market.vix1m_used:null;
+  const vix9d = (cv.vix9d!=null)?cv.vix9d:b.vix9d;
+  const vix1m = (L&&L.market&&L.market.vix1m_used!=null)?L.market.vix1m_used:b.vix1m;
   const ratio13 = (L&&L.derived&&L.derived.ratio_1m_3m!=null)?L.derived.ratio_1m_3m:b.ratio_1m_3m;
   const movevix = (L&&L.derived&&L.derived.move_vix_ratio!=null)?L.derived.move_vix_ratio:b.move_vix_ratio;
   const P={ct:0.033,ch:0.146,bvd:0.32,xvd:-2.43,b9lo:14.8,b9hi:31.0,b1lo:8.0,b1hi:22.8,br13:0.932,xr13:1.096};
@@ -1793,8 +1798,10 @@ function renderSignalMonitor(){
     return ` <span class="sig-info" style="color:${col}" title="${tip}">&#9201;</span>`;
   };
   const _rawVals=[contango,vdelta,vix9d,vix1m,ratio13];
-  rows.forEach((r,i)=>{ r[4]=r[4]+annotate(r[0],sigKeys[i],_r4(_rawVals[i]),(i===2?'eod':'live')); });
-  overrideRows.forEach(r=>{ r[4]=r[4]+annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'eod'); });
+  if(!hist){   // live clock icons only apply to today's still-updating data
+    rows.forEach((r,i)=>{ r[4]=r[4]+annotate(r[0],sigKeys[i],_r4(_rawVals[i]),(i===2?'eod':'live')); });
+    overrideRows.forEach(r=>{ r[4]=r[4]+annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'eod'); });
+  }
 
   // ── Projected end-of-day position: how the live signals combine ──────
   // Indicative read of where the signals are leaning intraday. The OFFICIAL
@@ -1820,39 +1827,54 @@ function renderSignalMonitor(){
   else if(contango!=null && contango<0){ proj='UVXY'; why='term structure in backwardation — long vol'; }
   else if(regimeBull){ proj='SVXY'; why='full bullish alignment — every term-structure signal reads short vol (the BB-trend confirmation is checked at evaluation)'; }
   else { proj='CASH'; why=nBull+' of 5 term-structure signals bullish — the entry needs full alignment to go short vol, so it stays in cash'; }
-  // Current (official) vs projected position, rendered as coloured chips that
-  // follow the SVXY/UVXY↔SVIX/UVIX toggle.
-  const off = (L&&L.official&&L.official.position)?L.official.position.replace('LONG_VOL_SELLER','SVXY').replace('LONG_VOL','UVXY'):'CASH';
+  // Position chips follow the SVXY/UVXY↔SVIX/UVIX toggle.
   const kindOf = s => (s==='SVXY'||s==='SVIX')?'sv':(s==='UVXY'||s==='UVIX')?'uv':'cash';
   const chip = s => { const k=kindOf(s); const nm=k==='sv'?svN():k==='uv'?uvN():'Cash';
     const cls=k==='sv'?'sig-svxy':k==='uv'?'sig-uvxy':'sig-cash';
     const d=k==='sv'?' &middot; short vol':k==='uv'?' &middot; long vol':''; return `<b class="${cls}">${nm}${d}</b>`; };
+  const posInstr = p => p==='LONG_VOL_SELLER'?'SVXY':p==='LONG_VOL'?'UVXY':'CASH';
   const ovr = spike?' <span class="vt-uv">(spike override)</span>':crush?' <span class="vt-sv">(crush override)</span>':'';
 
-  // How many of the 5 entry indicators have their decision-relevant value in:
-  // live ones are always current; EOD ones (e.g. VIX9D) only after the ~5:30pm post.
-  const _t=_etNow(); const _dec=_t.sod/3600; const _wk=_t.wd!=='Sat'&&_t.wd!=='Sun';
-  const eodPending = _wk && _dec<17.5;          // today's CBOE EOD not posted yet
-  const nSig = sigKeys.length;
-  let refreshed=0;
-  sigKeys.forEach((k,i)=>{ const v=_rawVals[i]; const has=v!=null&&!isNaN(v);
-    const cad=(ST[k]&&ST[k].cadence)||(i===2?'eod':'live');
-    if(has && (cad==='live' || !eodPending)) refreshed++; });
-  const lastTxt = (L&&L.generated_utc)?toEtClock(L.generated_utc)+' ET':'—';
-  const allIn = refreshed>=nSig;
-  const note = allIn
-    ? `All daily indicators are in as of <b>${lastTxt}</b> — the Projected Position becomes the next-open trade if it differs from the Current Position.`
-    : `${refreshed} of ${nSig} indicators in as of <b>${lastTxt}</b> — the end-of-day readings post after ~5:30pm&nbsp;ET, after which the projection firms up for the next open.`;
+  // Position used for the exit-rule status: live → official; hist → hovered bar's.
+  const curPos = hist ? b.position : (L&&L.official?L.official.position:null);
+  const inPos = !!curPos && curPos!=='CASH';
+  const isSV = curPos==='LONG_VOL_SELLER', isUV = curPos==='LONG_VOL';
 
-  const html =
-      `<div class="sig-proj-row1">`
-    +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
-    +   `<div class="sig-proj-meta"><span class="lbl">Indicator mix</span>`
-    +     `<span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span>`
-    +     `<span class="lbl" style="margin-left:20px">Refreshed</span><b>${refreshed} of ${nSig}</b></div>`
-    +   `</div>`
-    + `<div class="sig-proj-projline"><span class="lbl">Projected (next open)</span>${chip(proj)}${ovr}</div>`
-    + `<div class="sig-proj-note">${note} Hover the &#9201; beside any value below for its refresh timing.</div>`;
+  let html;
+  if(hist){
+    html =
+        `<div class="sig-proj-row1">`
+      +   `<div><span class="lbl">Position on ${b.date}</span>${chip(posInstr(b.position))}</div>`
+      +   `<div class="sig-proj-meta"><span class="lbl">Indicator mix</span>`
+      +     `<span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span></div>`
+      +   `</div>`
+      + `<div class="sig-proj-note">Indicator readings <b>as of ${b.date}</b> (hovered bar). Move off the chart to return to live/today.</div>`;
+  } else {
+    const off = (L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
+    // How many of the 5 entry indicators have their decision value in: live ones
+    // are always current; EOD ones (VIX9D) only after the ~5:30pm post.
+    const _t=_etNow(); const _dec=_t.sod/3600; const _wk=_t.wd!=='Sat'&&_t.wd!=='Sun';
+    const eodPending = _wk && _dec<17.5;
+    const nSig = sigKeys.length;
+    let refreshed=0;
+    sigKeys.forEach((k,i)=>{ const v=_rawVals[i]; const has=v!=null&&!isNaN(v);
+      const cad=(ST[k]&&ST[k].cadence)||(i===2?'eod':'live');
+      if(has && (cad==='live' || !eodPending)) refreshed++; });
+    const lastTxt = (L&&L.generated_utc)?toEtClock(L.generated_utc)+' ET':'—';
+    const allIn = refreshed>=nSig;
+    const note = allIn
+      ? `All daily indicators are in as of <b>${lastTxt}</b> — the Projected Position becomes the next-open trade if it differs from the Current Position.`
+      : `${refreshed} of ${nSig} indicators in as of <b>${lastTxt}</b> — the end-of-day readings post after ~5:30pm&nbsp;ET, after which the projection firms up for the next open.`;
+    html =
+        `<div class="sig-proj-row1">`
+      +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
+      +   `<div class="sig-proj-meta"><span class="lbl">Indicator mix</span>`
+      +     `<span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span>`
+      +     `<span class="lbl" style="margin-left:20px">Refreshed</span><b>${refreshed} of ${nSig}</b></div>`
+      +   `</div>`
+      + `<div class="sig-proj-projline"><span class="lbl">Projected (next open)</span>${chip(proj)}${ovr}</div>`
+      + `<div class="sig-proj-note">${note} Hover the &#9201; beside any value for its refresh timing, or hover a bar on the Live Chart to inspect that day.</div>`;
+  }
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=html;
 
   const head='<thead><tr><th>Indicator</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th>Current</th><th>Signal</th></tr></thead>';
@@ -1860,30 +1882,48 @@ function renderSignalMonitor(){
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +`<td>${r[4]}</td><td>${tag(r[5])}</td></tr>`;
   const divider='<tr class="sig-divider"><td colspan="6">Evaluated separately - any non-cash signal acts as an override</td></tr>';
-  // Exit rules — additional ways an open position is closed (beyond the
-  // term-structure signals above, which can also trigger exits).
-  const offPos=(L&&L.official)?L.official.position:null;
-  const inPos=!!offPos && offPos!=='CASH';
-  const openpnl=(L&&L.official&&L.official.open_pnl!=null)?L.official.open_pnl:null;
+  // Exit rules — additional ways an open position is closed. Status is Hold/Exit
+  // while a position is open (N/A when flat). Private thresholds (TP/SL/etc) can't
+  // be evaluated client-side, so those read Hold while open; the publicly-known
+  // ones (carry, MOVE) flip to Exit when their condition is actually breached.
+  const openpnl = hist ? (b.open_pnl_pct) : ((L&&L.official&&L.official.open_pnl!=null)?L.official.open_pnl:null);
   const dimc=t=>`<span style="color:var(--dim)">${t}</span>`;
   const pnlCur = (inPos&&openpnl!=null) ? pct(openpnl,1) : dimc('N/A');
+  const carryTrig = inPos && isSV && contango!=null && contango<0;
+  const moveTrig  = inPos && ((isSV && moveSig==='high') || (isUV && moveSig==='low'));
+  const stat = trig => !inPos ? dimc('N/A')
+    : (trig ? '<span style="color:var(--coral);font-weight:700">Exit</span>'
+            : '<span style="color:var(--teal);font-weight:700">Hold</span>');
+  // [name, desc, bullish, bearish, current, statusTrigger]
   const exitRules=[
-    ['Take Profit','Position reached its profit target — locks in the gain.', pnlCur],
-    ['Stop Loss','Position hit its maximum loss — caps the downside.', pnlCur],
-    ['Trailing Stop','Gave back too much from the running peak — trails the high.', pnlCur],
-    ['Time Stop','Held the maximum number of days — closes on elapsed time.', inPos?dimc('In position'):dimc('N/A')],
-    ['Negative Vol Carry','Roll yield turned unfavourable (backwardation) — carry no longer pays.', pct(contango,1)],
-    ['MOVE / VIX Ratio','Cross-asset stress overlay (bond vs equity vol). High (&ge;11) exits SVXY; low (&le;2) blocks/exits UVXY. Not an entry trigger.',
-      num(movevix,2)+(moveSig==='high'?' <span class="neg">HIGH</span>':moveSig==='low'?' <span class="pos">LOW</span>':'')],
+    ['Take Profit','Position reached its profit target — locks in the gain.', '—','—', pnlCur, false],
+    ['Stop Loss','Position hit its maximum loss — caps the downside.', '—','—', pnlCur, false],
+    ['Trailing Stop','Gave back too much from the running peak — trails the high.', '—','—', pnlCur, false],
+    ['Time Stop','Held the maximum number of days — closes on elapsed time.', '—','—', inPos?dimc('In position'):dimc('N/A'), false],
+    ['Negative Vol Carry','Roll yield turned unfavourable — carry no longer pays.',
+      'Contango (carry positive)','Backwardation (carry negative)', pct(contango,1), carryTrig],
+    ['MOVE / VIX Ratio','Cross-asset stress overlay (bond vs equity vol). Not an entry trigger — only exits/vetoes.',
+      'Low cross-asset stress','High cross-asset stress',
+      num(movevix,2)+(moveSig==='high'?' <span class="neg">HIGH</span>':moveSig==='low'?' <span class="pos">LOW</span>':''), moveTrig],
   ];
-  const exitDivider='<tr class="sig-divider"><td colspan="6">Exit rules - any one closes the open position</td></tr>';
-  const naCell='<span style="color:var(--dim)">N/A</span>';
-  const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td><td>${naCell}</td><td>${naCell}</td><td>${r[2]}</td><td>${naCell}</td></tr>`).join('');
+  const exitDivider='<tr class="sig-divider"><td colspan="6">Exit rules - status shows Hold / Exit while a position is open</td></tr>';
+  const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
+    +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
+    +`<td>${r[4]}</td><td>${stat(r[5])}</td></tr>`).join('');
   const body='<tbody>'+rows.map(r=>rowHtml(r)).join('')
     +divider+overrideRows.map(r=>rowHtml(r)).join('')
     +exitDivider+exitHtml+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;
   window._sigMonReady=true;
+}
+
+// Re-render the Live Signal Monitor for a hovered chart bar (by date); a null/
+// missing time returns it to live/today's data.
+function monitorHover(time){
+  if(!window._sigMonReady || !DATA || !DATA.bar_history) return;
+  if(!window._barByDate){ window._barByDate={}; DATA.bar_history.forEach(r=>{ window._barByDate[r.date]=r; }); }
+  const hb = time ? window._barByDate[time] : null;
+  renderSignalMonitor(hb || undefined);
 }
 
 
