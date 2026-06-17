@@ -419,6 +419,7 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj b { font-weight:700; }
 .sig-proj .lbl { color:var(--dim); margin-right:7px; }
 .sig-proj .lbl-proj { color:var(--white); font-weight:700; }
+.sig-proj-arrow { color:var(--amber); font-weight:700; font-size:1.05rem; }
 .sig-proj-meta { color:var(--dim); }
 .sig-proj-meta b { color:var(--text); }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
@@ -480,8 +481,8 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <span class="live-item"><span class="live-lbl">MOVE</span><span class="live-val" id="lv-move">—</span><span class="live-chg" id="lv-move-c"></span></span>
         <span class="live-item live-status" style="margin-left:auto;gap:14px">
           <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
-          <span class="live-lbl" id="lv-feed-note">Updating live every 5 mins</span>
-          <span class="live-lbl" id="lv-delay">Quotes are delayed 15 mins</span>
+          <span class="live-lbl" id="lv-feed-note">Updating live every ~5 mins</span>
+          <span class="live-lbl" id="lv-delay">Quotes are delayed ~15 mins</span>
           <span class="live-lbl">Last Refresh:&nbsp;<span class="live-val" id="lv-updated">—</span></span>
         </span>
       </div>
@@ -1460,7 +1461,7 @@ async function loadLive(){
     strip.classList.toggle('stale', !(live||settle));
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed) feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'CLOSED';
-    if(note) note.textContent = live ? 'Updating live every 5 mins'
+    if(note) note.textContent = live ? 'Updating live every ~5 mins'
                               : regular ? 'Awaiting next refresh'
                               : settle  ? 'After-hours — close settling, signals finalise ~7pm ET'
                               : premkt  ? 'Awaiting the open'
@@ -1491,11 +1492,9 @@ async function loadLive(){
         }
       }catch(_){}
     }
-    // Refine the forming candle's close with the latest live quote (never fabricate flat candles).
-    // Only in the post-close settling window (16:15–20:15 ET): the daily close clears the ~15-min
-    // delay around 4:15pm, and there's no meaningful daily bar to refine before then.
-    const _inSettle=(_dec>=16.25 && _dec<20.25);   // _dec computed above (feed-freshness block)
-    if(_inSettle && CHART_MODE==='real' && candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
+    // Refine the forming candle's close with the latest live quote whenever the
+    // quote is fresh and belongs to the last candle's date (intraday + after-hours).
+    if(CHART_MODE==='real' && candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
       const q=L.market.quotes.svxy, px=q.price, today=(L.generated_utc||'').slice(0,10), last=CANDLES[CANDLES.length-1];
       const qFresh = q.time ? (Date.now()-new Date(q.time).getTime())/60000 < 30 : false;  // ignore stale quotes
       if(px!=null && last && today===last.time && qFresh){
@@ -1579,21 +1578,15 @@ function applyChartMode(){
   if(r) r.classList.toggle('active', CHART_MODE==='real');
   if(a) a.classList.toggle('active', CHART_MODE==='alt');
   if(!candleSeries||!sumMain) return;
-  // Preserve the current view (by date) so toggling doesn't jump the chart
-  let keep=null; try{ keep=sumMain.timeScale().getVisibleRange(); }catch(_){}
   CANDLES=displayCandles(); MARKERS=displayMarkers(); rebuildChartMaps();
   candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS);
   if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
-  const first=CANDLES.length?CANDLES[0].time:null;
-  if(keep && first && keep.to >= first){
-    // clamp the start to the new series' first date (alt has less history)
-    const from = (keep.from < first) ? first : keep.from;
-    try{ sumMain.timeScale().setVisibleRange({from, to:keep.to}); }
-    catch(_){ summaryToEnd(); }
-  } else { summaryToEnd(); }   // viewed window predates alt data → show latest
+  summaryToEnd();   // reset to the default 2-month view so it holds across the toggle
 }
 function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
-function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-44),to:N+2}); }catch(_){} }
+// Default view: ~2 months (42 trading days) filling the left two-thirds, with the
+// right third left blank for upcoming dates. Holds across the ETF toggle too.
+function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; const BARS=42, FUT=21; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
 function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : CASHC; }
 function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVXY' : 'CASH'; }
@@ -1877,6 +1870,7 @@ function renderSignalMonitor(histBar){
     html =
         `<div class="sig-proj-row1">`
       +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
+      +   `<div class="sig-proj-arrow">&rarr;</div>`
       +   `<div><span class="lbl lbl-proj">Projected (next open)</span>${chip(proj)}${ovr}</div>`
       +   `</div>`
       + `<div class="sig-proj-row2">`
@@ -1899,6 +1893,16 @@ function renderSignalMonitor(histBar){
   const openpnl = hist ? (b.open_pnl_pct) : ((L&&L.official&&L.official.open_pnl!=null)?L.official.open_pnl:null);
   const dimc=t=>`<span style="color:var(--dim)">${t}</span>`;
   const pnlCur = (inPos&&openpnl!=null) ? pct(openpnl,1) : dimc('N/A');
+  // Days held = trading days from the position's entry to the displayed bar.
+  const _tdBetween=(d1,d2)=>{ if(!d1||!d2||!OHLC) return null; let n=0; for(const r of OHLC){ if(r[0]>=d1 && r[0]<=d2) n++; } return n; };
+  let daysHeldCur = dimc('N/A');
+  if(inPos){
+    const dispDate = hist ? b.date : ((OHLC&&OHLC.length)?OHLC[OHLC.length-1][0]:null);
+    let entryD = (LIVE&&LIVE.official&&LIVE.official.entry_date)?LIVE.official.entry_date:null;  // open trade
+    if(hist){ const tr = DATA.trades.find(t=>t.entry_date<=b.date && t.exit_date>=b.date); if(tr) entryD = tr.entry_date; }
+    const n = _tdBetween(entryD, dispDate);
+    daysHeldCur = (n!=null && n>0) ? (n+'d') : dimc('—');
+  }
   const carryTrig = inPos && isSV && contango!=null && contango<0;
   const moveTrig  = inPos && ((isSV && moveSig==='high') || (isUV && moveSig==='low'));
   // Hold is coloured by the held side (teal = SVXY/short vol, red = UVXY/long vol);
@@ -1912,7 +1916,7 @@ function renderSignalMonitor(histBar){
     ['Take Profit','Position reached its profit target — locks in the gain.', '—','—', pnlCur, false],
     ['Stop Loss','Position hit its maximum loss — caps the downside.', '—','—', pnlCur, false],
     ['Trailing Stop','Gave back too much from the running peak — trails the high.', '—','—', pnlCur, false],
-    ['Time Stop','Held the maximum number of days — closes on elapsed time.', '—','—', inPos?dimc('In position'):dimc('N/A'), false],
+    ['Time Stop','Held the maximum number of days — closes on elapsed time.', '—','—', daysHeldCur, false],
     ['Negative Vol Carry','Roll yield turned unfavourable — carry no longer pays.',
       'Contango (carry positive)','Backwardation (carry negative)', pct(contango,1), carryTrig],
     ['MOVE / VIX Ratio','Cross-asset stress overlay (bond vs equity vol). Not an entry trigger — only exits/vetoes.',
@@ -1923,7 +1927,8 @@ function renderSignalMonitor(histBar){
   const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +`<td>${r[4]}</td><td>${stat(r[5])}</td></tr>`).join('');
-  const body='<tbody>'+rows.map(r=>rowHtml(r)).join('')
+  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry signals - must fully align to OPEN a position (these readings also inform exits)</td></tr>';
+  const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
     +divider+overrideRows.map(r=>rowHtml(r)).join('')
     +exitDivider+exitHtml+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;

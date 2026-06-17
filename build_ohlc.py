@@ -28,20 +28,20 @@ def _et_now():
 
 
 def drop_forming_today(rows):
-    """Suppress the current-day daily bar until the close has settled.
+    """Drop today's bar only while it's a degenerate placeholder.
 
-    Yahoo's 1d series returns a *partial* bar for today the moment the session
-    opens (and even pre-market), which renders as a degenerate flat/line candle
-    that doesn't reflect a real day. The daily close isn't meaningful until the
-    4pm ET close clears the ~15-min quote delay, so we only keep today's bar
-    once it's past 16:15 ET. Before then, the latest bar shown is yesterday's.
+    Yahoo's 1d series can return a flat bar for today (open == high == low ==
+    close) right at/just before the open, before any real (15-min delayed)
+    intraday data has arrived — that's the "weird candle" we don't want. Once the
+    bar has a real range it stays and updates live through the session. This lets
+    the chart show today forming intraday rather than hiding it until the close.
     """
     if not rows:
         return rows
     et = _et_now()
     today = et.strftime("%Y-%m-%d")
-    settled = (et.hour > 16) or (et.hour == 16 and et.minute >= 15)
-    if rows[-1][0] == today and not settled:
+    last = rows[-1]
+    if last[0] == today and last[1] == last[2] == last[3] == last[4]:
         return rows[:-1]
     return rows
 
