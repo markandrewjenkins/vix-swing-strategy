@@ -156,10 +156,10 @@ body {
   border-radius: 6px;
   padding: 12px 14px 10px;
   position: relative;
-  /* Target ~155px and grow to fill the row, but never shrink below the card's
-     own content (default flex min-width:auto), so a wide value like the Alpha %
-     expands its box instead of being clipped. */
-  flex: 1 1 155px;
+  /* Fixed ~155px; cards do NOT stretch to fill the row. The default flex
+     min-width:auto still lets a card that can't fit its value (e.g. a huge
+     Alpha %) expand past 155px, but every other card stays the same size. */
+  flex: 0 0 155px;
 }
 .kpi-label {
   font-size: 0.72rem;
@@ -405,10 +405,14 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj .sig-proj-note { color:var(--dim); font-size:0.74rem; }
 .sig-proj .sig-proj-tally { color:var(--dim); font-size:0.72rem; margin-top:3px; }
 .sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); font-weight:700; }
+.sig-proj-grid { display:grid; grid-template-columns:auto auto; gap:3px 26px; justify-content:start; font-size:0.82rem; margin-bottom:6px; }
+.sig-proj-grid > div { white-space:nowrap; }
+.sig-proj-grid .lbl { color:var(--dim); margin-right:7px; }
+.sig-proj-grid b { font-weight:700; }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
 .sig-svxy { color:var(--teal); } .sig-uvxy { color:var(--coral); } .sig-neu { color:var(--dim); }
 .sig-cash { color:var(--cashc); }
-.sig-info { font-size:0.85rem; cursor:help; vertical-align:middle; opacity:0.8; }
+.sig-info { font-size:0.85rem; cursor:help; vertical-align:middle; opacity:0.8; margin-left:9px; }
 .sig-info:hover { opacity:1; }
 
 /* ── Loading ──────────────────────────────────────────────────────── */
@@ -428,12 +432,12 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <div class="hdr-title">VIX SWING STRATEGY</div>
     <div class="hdr-metarow">
       <span class="hdr-meta" id="hdr-meta">Loading...</span>
-      <span class="hdr-meta">Select ETFs:</span>
+      <span class="hdr-meta">Toggle Vol ETFs:</span>
       <span class="cdl-toggle-group instr-inline" title="Switch the dashboard between the SVXY/UVXY pair and the SVIX/UVIX pair">
         <button id="instr-real" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
         <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
       </span>
-      <span class="hdr-disc">NOTE: SVIX/UVIX only launched in 2022, so prior results are simulated based on SVXY/UVXY trade returns, then leverage-scaled</span>
+      <span class="hdr-disc"><strong>NOTE:</strong> SVIX/UVIX only launched in 2022, so prior results are simulated based on SVXY/UVXY trade returns, then leverage-scaled</span>
     </div>
   </div>
   <div class="tabs">
@@ -846,7 +850,7 @@ function updateHdrMeta(){
   const m=DATA.meta;
   const lastDate=(OHLC&&OHLC.length)?OHLC[OHLC.length-1][0]:m.end_date;
   const tdays=(OHLC&&OHLC.length)?OHLC.filter(r=>r[0]>=m.start_date).length:m.trading_days;
-  el.textContent=m.start_date+' — '+lastDate+'  ·  '+tdays.toLocaleString()+' trading days  ·';
+  el.textContent='Start Date: '+m.start_date+'  ('+tdays.toLocaleString()+' trading days)  ·';
 }
 function render(){
   updateHdrMeta();
@@ -863,6 +867,7 @@ function rerenderActive(){
   const tf=document.getElementById('tfilter');
   if(tf){ tf.options[1].text=svN(); tf.options[2].text=uvN(); }
   updateLivePosition();   // header position follows the toggled instrument
+  if(window._sigMonReady && typeof renderSignalMonitor==='function') renderSignalMonitor();  // monitor chips follow toggle
 }
 
 // Header "CURRENT POSITION" + live open P&L, following the SVXY/UVXY↔SVIX/UVIX toggle.
@@ -1447,7 +1452,7 @@ async function loadLive(){
                               : regular ? 'Awaiting next refresh'
                               : settle  ? 'After-hours — close settling, signals finalise ~7pm ET'
                               : premkt  ? 'Awaiting the open'
-                              : 'Market closed — last close shown';
+                              : 'Showing last settled close';
     if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';   // delay note only when data moves
     document.getElementById('lv-updated').textContent =
         toEtClock(L.generated_utc)+' ET';
@@ -1812,31 +1817,37 @@ function renderSignalMonitor(){
   else if(contango!=null && contango<0){ proj='UVXY'; why='term structure in backwardation — long vol'; }
   else if(regimeBull){ proj='SVXY'; why='full bullish alignment — every term-structure signal reads short vol (the BB-trend confirmation is checked at evaluation)'; }
   else { proj='CASH'; why=nBull+' of 5 term-structure signals bullish — the entry needs full alignment to go short vol, so it stays in cash'; }
-  const projTag = proj==='SVXY'?'<span class="sig-proj-pos sig-svxy">SVXY · short vol</span>'
-                : proj==='UVXY'?'<span class="sig-proj-pos sig-uvxy">UVXY · long vol</span>'
-                : '<span class="sig-proj-pos sig-neu">CASH</span>';
-  const off = (L&&L.official&&L.official.position)?L.official.position.replace('LONG_VOL_SELLER','SVXY').replace('LONG_VOL','UVXY'):null;
-  const projHtml = `Projected close position: ${projTag} <span class="sig-proj-note">— ${why}. Firms up at the ~7pm&nbsp;ET evaluation (traded next open)`
-    + (off?(`; last official: <b>${off}</b>`):``) + `.</span>`
-    + `<div class="sig-proj-tally">Signal tally: <span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span>`
-    + (spike?(` &middot; <span class="vt-uv">SPIKE override</span>`):(crush?(` &middot; <span class="vt-sv">CRUSH override</span>`):``)) + `</div>`;
+  // Current (official) vs projected position, rendered as coloured chips that
+  // follow the SVXY/UVXY↔SVIX/UVIX toggle.
+  const off = (L&&L.official&&L.official.position)?L.official.position.replace('LONG_VOL_SELLER','SVXY').replace('LONG_VOL','UVXY'):'CASH';
+  const kindOf = s => (s==='SVXY'||s==='SVIX')?'sv':(s==='UVXY'||s==='UVIX')?'uv':'cash';
+  const chip = s => { const k=kindOf(s); const nm=k==='sv'?svN():k==='uv'?uvN():'Cash';
+    const cls=k==='sv'?'sig-svxy':k==='uv'?'sig-uvxy':'sig-cash';
+    const d=k==='sv'?' &middot; short vol':k==='uv'?' &middot; long vol':''; return `<b class="${cls}">${nm}${d}</b>`; };
+  const ovr = spike?' <span class="vt-uv">(spike override)</span>':crush?' <span class="vt-sv">(crush override)</span>':'';
 
-  // ── Refresh clock: when this reading was taken and when the next is due ──
-  let refreshHtml='';
-  if(L && L.generated_utc){
-    const lastTxt = toEtClock(L.generated_utc)+' ET';
-    const _t=_etNow(); const _dec=_t.sod/3600; const _wk=_t.wd!=='Sat'&&_t.wd!=='Sun';
-    const reg = _wk && _dec>=9.5 && _dec<16;
-    let nextTxt;
-    if(reg){
-      const nxt = new Date(new Date(L.generated_utc).getTime()+5*60000);
-      nextTxt = '~'+toEtClock(nxt.toISOString())+' ET (every 5 min during market hours)';
-    } else {
-      nextTxt = 'after the next market close (~7pm ET)';
-    }
-    refreshHtml = `<div class="sig-proj-tally">Feed refreshed <b>${lastTxt}</b> &middot; next ${nextTxt} &middot; hover the &#9201; on a signal for its data time. Readings finalise at the ~7pm&nbsp;ET evaluation.</div>`;
-  }
-  const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=projHtml+refreshHtml;
+  // How many of the 6 indicators have their decision-relevant value in: live
+  // ones are always current; EOD ones (e.g. VIX9D) only after the ~5:30pm post.
+  const _t=_etNow(); const _dec=_t.sod/3600; const _wk=_t.wd!=='Sat'&&_t.wd!=='Sun';
+  const eodPending = _wk && _dec<17.5;          // today's CBOE EOD not posted yet
+  let refreshed=0;
+  sigKeys.forEach((k,i)=>{ const v=_rawVals[i]; const has=v!=null&&!isNaN(v);
+    const cad=(ST[k]&&ST[k].cadence)||(i===2?'eod':'live');
+    if(has && (cad==='live' || !eodPending)) refreshed++; });
+  const lastTxt = (L&&L.generated_utc)?toEtClock(L.generated_utc)+' ET':'—';
+  const allIn = refreshed>=6;
+  const note = allIn
+    ? `All daily indicators are in as of <b>${lastTxt}</b> — the Projected Position becomes the next-open trade if it differs from the Current Position.`
+    : `${refreshed} of 6 indicators in as of <b>${lastTxt}</b> — the end-of-day readings post after ~5:30pm&nbsp;ET, after which the projection firms up for the next open.`;
+
+  const html = `<div class="sig-proj-grid">`
+    + `<div><span class="lbl">Current position</span>${chip(off)}</div>`
+    + `<div><span class="lbl">Projected (next open)</span>${chip(proj)}${ovr}</div>`
+    + `<div title="MOVE/VIX is a cross-asset stress gauge, not an entry trigger — an SVXY signal needs the term-structure indicators aligned, so a neutral (cash) MOVE doesn't block it."><span class="lbl">Indicator mix</span><span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span></div>`
+    + `<div><span class="lbl">Indicators refreshed</span><b>${refreshed} of 6</b></div>`
+    + `</div>`
+    + `<div class="sig-proj-note">${note} Hover the &#9201; beside any value below for its refresh timing.</div>`;
+  const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=html;
 
   const head='<thead><tr><th>Indicator</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th>Current</th><th>Signal</th></tr></thead>';
   const rowHtml=(r,cls='')=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
