@@ -1926,7 +1926,7 @@ function renderSignalMonitor(histBar){
   const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +`<td>${r[4]}</td><td>${stat(r[5])}</td></tr>`).join('');
-  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - All 5 must align to generate a new Entry signal (also inform Exit signals)</td></tr>';
+  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - All 5 must align to generate a new Entry signal</td></tr>';
   const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
     +overrideRows.map(r=>rowHtml(r)).join('')
     +exitDivider+exitHtml+'</tbody>';
