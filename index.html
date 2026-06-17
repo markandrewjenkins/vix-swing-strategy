@@ -413,13 +413,13 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj .sig-proj-note { color:var(--dim); font-size:0.74rem; }
 .sig-proj .sig-proj-tally { color:var(--dim); font-size:0.72rem; margin-top:3px; }
 .sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); font-weight:700; }
-.sig-proj-row1 { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 34px; font-size:0.95rem; margin-bottom:3px; }
+.sig-proj-row1 { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 11px; font-size:0.95rem; margin-bottom:3px; }
 .sig-proj-row2 { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 30px; font-size:0.8rem; margin-bottom:4px; }
 .sig-proj-row1 > div, .sig-proj-row2 > div { white-space:nowrap; }
 .sig-proj b { font-weight:700; }
 .sig-proj .lbl { color:var(--dim); margin-right:7px; }
 .sig-proj .lbl-proj { color:var(--white); font-weight:700; }
-.sig-proj-arrow { color:var(--amber); font-weight:700; font-size:1.05rem; }
+.sig-proj-arrow { color:var(--yellow); font-weight:700; font-size:1.05rem; }
 .sig-proj-meta { color:var(--dim); }
 .sig-proj-meta b { color:var(--text); }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
@@ -1761,7 +1761,7 @@ function renderSignalMonitor(histBar){
   // Spike / Crush is an OVERRIDE — evaluated separately from the weighted
   // term-structure signals above; a fired event forces the position regardless.
   const overrideRows=[
-    ['Spike / Crush','Sudden &ge;35% 1-day move in VIX9D or VIX1M.',
+    ['Spike / Crush <span style="font-style:italic;font-weight:400;color:var(--dim);font-size:0.9em">— evaluated separately, override</span>','Sudden &ge;35% 1-day move in VIX9D or VIX1M.',
       'Crush &rarr; SVXY','Spike &rarr; UVXY',
       spike?'<span class="neg">SPIKE</span>':(crush?'<span class="pos">CRUSH</span>':'N/A'),
       spike?'UVXY':(crush?'SVXY':'NEU')],
@@ -1885,7 +1885,6 @@ function renderSignalMonitor(histBar){
   const rowHtml=(r,cls='')=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +`<td>${r[4]}</td><td>${tag(r[5])}</td></tr>`;
-  const divider='<tr class="sig-divider"><td colspan="6">Evaluated separately - any non-cash signal acts as an override</td></tr>';
   // Exit rules — additional ways an open position is closed. Status is Hold/Exit
   // while a position is open (N/A when flat). Private thresholds (TP/SL/etc) can't
   // be evaluated client-side, so those read Hold while open; the publicly-known
@@ -1923,13 +1922,13 @@ function renderSignalMonitor(histBar){
       'Low cross-asset stress','High cross-asset stress',
       num(movevix,2)+(moveSig==='high'?' <span class="neg">HIGH</span>':moveSig==='low'?' <span class="pos">LOW</span>':''), moveTrig],
   ];
-  const exitDivider='<tr class="sig-divider"><td colspan="6">Exit rules - status shows Hold / Exit while a position is open</td></tr>';
+  const exitDivider='<tr class="sig-divider"><td colspan="6">Exit Only Indicators - Exit signal will be generated if any of these are triggered when position is open</td></tr>';
   const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +`<td>${r[4]}</td><td>${stat(r[5])}</td></tr>`).join('');
-  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry signals - must fully align to OPEN a position (these readings also inform exits)</td></tr>';
+  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - All 5 must align to generate a new Entry signal (also inform Exit signals)</td></tr>';
   const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
-    +divider+overrideRows.map(r=>rowHtml(r)).join('')
+    +overrideRows.map(r=>rowHtml(r)).join('')
     +exitDivider+exitHtml+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;
   window._sigMonReady=true;

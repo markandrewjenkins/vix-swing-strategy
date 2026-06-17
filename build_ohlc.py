@@ -28,21 +28,23 @@ def _et_now():
 
 
 def drop_forming_today(rows):
-    """Drop today's bar only while it's a degenerate placeholder.
+    """Drop today's bar until pre-market data should exist, and while it's flat.
 
-    Yahoo's 1d series can return a flat bar for today (open == high == low ==
-    close) right at/just before the open, before any real (15-min delayed)
-    intraday data has arrived — that's the "weird candle" we don't want. Once the
-    bar has a real range it stays and updates live through the session. This lets
-    the chart show today forming intraday rather than hiding it until the close.
+    Don't form a bar for the day before ~4:15am ET (first pre-market prints are
+    unlikely earlier). After that, keep today's bar so the chart shows it forming
+    intraday — except drop a degenerate flat placeholder (open==high==low==close),
+    which is the "weird candle" that appears before any real data arrives.
     """
     if not rows:
         return rows
     et = _et_now()
     today = et.strftime("%Y-%m-%d")
     last = rows[-1]
-    if last[0] == today and last[1] == last[2] == last[3] == last[4]:
-        return rows[:-1]
+    if last[0] == today:
+        before_premkt = (et.hour < 4) or (et.hour == 4 and et.minute < 15)
+        degenerate = last[1] == last[2] == last[3] == last[4]
+        if before_premkt or degenerate:
+            return rows[:-1]
     return rows
 
 HDRS = {
