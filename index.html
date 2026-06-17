@@ -394,10 +394,18 @@ tr:hover td { background: #1f1a10 }
 .cdl-cndl.up { background:transparent; }
 .cdl-cndl.dn { background:var(--yellow); }
 .cdl-sw { width:9px; height:9px; border-radius:2px; display:inline-block; }
-table.sig-mon { width:100%; border-collapse:collapse; font-size:0.8rem; }
+/* Fixed layout so columns stay put when hovering between days (the Current cell
+   gains/loses a clock icon, values change width — none of it should reflow). */
+table.sig-mon { width:100%; border-collapse:collapse; font-size:0.8rem; table-layout:fixed; }
+table.sig-mon th:nth-child(1),table.sig-mon td:nth-child(1){ width:15%; }
+table.sig-mon th:nth-child(2),table.sig-mon td:nth-child(2){ width:31%; }
+table.sig-mon th:nth-child(3),table.sig-mon td:nth-child(3){ width:16%; }
+table.sig-mon th:nth-child(4),table.sig-mon td:nth-child(4){ width:16%; }
+table.sig-mon th:nth-child(5),table.sig-mon td:nth-child(5){ width:13%; }
+table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
 table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
-table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; white-space:nowrap; }
+table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; }
 table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-ind { font-weight:700; }
 .sig-proj { font-size:0.84rem; color:var(--text); padding:2px 2px 4px; line-height:1.5; }
@@ -405,15 +413,14 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj .sig-proj-note { color:var(--dim); font-size:0.74rem; }
 .sig-proj .sig-proj-tally { color:var(--dim); font-size:0.72rem; margin-top:3px; }
 .sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); font-weight:700; }
-.sig-proj-row1 { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:4px 24px; font-size:0.82rem; }
-.sig-proj-row1 > div { white-space:nowrap; }
-.sig-proj-row1 b { font-weight:700; }
+.sig-proj-row1 { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 34px; font-size:0.95rem; margin-bottom:3px; }
+.sig-proj-row2 { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 30px; font-size:0.8rem; margin-bottom:4px; }
+.sig-proj-row1 > div, .sig-proj-row2 > div { white-space:nowrap; }
+.sig-proj b { font-weight:700; }
 .sig-proj .lbl { color:var(--dim); margin-right:7px; }
+.sig-proj .lbl-proj { color:var(--white); font-weight:700; }
 .sig-proj-meta { color:var(--dim); }
 .sig-proj-meta b { color:var(--text); }
-.sig-proj-projline { margin:5px 0 7px; white-space:nowrap; }
-.sig-proj-projline .lbl { color:var(--white); font-weight:700; }
-.sig-proj-projline b { font-size:1.18rem; font-weight:700; letter-spacing:0.02em; }
 table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; padding:10px 10px 4px; border-bottom:none; }
 .sig-svxy { color:var(--teal); } .sig-uvxy { color:var(--coral); } .sig-neu { color:var(--dim); }
 .sig-cash { color:var(--cashc); }
@@ -1840,14 +1847,13 @@ function renderSignalMonitor(histBar){
   const inPos = !!curPos && curPos!=='CASH';
   const isSV = curPos==='LONG_VOL_SELLER', isUV = curPos==='LONG_VOL';
 
+  const mixHtml = `<span class="lbl">Indicator mix</span>`
+    + `<span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span>`;
   let html;
   if(hist){
     html =
-        `<div class="sig-proj-row1">`
-      +   `<div><span class="lbl">Position on ${b.date}</span>${chip(posInstr(b.position))}</div>`
-      +   `<div class="sig-proj-meta"><span class="lbl">Indicator mix</span>`
-      +     `<span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span></div>`
-      +   `</div>`
+        `<div class="sig-proj-row1"><div><span class="lbl">Position</span>${chip(posInstr(b.position))}</div></div>`
+      + `<div class="sig-proj-row2"><div class="sig-proj-meta">${mixHtml}</div></div>`
       + `<div class="sig-proj-note">Indicator readings <b>as of ${b.date}</b> (hovered bar). Move off the chart to return to live/today.</div>`;
   } else {
     const off = (L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
@@ -1871,11 +1877,12 @@ function renderSignalMonitor(histBar){
     html =
         `<div class="sig-proj-row1">`
       +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
-      +   `<div class="sig-proj-meta"><span class="lbl">Indicator mix</span>`
-      +     `<span class="vt-sv">${sv} short vol</span> &middot; <span class="vt-uv">${uv} long vol</span> &middot; <span class="vt-neu">${neu} cash</span>`
-      +     `<span class="lbl" style="margin-left:20px">Refreshed</span><b>${refreshed} of ${nSig}</b></div>`
+      +   `<div><span class="lbl lbl-proj">Projected (next open)</span>${chip(proj)}${ovr}</div>`
       +   `</div>`
-      + `<div class="sig-proj-projline"><span class="lbl">Projected (next open)</span>${chip(proj)}${ovr}</div>`
+      + `<div class="sig-proj-row2">`
+      +   `<div class="sig-proj-meta">${mixHtml}</div>`
+      +   `<div class="sig-proj-meta"><span class="lbl">Refreshed</span><b>${refreshed} of ${nSig}</b></div>`
+      +   `</div>`
       + `<div class="sig-proj-note">${note} Hover the &#9201; beside any value for its refresh timing, or hover a bar on the Live Chart to inspect that day.</div>`;
   }
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=html;
@@ -1894,9 +1901,12 @@ function renderSignalMonitor(histBar){
   const pnlCur = (inPos&&openpnl!=null) ? pct(openpnl,1) : dimc('N/A');
   const carryTrig = inPos && isSV && contango!=null && contango<0;
   const moveTrig  = inPos && ((isSV && moveSig==='high') || (isUV && moveSig==='low'));
+  // Hold is coloured by the held side (teal = SVXY/short vol, red = UVXY/long vol);
+  // Exit is always red. N/A when flat.
+  const holdColor = isUV ? 'var(--coral)' : 'var(--teal)';
   const stat = trig => !inPos ? dimc('N/A')
     : (trig ? '<span style="color:var(--coral);font-weight:700">Exit</span>'
-            : '<span style="color:var(--teal);font-weight:700">Hold</span>');
+            : `<span style="color:${holdColor};font-weight:700">Hold</span>`);
   // [name, desc, bullish, bearish, current, statusTrigger]
   const exitRules=[
     ['Take Profit','Position reached its profit target — locks in the gain.', '—','—', pnlCur, false],
@@ -1924,7 +1934,11 @@ function renderSignalMonitor(histBar){
 // missing time returns it to live/today's data.
 function monitorHover(time){
   if(!window._sigMonReady || !DATA || !DATA.bar_history) return;
-  if(!window._barByDate){ window._barByDate={}; DATA.bar_history.forEach(r=>{ window._barByDate[r.date]=r; }); }
+  // Build once. Dates can have two bars (stale ffilled + real); prefer the
+  // non-CASH one so the hovered position matches the chart's position band.
+  if(!window._barByDate){ window._barByDate={};
+    DATA.bar_history.forEach(r=>{ const ex=window._barByDate[r.date];
+      if(!ex || (ex.position==='CASH' && r.position!=='CASH')) window._barByDate[r.date]=r; }); }
   const hb = time ? window._barByDate[time] : null;
   renderSignalMonitor(hb || undefined);
 }
