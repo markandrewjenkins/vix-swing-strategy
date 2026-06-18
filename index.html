@@ -404,6 +404,17 @@ table.sig-mon th:nth-child(4),table.sig-mon td:nth-child(4){ width:15%; }
 table.sig-mon th:nth-child(5),table.sig-mon td:nth-child(5){ width:24%; }
 table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .sig-gauge { display:inline-block; vertical-align:middle; }
+.cur-cell { display:flex; align-items:center; gap:7px; }
+.cur-cell .cur-val { min-width:62px; text-align:right; flex:none; white-space:nowrap; }
+.cur-cell .cur-clk { width:15px; flex:none; text-align:center; }
+.cur-cell .cur-bar { flex:none; }
+.cur-cell .sig-info { margin-left:0; }
+#candle-chart { position:relative; }
+.cdl-glow { position:absolute; width:170px; height:170px; transform:translate(-50%,-50%); border-radius:50%;
+  pointer-events:none; opacity:0; transition:opacity .3s ease; z-index:5;
+  background:radial-gradient(circle, rgba(240,152,47,0.16), rgba(240,152,47,0) 68%);
+  animation:glowpulse 2.4s ease-in-out infinite; }
+@keyframes glowpulse { 0%,100% { transform:translate(-50%,-50%) scale(0.92) } 50% { transform:translate(-50%,-50%) scale(1.1) } }
 table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
 table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
 table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; }
@@ -1469,7 +1480,7 @@ async function loadLive(){
     const phaseActive = regular||premkt||settle;
     strip.classList.toggle('stale', !phaseActive);   // grey, non-pulsing only when fully closed
     const dot=document.querySelector('#live-strip .live-dot');
-    if(dot){ dot.style.background=phaseColor; dot.style.boxShadow='0 0 6px '+phaseColor; }
+    if(dot){ dot.style.background=phaseColor; dot.style.boxShadow = phaseActive ? '0 0 6px '+phaseColor : 'none'; }
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'CLOSED'; feed.style.color=phaseColor; }
     if(note) note.textContent = live ? 'Updating live every ~5 mins'
@@ -1483,7 +1494,7 @@ async function loadLive(){
 
     LIVE=L;
     updateMarket();
-    if(window._sigMonReady) renderSignalMonitor();
+    if(window._sigMonReady){ const pd=window._pinnedDate; if(pd&&window._barByDate&&window._barByDate[pd]) renderSignalMonitor(window._barByDate[pd]); else renderSignalMonitor(); }
     // Refresh candle history from svxy_ohlc.json (Action keeps it current incl. the forming day)
     if(candleSeries && sumMain){
       try{
@@ -1709,18 +1720,31 @@ function renderSummary(){
   }
 
   sumMain.subscribeCrosshairMove(param=>{
+    if(window._pinnedDate) return;            // frozen on a clicked bar
     const sd=param.seriesData&&candleSeries?param.seriesData.get(candleSeries):null;
     renderInfo(param.time, sd);
     monitorHover(param.time);
   });
   // Hovering the position band: drive the candle crosshair AND the same readout
   sumPos.subscribeCrosshairMove(param=>{
+    if(window._pinnedDate) return;
     if(param && param.time && OHLCBYTIME[param.time]){
       sumMain.setCrosshairPosition(OHLCBYTIME[param.time].close, param.time, candleSeries);
       renderInfo(param.time, OHLCBYTIME[param.time]);
       monitorHover(param.time);
     } else { sumMain.clearCrosshairPosition(); renderInfo(null); monitorHover(null); }
   });
+  // Left-click pins the bar (readout + monitor freeze) until right-click clears it.
+  const _pin=t=>{ if(!t) return; window._pinnedDate=t; const sd=OHLCBYTIME[t];
+    if(sd){ try{ sumMain.setCrosshairPosition(sd.close,t,candleSeries); }catch(_){} }
+    renderInfo(t,sd); monitorHover(t); el.classList.add('cdl-pinned'); };
+  sumMain.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
+  sumPos.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
+  if(!el._ctxBound){ el.addEventListener('contextmenu',e=>{ e.preventDefault(); window._pinnedDate=null; el.classList.remove('cdl-pinned'); }); el._ctxBound=true; }
+  // Subtle orange cursor glow over the chart (Cyber-Renaissance flair).
+  if(!el._glowBound){ const glow=document.createElement('div'); glow.className='cdl-glow'; el.appendChild(glow);
+    el.addEventListener('mousemove',e=>{ const r=el.getBoundingClientRect(); glow.style.left=(e.clientX-r.left)+'px'; glow.style.top=(e.clientY-r.top)+'px'; glow.style.opacity='1'; });
+    el.addEventListener('mouseleave',()=>{ glow.style.opacity='0'; }); el._glowBound=true; }
 
   if(!window._sumResize){ window.addEventListener('resize',()=>{
     if(sumMain&&el.clientWidth) sumMain.applyOptions({width:el.clientWidth});
@@ -1746,16 +1770,29 @@ function renderSignalMonitor(histBar){
   const tag=(k)=>k==='SVXY'?'<span class="sig-ind sig-svxy">SVXY</span>':k==='UVXY'?'<span class="sig-ind sig-uvxy">UVXY</span>':k==='NA'?'<span style="color:var(--dim);font-weight:700">N/A</span>':'<span class="sig-ind sig-neu">Cash</span>';
   const num=(v,d=2)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v).toFixed(d);
   const pct=(v,d=1)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v>=0?'+':'')+(v*100).toFixed(d)+'%';
-  // Mini gauge: a bar showing the bullish (teal) / bearish (red) zones, the
-  // neutral band (grey), and a yellow marker for the current value's position.
+  // Mini gauge: bullish (teal) / bearish (red) zones + neutral band, with a white
+  // marker for the current value. The zone the marker sits in brightens to the
+  // exact position colour — teal (SVXY), red (UVXY), gold (Cash) — others dim.
   // zones = [[from,to,'t'|'r'|'n'], ...] spanning the domain [lo,hi].
-  const gaugeHtml=(lo,hi,zones,val,tip)=>{ if(val==null||isNaN(val)) return '';
-    const W=150,H=12,pad=1; const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
-    const col={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)'};
-    const rects=zones.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);return `<rect x="${x0.toFixed(1)}" y="3.5" width="${Math.max(0,x1-x0).toFixed(1)}" height="5" fill="${col[z[2]]}" opacity="0.55"/>`;}).join('');
+  const gaugeHtml=(lo,hi,zones,val,tip)=>{ if(val==null||isNaN(val)||hi<=lo) return '';
+    const W=170,H=12,pad=1; const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
+    const dim={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)'};
+    const lit={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'};
+    const inZone=z=> val>=z[0] && val<=z[1];
+    const rects=zones.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const on=inZone(z);
+      return `<rect x="${x0.toFixed(1)}" y="3.5" width="${Math.max(0,x1-x0).toFixed(1)}" height="5" fill="${on?lit[z[2]]:dim[z[2]]}" opacity="${on?0.95:0.4}"/>`;}).join('');
     const mx=sx(val).toFixed(1);
-    return ` <span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${rects}`
-      + `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--yellow)" stroke-width="2"/></svg></span>`; };
+    return `<span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${rects}`
+      + `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/></svg></span>`; };
+
+  // Data-driven gauge domain for a bar_history field: robust [p1,p99] expanded
+  // to include the trigger thresholds, with padding. Cached per field.
+  const _domain=(field,ths)=>{ window._dom=window._dom||{};
+    if(window._dom[field]) return window._dom[field];
+    const vs=(DATA.bar_history||[]).map(x=>x[field]).filter(v=>v!=null&&!isNaN(v)).sort((a,b)=>a-b);
+    let lo,hi; if(vs.length){ lo=vs[Math.floor(vs.length*0.01)]; hi=vs[Math.ceil(vs.length*0.99)-1]; } else { lo=0; hi=1; }
+    (ths||[]).forEach(t=>{ if(t<lo)lo=t; if(t>hi)hi=t; });
+    const pad=((hi-lo)||1)*0.08; window._dom[field]={lo:lo-pad,hi:hi+pad}; return window._dom[field]; };
 
   const spike=b.spike_9d||b.spike_1m, crush=b.crush_9d||b.crush_1m;
   let rows=[
@@ -1775,20 +1812,23 @@ function renderSignalMonitor(histBar){
       'Upward-sloping (contango)','Inverted (backwardation)', num(ratio13,2),
       ratio13<P.br13?'SVXY':(ratio13>=P.xr13?'UVXY':'NEU')],
   ];
-  // Per-indicator gauge bars: bullish (teal) / bearish (red) zones, neutral band
-  // (grey), with a yellow marker at the live value. Domains are display ranges;
-  // zone edges are the real thresholds from P.
-  const gCont = ()=>gaugeHtml(-0.15,0.30,[[-0.15,0,'r'],[0,P.ct,'n'],[P.ct,0.30,'t']],contango,`bear <0% · bull ≥${(P.ct*100).toFixed(1)}% · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}`);
-  const gRatio= ()=>gaugeHtml(0.70,1.30,[[0.70,P.br13,'t'],[P.br13,P.xr13,'n'],[P.xr13,1.30,'r']],ratio13,`bull <${P.br13} · bear ≥${P.xr13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`);
-  const gMove = ()=>gaugeHtml(0,14,[[0,2,'t'],[2,11,'n'],[11,14,'r']],movevix,`low ≤2 · high ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`);
+  // Per-indicator gauge bars. Domain is data-driven (observed p1–p99 of the
+  // history, expanded to include the thresholds); zone edges are the real
+  // thresholds from P; the marker sits at the live value.
+  const dC=_domain('contango',[0,P.ct]), dV=_domain('vdelta',[P.xvd,P.bvd]),
+        d9=_domain('vix9d',[P.b9lo,P.b9hi]), d1=_domain('vix1m',[P.b1lo,P.b1hi]),
+        dR=_domain('ratio_1m_3m',[P.br13,P.xr13]), dM=_domain('move_vix_ratio',[2,11]);
+  const gCont = ()=>gaugeHtml(dC.lo,dC.hi,[[dC.lo,0,'r'],[0,P.ct,'n'],[P.ct,dC.hi,'t']],contango,`bear <0% · bull ≥${(P.ct*100).toFixed(1)}% · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}`);
+  const gRatio= ()=>gaugeHtml(dR.lo,dR.hi,[[dR.lo,P.br13,'t'],[P.br13,P.xr13,'n'],[P.xr13,dR.hi,'r']],ratio13,`bull <${P.br13} · bear ≥${P.xr13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`);
+  const gMove = ()=>gaugeHtml(dM.lo,dM.hi,[[dM.lo,2,'t'],[2,11,'n'],[11,dM.hi,'r']],movevix,`low ≤2 · high ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`);
   const _gauges=[
     gCont(),
-    gaugeHtml(-5,3,[[-5,P.xvd,'r'],[P.xvd,P.bvd,'n'],[P.bvd,3,'t']],vdelta,`bear ≤${P.xvd} · bull >${P.bvd} · now ${vdelta!=null?vdelta.toFixed(2):'—'}`),
-    gaugeHtml(0,45,[[0,P.b9lo,'r'],[P.b9lo,P.b9hi,'t'],[P.b9hi,45,'r']],vix9d,`calm ${P.b9lo}–${P.b9hi} · now ${vix9d!=null?vix9d.toFixed(2):'—'}`),
-    gaugeHtml(0,40,[[0,P.b1lo,'r'],[P.b1lo,P.b1hi,'t'],[P.b1hi,40,'r']],vix1m,`calm ${P.b1lo}–${P.b1hi} · now ${vix1m!=null?vix1m.toFixed(2):'—'}`),
+    gaugeHtml(dV.lo,dV.hi,[[dV.lo,P.xvd,'r'],[P.xvd,P.bvd,'n'],[P.bvd,dV.hi,'t']],vdelta,`bear ≤${P.xvd} · bull >${P.bvd} · now ${vdelta!=null?vdelta.toFixed(2):'—'}`),
+    gaugeHtml(d9.lo,d9.hi,[[d9.lo,P.b9lo,'r'],[P.b9lo,P.b9hi,'t'],[P.b9hi,d9.hi,'r']],vix9d,`calm ${P.b9lo}–${P.b9hi} · now ${vix9d!=null?vix9d.toFixed(2):'—'}`),
+    gaugeHtml(d1.lo,d1.hi,[[d1.lo,P.b1lo,'r'],[P.b1lo,P.b1hi,'t'],[P.b1hi,d1.hi,'r']],vix1m,`calm ${P.b1lo}–${P.b1hi} · now ${vix1m!=null?vix1m.toFixed(2):'—'}`),
     gRatio(),
   ];
-  rows.forEach((r,i)=>{ r[4]=r[4]+_gauges[i]; });
+  rows.forEach((r,i)=>{ r[7]=_gauges[i]; });
 
   // MOVE/VIX is NOT an entry trigger — it's a cross-asset stress overlay that
   // only exits SVXY (high) or blocks/exits UVXY (low). It lives in Exit Rules.
@@ -1801,9 +1841,10 @@ function renderSignalMonitor(histBar){
   if(hist){ const idx=DATA.bar_history.lastIndexOf(b); const pv=idx>0?DATA.bar_history[idx-1]:null;
     if(pv){ if(b.vix9d&&pv.vix9d) mv9=b.vix9d/pv.vix9d-1; if(b.vix1m&&pv.vix1m) mv1=b.vix1m/pv.vix1m-1; } }
   else { mv9=cv.vix9d_chg; mv1=(L&&L.market&&L.market.quotes&&L.market.quotes.vix&&L.market.quotes.vix.change_pct!=null)?L.market.quotes.vix.change_pct:cv.vix1m_chg; }
-  const moveMag = [mv9,mv1].filter(v=>v!=null&&!isNaN(v)).reduce((m,v)=>Math.max(m,Math.abs(v)), NaN);
+  const _mvs=[mv9,mv1].filter(v=>v!=null&&!isNaN(v)).map(Math.abs);
+  const moveMag = _mvs.length ? Math.max(..._mvs) : NaN;
   const overrideRows=[
-    ['Spike / Crush <span style="font-style:italic;font-weight:400;color:var(--dim);font-size:0.9em">— evaluated separately, override</span>','Sudden &ge;35% 1-day move in VIX9D or VIX1M.',
+    ['Spike / Crush','Sudden &ge;35% 1-day move in VIX9D or VIX1M',
       'Crush &rarr; SVXY','Spike &rarr; UVXY',
       (spike?'<span class="neg">SPIKE </span>':crush?'<span class="pos">CRUSH </span>':'')+(isNaN(moveMag)?'<span style="color:var(--dim)">—</span>':pct(moveMag,1)),
       spike?'UVXY':(crush?'SVXY':'NA')],
@@ -1837,13 +1878,15 @@ function renderSignalMonitor(histBar){
     const upd = cad==='eod' ? 'after the CBOE close (~5:30pm ET)' : 'every ~5 min during market hours';
     const tip = `Data as at: ${changed}\nExpected update: ${upd}\n(Decision finalises ~7pm ET)`;
     const col = cad==='eod' ? 'var(--amber)' : 'var(--teal)';
-    return ` <span class="sig-info" style="color:${col}" title="${tip}">&#9201;</span>`;
+    return `<span class="sig-info" style="color:${col}" title="${tip}">&#9201;</span>`;
   };
   const _rawVals=[contango,vdelta,vix9d,vix1m,ratio13];
   if(!hist){   // live clock icons only apply to today's still-updating data
-    rows.forEach((r,i)=>{ r[4]=r[4]+annotate(r[0],sigKeys[i],_r4(_rawVals[i]),(i===2?'eod':'live')); });
-    overrideRows.forEach(r=>{ r[4]=r[4]+annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'eod'); });
+    rows.forEach((r,i)=>{ r[6]=annotate(r[0],sigKeys[i],_r4(_rawVals[i]),'live'); });
+    overrideRows.forEach(r=>{ r[6]=annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'live'); });
   }
+  // Spike/Crush one-sided gauge: the 1-day move vs the ±35% override threshold.
+  overrideRows[0][7]=gaugeHtml(0,0.70,[[0,0.35,'n'],[0.35,0.70,'r']],isNaN(moveMag)?null:moveMag,`override at ±35% · now ${isNaN(moveMag)?'—':(moveMag*100).toFixed(1)+'%'}`);
 
   // ── Projected end-of-day position: how the live signals combine ──────
   // Indicative read of where the signals are leaning intraday. The OFFICIAL
@@ -1900,39 +1943,40 @@ function renderSignalMonitor(histBar){
   const carryTrig = inPos && isSV && contango!=null && contango<0;
   const moveTrig  = inPos && ((isSV && moveSig==='high') || (isUV && moveSig==='low'));
   const ratioTrig = inPos && ((isSV && ratio13!=null && ratio13>=P.xr13) || (isUV && ratio13!=null && ratio13<P.br13));
-  const pcCur = (L&&L.derived&&L.derived.pc_ratio!=null)?L.derived.pc_ratio:null;   // P/C usually unavailable
   const holdColor = isUV ? 'var(--coral)' : 'var(--teal)';
   const stat = trig => !inPos ? dimc('N/A')
     : (trig ? '<span style="color:var(--coral);font-weight:700">Exit</span>'
             : `<span style="color:${holdColor};font-weight:700">Hold</span>`);
   // [name, desc, bullish, bearish, current, statusTrigger]
   const exitRules=[
-    ['Take Profit','Closed once the unrealised gain hits the profit target.', 'Reaches take-profit zone','', pnlCur, false],
-    ['Stop Loss','Closed once the unrealised loss hits the max (UVXY hard stop).', '','Reaches stop-loss zone', pnlCur, false],
-    ['Trailing Stop','Closed after giving back too much from the running peak (SVXY).', '','Gives back set band from the peak', pnlCur, false],
-    ['Time Stop','Closed after the maximum holding period.', 'Held to max horizon','', daysHeldCur, false],
-    ['Negative Vol Carry','Roll yield turns unfavourable — carry no longer pays (SVXY).',
+    ['Take Profit','Closed once the unrealised gain hits the profit target', 'Reaches take-profit zone','', pnlCur, false],
+    ['Stop Loss','Closed once the unrealised loss hits the max (UVXY hard stop)', '','Reaches stop-loss zone', pnlCur, false],
+    ['Trailing Stop','Closed after giving back too much from the running peak (SVXY)', '','Gives back set band from the peak', pnlCur, false],
+    ['Time Stop','Closed after the maximum holding period', 'Held to max horizon','', daysHeldCur, false],
+    ['Negative Vol Carry','Roll yield turns unfavourable — carry no longer pays (SVXY)',
       'Contango (carry positive)','Backwardation (carry negative)', pct(contango,1), carryTrig],
-    ['MOVE / VIX Ratio','Cross-asset stress overlay (bond vs equity vol).',
+    ['MOVE / VIX Ratio','Cross-asset stress overlay (bond vs equity vol)',
       'Low cross-asset stress','High cross-asset stress',
       num(movevix,2)+(moveSig==='high'?' <span class="neg">HIGH</span>':moveSig==='low'?' <span class="pos">LOW</span>':''), moveTrig],
-    ['Term-Structure Rollover','Near curve flips against the position (front ratios invert while levels hold).',
+    ['Term-Structure Rollover','Near curve flips against the position (front ratios invert while levels hold)',
       'Curve in contango','Curve inverted', num(ratio13,2), ratioTrig],
-    ['Put / Call Reversal','Options skew flips bullish — exits a long-vol (UVXY) position.',
-      'P/C bullish','', (pcCur!=null?num(pcCur,2):dimc('n/a')), false],
   ];
   const nExit=exitRules.length;
-  const exHas=[inPos,inPos,inPos,inPos,contango!=null,movevix!=null,ratio13!=null,pcCur!=null];
+  const exHas=[inPos,inPos,inPos,inPos,contango!=null,movevix!=null,ratio13!=null];
   let exHold=0, exExit=0, exRefreshed=0;
   exitRules.forEach((r,i)=>{ if(inPos){ if(r[5]) exExit++; else exHold++; } if(exHas[i]) exRefreshed++; });
-  // Gauge bars on the market-driven exits (TP/SL/Trailing/Time use private
-  // thresholds, so no gauge), then a data-as-at clock on every row with data.
-  if(exHas[4]) exitRules[4][4]+=gCont();    // Neg Vol Carry → contango gauge
-  if(exHas[5]) exitRules[5][4]+=gMove();    // MOVE/VIX gauge
-  if(exHas[6]) exitRules[6][4]+=gRatio();   // Term-structure rollover → ratio gauge
+  // Gauge bars → r[7]; data-as-at clock → r[6]. Take Profit / Stop Loss get a
+  // one-sided gauge of open P&L vs the (now-public) threshold; Trailing needs the
+  // running peak and Time needs the max horizon — not in the live feed, so no bar.
+  const tpTh = isSV?0.42728:(isUV?0.13601:null), slTh = isUV?-0.0271:null;
+  if(inPos && tpTh && openpnl!=null) exitRules[0][7]=gaugeHtml(-0.05,tpTh*1.15,[[-0.05,tpTh,'n'],[tpTh,tpTh*1.15,'t']],openpnl,`take-profit at +${(tpTh*100).toFixed(0)}% · now ${(openpnl*100).toFixed(1)}%`);
+  if(inPos && slTh && openpnl!=null) exitRules[1][7]=gaugeHtml(slTh*1.8,0.04,[[slTh*1.8,slTh,'r'],[slTh,0.04,'n']],openpnl,`stop-loss at ${(slTh*100).toFixed(1)}% · now ${(openpnl*100).toFixed(1)}%`);
+  if(exHas[4]) exitRules[4][7]=gCont();    // Neg Vol Carry → contango gauge
+  if(exHas[5]) exitRules[5][7]=gMove();    // MOVE/VIX gauge
+  if(exHas[6]) exitRules[6][7]=gRatio();   // Term-structure rollover → ratio gauge
   const _exClk=[['exTP','__pnl',openpnl],['exSL','__pnl',openpnl],['exTRAIL','__pnl',openpnl],['exTIME','__days',(inPos?1:null)],
-                ['exCARRY','contango',contango],['exMOVE','move_vix_ratio',movevix],['exROLL','ratio_1m_3m',ratio13],['exPC','__pc',pcCur]];
-  exitRules.forEach((r,i)=>{ if(exHas[i]) r[4]+=annotate(_exClk[i][0],_exClk[i][1],_r4(_exClk[i][2]),'live'); });
+                ['exCARRY','contango',contango],['exMOVE','move_vix_ratio',movevix],['exROLL','ratio_1m_3m',ratio13]];
+  exitRules.forEach((r,i)=>{ if(exHas[i]) r[6]=annotate(_exClk[i][0],_exClk[i][1],_r4(_exClk[i][2]),'live'); });
 
   // ── Entry-side counts: the 5 indicators + the spike/crush override = 6 ──
   const _t=_etNow(); const _dec=_t.sod/3600; const _wk=_t.wd!=='Sat'&&_t.wd!=='Sun';
@@ -1942,7 +1986,7 @@ function renderSignalMonitor(histBar){
   if(!eodPending) entryRefreshed++;            // spike/crush (EOD/close-based)
   const nEntry=6;
   const ovrCount = (spike||crush)?1:0;
-  const ovrStatus = `<b style="color:var(--amber)">${ovrCount} override</b>`;
+  const ovrStatus = `<b style="color:var(--yellow)">${ovrCount} override</b>`;
   const DOT = ' <span style="color:var(--border2)">&middot;</span> ';
   const entryMix = `<div class="sig-proj-mixline"><span class="lbl">Entry indicator mix</span>`
     + `<span class="vt-sv">${sv} short vol</span>${DOT}<span class="vt-uv">${uv} long vol</span>${DOT}<span class="vt-neu">${neu} cash</span>`
@@ -1959,7 +2003,9 @@ function renderSignalMonitor(histBar){
       + `<div class="sig-proj-note">Indicator readings <b>as of ${b.date}</b> (hovered bar). Move off the chart to return to live/today.</div>`;
   } else {
     const off = (L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
-    const note = `The trade decision is made daily at <b>19:45&nbsp;ET</b>, effective on the <b>19:30&nbsp;ET</b> readings — ${entryRefreshed}/${nEntry} indicators are in. The Projected Position becomes the next-open trade if it differs from the Current Position.`;
+    const note = inPos
+      ? `The trade decision is made daily at <b>19:45&nbsp;ET</b>, effective on the <b>19:30&nbsp;ET</b> readings. With an open position it's evaluated against the <b>exit</b> indicators — <b>${exRefreshed}/${nExit}</b> in. The position closes at the next open if any exit triggers.`
+      : `The trade decision is made daily at <b>19:45&nbsp;ET</b>, effective on the <b>19:30&nbsp;ET</b> readings. In cash it's evaluated against the <b>entry</b> indicators — <b>${entryRefreshed}/${nEntry}</b> in. A new position opens at the next open if the entry signals align.`;
     html =
         `<div class="sig-proj-row1">`
       +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
@@ -1972,13 +2018,17 @@ function renderSignalMonitor(histBar){
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=html;
 
   const head='<thead><tr><th>Indicator</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th>Current</th><th>Signal</th></tr></thead>';
-  const rowHtml=(r,cls='')=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
+  const _ds=s=>(s||'').replace(/\.$/,'');                 // drop trailing period
+  const _bb=(s,c)=>s?s:`<span style="color:var(${c})">N/A</span>`;  // empty → coloured N/A
+  // Current cell: value (right-aligned) · clock · gauge bar (left), vertically aligned.
+  const curCell=r=>`<td><div class="cur-cell"><span class="cur-val">${r[4]}</span><span class="cur-clk">${r[6]||''}</span><span class="cur-bar">${r[7]||''}</span></div></td>`;
+  const rowHtml=(r,cls='')=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
-    +`<td>${r[4]}</td><td>${tag(r[5])}</td></tr>`;
+    +curCell(r)+`<td>${tag(r[5])}</td></tr>`;
   const exitDivider='<tr class="sig-divider"><td colspan="6">Exit Only Indicators - Exit signal will be generated if any of these are triggered when position is open</td></tr>';
-  const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${r[1]}</td>`
-    +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
-    +`<td>${r[4]}</td><td>${stat(r[5])}</td></tr>`).join('');
+  const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
+    +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
+    +curCell(r)+`<td>${stat(r[5])}</td></tr>`).join('');
   const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - top 5 must all align for a new entry signal; the 6th is a standalone override that fires one on its own</td></tr>';
   const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
     +overrideRows.map(r=>rowHtml(r)).join('')
