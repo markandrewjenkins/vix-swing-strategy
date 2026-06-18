@@ -410,11 +410,11 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .cur-cell .cur-bar { flex:none; }
 .cur-cell .sig-info { margin-left:0; }
 #candle-chart { position:relative; }
-.cdl-glow { position:absolute; width:170px; height:170px; transform:translate(-50%,-50%); border-radius:50%;
-  pointer-events:none; opacity:0; transition:opacity .3s ease; z-index:5;
-  background:radial-gradient(circle, rgba(240,152,47,0.16), rgba(240,152,47,0) 68%);
-  animation:glowpulse 2.4s ease-in-out infinite; }
-@keyframes glowpulse { 0%,100% { transform:translate(-50%,-50%) scale(0.92) } 50% { transform:translate(-50%,-50%) scale(1.1) } }
+.cdl-glow { position:absolute; width:140px; height:140px; transform:translate(-50%,-50%); border-radius:50%;
+  pointer-events:none; opacity:0; transition:opacity .25s ease; z-index:5;
+  background:radial-gradient(circle, rgba(240,152,47,0.09), rgba(240,152,47,0) 70%); }
+.cdl-glow.click-pulse { animation:glowclick 0.55s ease-out 1; }
+@keyframes glowclick { 0% { transform:translate(-50%,-50%) scale(0.6); opacity:0.85 } 100% { transform:translate(-50%,-50%) scale(1.6); opacity:0 } }
 table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
 table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
 table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; }
@@ -1482,7 +1482,7 @@ async function loadLive(){
     const dot=document.querySelector('#live-strip .live-dot');
     if(dot){ dot.style.background=phaseColor; dot.style.boxShadow = phaseActive ? '0 0 6px '+phaseColor : 'none'; }
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
-    if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'CLOSED'; feed.style.color=phaseColor; }
+    if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=phaseColor; }
     if(note) note.textContent = live ? 'Updating live every ~5 mins'
                               : regular ? 'Awaiting next refresh'
                               : settle  ? 'Close settling, signals finalise ~7pm ET'
@@ -1550,7 +1550,7 @@ function updateMarket(){
   else { label='Market closed'; color=GRAY; sep=GAP; }
   const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker'), cd=document.getElementById('mkt-countdown');
   if(dot) dot.style.background=color;
-  if(lab){ lab.textContent=label; }
+  if(lab){ lab.textContent=label; lab.style.color=color; }   // match the phase colour
   if(mk){ mk.style.display = isWk ? '' : 'none'; mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
   if(cd){ const np=_nextPhase(); cd.textContent=sep+np.verb+' in '+_fmtDur(np.secs); }
   const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
@@ -1719,30 +1719,36 @@ function renderSummary(){
     info.innerHTML=html;
   }
 
+  // Keep the crosshair locked to the pinned bar's centre while pinned.
+  const _lockX=()=>{ const t=window._pinnedDate; if(!t) return; const sd=OHLCBYTIME[t];
+    if(sd){ try{ sumMain.setCrosshairPosition((sd.high+sd.low)/2, t, candleSeries); }catch(_){} } };
   sumMain.subscribeCrosshairMove(param=>{
-    if(window._pinnedDate) return;            // frozen on a clicked bar
+    if(window._pinnedDate){ _lockX(); return; }   // frozen on a clicked bar
     const sd=param.seriesData&&candleSeries?param.seriesData.get(candleSeries):null;
     renderInfo(param.time, sd);
     monitorHover(param.time);
   });
   // Hovering the position band: drive the candle crosshair AND the same readout
   sumPos.subscribeCrosshairMove(param=>{
-    if(window._pinnedDate) return;
+    if(window._pinnedDate){ _lockX(); return; }
     if(param && param.time && OHLCBYTIME[param.time]){
       sumMain.setCrosshairPosition(OHLCBYTIME[param.time].close, param.time, candleSeries);
       renderInfo(param.time, OHLCBYTIME[param.time]);
       monitorHover(param.time);
     } else { sumMain.clearCrosshairPosition(); renderInfo(null); monitorHover(null); }
   });
-  // Left-click pins the bar (readout + monitor freeze) until right-click clears it.
+  // Left-click pins the bar (readout + monitor + crosshair freeze, snapped to the
+  // bar centre) until right-click clears it; the halo gives one gentle pulse.
   const _pin=t=>{ if(!t) return; window._pinnedDate=t; const sd=OHLCBYTIME[t];
-    if(sd){ try{ sumMain.setCrosshairPosition(sd.close,t,candleSeries); }catch(_){} }
-    renderInfo(t,sd); monitorHover(t); el.classList.add('cdl-pinned'); };
+    if(sd){ try{ sumMain.setCrosshairPosition((sd.high+sd.low)/2,t,candleSeries); }catch(_){} }
+    renderInfo(t,sd); monitorHover(t); el.classList.add('cdl-pinned');
+    if(el._glow){ el._glow.classList.remove('click-pulse'); void el._glow.offsetWidth; el._glow.classList.add('click-pulse'); } };
   sumMain.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
   sumPos.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
-  if(!el._ctxBound){ el.addEventListener('contextmenu',e=>{ e.preventDefault(); window._pinnedDate=null; el.classList.remove('cdl-pinned'); }); el._ctxBound=true; }
-  // Subtle orange cursor glow over the chart (Cyber-Renaissance flair).
-  if(!el._glowBound){ const glow=document.createElement('div'); glow.className='cdl-glow'; el.appendChild(glow);
+  if(!el._ctxBound){ el.addEventListener('contextmenu',e=>{ e.preventDefault(); window._pinnedDate=null; el.classList.remove('cdl-pinned'); try{sumMain.clearCrosshairPosition();}catch(_){} }); el._ctxBound=true; }
+  // Subtle orange cursor glow over the chart — light halo on hover, one pulse on click.
+  if(!el._glowBound){ const glow=document.createElement('div'); glow.className='cdl-glow'; el.appendChild(glow); el._glow=glow;
+    glow.addEventListener('animationend',()=>glow.classList.remove('click-pulse'));
     el.addEventListener('mousemove',e=>{ const r=el.getBoundingClientRect(); glow.style.left=(e.clientX-r.left)+'px'; glow.style.top=(e.clientY-r.top)+'px'; glow.style.opacity='1'; });
     el.addEventListener('mouseleave',()=>{ glow.style.opacity='0'; }); el._glowBound=true; }
 
@@ -1774,16 +1780,21 @@ function renderSignalMonitor(histBar){
   // marker for the current value. The zone the marker sits in brightens to the
   // exact position colour — teal (SVXY), red (UVXY), gold (Cash) — others dim.
   // zones = [[from,to,'t'|'r'|'n'], ...] spanning the domain [lo,hi].
-  const gaugeHtml=(lo,hi,zones,val,tip)=>{ if(val==null||isNaN(val)||hi<=lo) return '';
-    const W=170,H=12,pad=1; const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
+  const gaugeHtml=(lo,hi,zones,val,tip,fmt)=>{ if(val==null||isNaN(val)||hi<=lo) return '';
+    fmt = fmt || (v=>(+v).toFixed(1));
+    const W=176,H=24,by=2,bh=5,pad=1; const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
     const dim={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)'};
     const lit={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'};
     const inZone=z=> val>=z[0] && val<=z[1];
     const rects=zones.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const on=inZone(z);
-      return `<rect x="${x0.toFixed(1)}" y="3.5" width="${Math.max(0,x1-x0).toFixed(1)}" height="5" fill="${on?lit[z[2]]:dim[z[2]]}" opacity="${on?0.95:0.4}"/>`;}).join('');
+      return `<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${bh}" fill="${on?lit[z[2]]:dim[z[2]]}" opacity="${on?0.95:0.4}"/>`;}).join('');
+    // boundary labels: min (left), each threshold (mid), max (right)
+    const bnds=[...new Set([lo, ...zones.flatMap(z=>[z[0],z[1]]), hi])].sort((a,b)=>a-b);
+    const labels=bnds.map((v,i)=>{ const x=sx(v); const anc=i===0?'start':i===bnds.length-1?'end':'middle';
+      return `<text x="${x.toFixed(1)}" y="${H-1}" font-size="6.5" fill="var(--dim)" text-anchor="${anc}">${fmt(v)}</text>`;}).join('');
     const mx=sx(val).toFixed(1);
-    return `<span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${rects}`
-      + `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/></svg></span>`; };
+    return `<span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${rects}${labels}`
+      + `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${by+bh+0.5}" stroke="var(--white)" stroke-width="2"/></svg></span>`; };
 
   // Data-driven gauge domain for a bar_history field: robust [p1,p99] expanded
   // to include the trigger thresholds, with padding. Cached per field.
@@ -1818,14 +1829,15 @@ function renderSignalMonitor(histBar){
   const dC=_domain('contango',[0,P.ct]), dV=_domain('vdelta',[P.xvd,P.bvd]),
         d9=_domain('vix9d',[P.b9lo,P.b9hi]), d1=_domain('vix1m',[P.b1lo,P.b1hi]),
         dR=_domain('ratio_1m_3m',[P.br13,P.xr13]), dM=_domain('move_vix_ratio',[2,11]);
-  const gCont = ()=>gaugeHtml(dC.lo,dC.hi,[[dC.lo,0,'r'],[0,P.ct,'n'],[P.ct,dC.hi,'t']],contango,`bear <0% · bull ≥${(P.ct*100).toFixed(1)}% · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}`);
-  const gRatio= ()=>gaugeHtml(dR.lo,dR.hi,[[dR.lo,P.br13,'t'],[P.br13,P.xr13,'n'],[P.xr13,dR.hi,'r']],ratio13,`bull <${P.br13} · bear ≥${P.xr13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`);
-  const gMove = ()=>gaugeHtml(dM.lo,dM.hi,[[dM.lo,2,'t'],[2,11,'n'],[11,dM.hi,'r']],movevix,`low ≤2 · high ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`);
+  const fPP=v=>(v*100).toFixed(0)+'%', fN0=v=>(+v).toFixed(0), fN1=v=>(+v).toFixed(1), fN2=v=>(+v).toFixed(2);
+  const gCont = ()=>gaugeHtml(dC.lo,dC.hi,[[dC.lo,0,'r'],[0,P.ct,'n'],[P.ct,dC.hi,'t']],contango,`bear <0% · bull ≥${(P.ct*100).toFixed(1)}% · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}`,fPP);
+  const gRatio= ()=>gaugeHtml(dR.lo,dR.hi,[[dR.lo,P.br13,'t'],[P.br13,P.xr13,'n'],[P.xr13,dR.hi,'r']],ratio13,`bull <${P.br13} · bear ≥${P.xr13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`,fN2);
+  const gMove = ()=>gaugeHtml(dM.lo,dM.hi,[[dM.lo,2,'t'],[2,11,'n'],[11,dM.hi,'r']],movevix,`low ≤2 · high ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`,fN1);
   const _gauges=[
     gCont(),
-    gaugeHtml(dV.lo,dV.hi,[[dV.lo,P.xvd,'r'],[P.xvd,P.bvd,'n'],[P.bvd,dV.hi,'t']],vdelta,`bear ≤${P.xvd} · bull >${P.bvd} · now ${vdelta!=null?vdelta.toFixed(2):'—'}`),
-    gaugeHtml(d9.lo,d9.hi,[[d9.lo,P.b9lo,'r'],[P.b9lo,P.b9hi,'t'],[P.b9hi,d9.hi,'r']],vix9d,`calm ${P.b9lo}–${P.b9hi} · now ${vix9d!=null?vix9d.toFixed(2):'—'}`),
-    gaugeHtml(d1.lo,d1.hi,[[d1.lo,P.b1lo,'r'],[P.b1lo,P.b1hi,'t'],[P.b1hi,d1.hi,'r']],vix1m,`calm ${P.b1lo}–${P.b1hi} · now ${vix1m!=null?vix1m.toFixed(2):'—'}`),
+    gaugeHtml(dV.lo,dV.hi,[[dV.lo,P.xvd,'r'],[P.xvd,P.bvd,'n'],[P.bvd,dV.hi,'t']],vdelta,`bear ≤${P.xvd} · bull >${P.bvd} · now ${vdelta!=null?vdelta.toFixed(2):'—'}`,fN1),
+    gaugeHtml(d9.lo,d9.hi,[[d9.lo,P.b9lo,'r'],[P.b9lo,P.b9hi,'t'],[P.b9hi,d9.hi,'r']],vix9d,`calm ${P.b9lo}–${P.b9hi} · now ${vix9d!=null?vix9d.toFixed(2):'—'}`,fN0),
+    gaugeHtml(d1.lo,d1.hi,[[d1.lo,P.b1lo,'r'],[P.b1lo,P.b1hi,'t'],[P.b1hi,d1.hi,'r']],vix1m,`calm ${P.b1lo}–${P.b1hi} · now ${vix1m!=null?vix1m.toFixed(2):'—'}`,fN0),
     gRatio(),
   ];
   rows.forEach((r,i)=>{ r[7]=_gauges[i]; });
@@ -1886,7 +1898,7 @@ function renderSignalMonitor(histBar){
     overrideRows.forEach(r=>{ r[6]=annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'live'); });
   }
   // Spike/Crush one-sided gauge: the 1-day move vs the ±35% override threshold.
-  overrideRows[0][7]=gaugeHtml(0,0.70,[[0,0.35,'n'],[0.35,0.70,'r']],isNaN(moveMag)?null:moveMag,`override at ±35% · now ${isNaN(moveMag)?'—':(moveMag*100).toFixed(1)+'%'}`);
+  overrideRows[0][7]=gaugeHtml(0,0.70,[[0,0.35,'n'],[0.35,0.70,'r']],isNaN(moveMag)?null:moveMag,`override at ±35% · now ${isNaN(moveMag)?'—':(moveMag*100).toFixed(1)+'%'}`,v=>(v*100).toFixed(0)+'%');
 
   // ── Projected end-of-day position: how the live signals combine ──────
   // Indicative read of where the signals are leaning intraday. The OFFICIAL
@@ -1932,13 +1944,17 @@ function renderSignalMonitor(histBar){
   const openpnl = hist ? (b.open_pnl_pct) : ((L&&L.official&&L.official.open_pnl!=null)?L.official.open_pnl:null);
   const pnlCur = (inPos&&openpnl!=null) ? pct(openpnl,1) : dimc('N/A');
   const _tdBetween=(d1,d2)=>{ if(!d1||!d2||!OHLC) return null; let n=0; for(const r of OHLC){ if(r[0]>=d1&&r[0]<=d2) n++; } return n; };
-  let daysHeldCur = dimc('N/A');
+  let daysHeldCur = dimc('N/A'), daysHeldN=null, peakPnl=null;
   if(inPos){
     const dispDate = hist ? b.date : ((OHLC&&OHLC.length)?OHLC[OHLC.length-1][0]:null);
     let entryD = (LIVE&&LIVE.official&&LIVE.official.entry_date)?LIVE.official.entry_date:null;
     if(hist){ const tr = DATA.trades.find(t=>t.entry_date<=b.date && t.exit_date>=b.date); if(tr) entryD = tr.entry_date; }
-    const n = _tdBetween(entryD, dispDate);
+    const n = _tdBetween(entryD, dispDate); daysHeldN=n;
     daysHeldCur = (n!=null && n>0) ? (n+'d') : dimc('—');
+    // Running peak of open P&L over the current run (for the trailing-stop gauge).
+    if(entryD){ const bh=DATA.bar_history||[]; let mx=null;
+      for(const x of bh){ if(x.date>=entryD && x.date<=dispDate && x.open_pnl_pct!=null){ if(mx==null||x.open_pnl_pct>mx) mx=x.open_pnl_pct; } }
+      if(openpnl!=null && (mx==null||openpnl>mx)) mx=openpnl; peakPnl=mx; }
   }
   const carryTrig = inPos && isSV && contango!=null && contango<0;
   const moveTrig  = inPos && ((isSV && moveSig==='high') || (isUV && moveSig==='low'));
@@ -1968,9 +1984,16 @@ function renderSignalMonitor(histBar){
   // Gauge bars → r[7]; data-as-at clock → r[6]. Take Profit / Stop Loss get a
   // one-sided gauge of open P&L vs the (now-public) threshold; Trailing needs the
   // running peak and Time needs the max horizon — not in the live feed, so no bar.
+  const _fpc=v=>(v*100).toFixed(0)+'%', _fd=v=>(+v).toFixed(0)+'d';
   const tpTh = isSV?0.42728:(isUV?0.13601:null), slTh = isUV?-0.0271:null;
-  if(inPos && tpTh && openpnl!=null) exitRules[0][7]=gaugeHtml(-0.05,tpTh*1.15,[[-0.05,tpTh,'n'],[tpTh,tpTh*1.15,'t']],openpnl,`take-profit at +${(tpTh*100).toFixed(0)}% · now ${(openpnl*100).toFixed(1)}%`);
-  if(inPos && slTh && openpnl!=null) exitRules[1][7]=gaugeHtml(slTh*1.8,0.04,[[slTh*1.8,slTh,'r'],[slTh,0.04,'n']],openpnl,`stop-loss at ${(slTh*100).toFixed(1)}% · now ${(openpnl*100).toFixed(1)}%`);
+  if(inPos && tpTh && openpnl!=null) exitRules[0][7]=gaugeHtml(-0.05,tpTh*1.15,[[-0.05,tpTh,'n'],[tpTh,tpTh*1.15,'t']],openpnl,`take-profit at +${(tpTh*100).toFixed(0)}% · now ${(openpnl*100).toFixed(1)}%`,_fpc);
+  if(inPos && slTh && openpnl!=null) exitRules[1][7]=gaugeHtml(slTh*1.8,0.04,[[slTh*1.8,slTh,'r'],[slTh,0.04,'n']],openpnl,`stop-loss at ${(slTh*100).toFixed(1)}% · now ${(openpnl*100).toFixed(1)}%`,_fpc);
+  // Trailing stop (SVXY): drawdown from the running peak vs the 9.2pt band (armed once peak ≥ 13.4%).
+  if(inPos && isSV && peakPnl!=null && openpnl!=null){ const dd=Math.max(0,peakPnl-openpnl), TR=0.09162;
+    exitRules[2][7]=gaugeHtml(0,Math.max(TR*1.5,dd*1.1),[[0,TR,'n'],[TR,Math.max(TR*1.5,dd*1.1),'r']],dd,`drawdown from peak ${(peakPnl*100).toFixed(1)}% · trail at ${(TR*100).toFixed(1)}pt (armed ≥13.4% peak) · now -${(dd*100).toFixed(1)}pt`,_fpc); }
+  // Time stop (SVXY): trading days held vs the 40-day max.
+  if(inPos && isSV && daysHeldN!=null){ const TM=40;
+    exitRules[3][7]=gaugeHtml(0,Math.max(TM*1.2,daysHeldN*1.1),[[0,TM,'n'],[TM,Math.max(TM*1.2,daysHeldN*1.1),'r']],daysHeldN,`max ${TM}d · now ${daysHeldN}d`,_fd); }
   if(exHas[4]) exitRules[4][7]=gCont();    // Neg Vol Carry → contango gauge
   if(exHas[5]) exitRules[5][7]=gMove();    // MOVE/VIX gauge
   if(exHas[6]) exitRules[6][7]=gRatio();   // Term-structure rollover → ratio gauge
@@ -2004,8 +2027,8 @@ function renderSignalMonitor(histBar){
   } else {
     const off = (L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
     const note = inPos
-      ? `The trade decision is made daily at <b>19:45&nbsp;ET</b>, effective on the <b>19:30&nbsp;ET</b> readings. With an open position it's evaluated against the <b>exit</b> indicators — <b>${exRefreshed}/${nExit}</b> in. The position closes at the next open if any exit triggers.`
-      : `The trade decision is made daily at <b>19:45&nbsp;ET</b>, effective on the <b>19:30&nbsp;ET</b> readings. In cash it's evaluated against the <b>entry</b> indicators — <b>${entryRefreshed}/${nEntry}</b> in. A new position opens at the next open if the entry signals align.`;
+      ? `Signals finalise once the CBOE end-of-day term structure posts (~<b>5:30pm&nbsp;ET</b>) and the day's close is confirmed; the decision locks in by ~<b>7pm&nbsp;ET</b> and trades at the next market open. With an open position it's evaluated against the <b>exit</b> indicators — <b>${exRefreshed}/${nExit}</b> in. The position closes at the next open if any exit triggers.`
+      : `Signals finalise once the CBOE end-of-day term structure posts (~<b>5:30pm&nbsp;ET</b>) and the day's close is confirmed; the decision locks in by ~<b>7pm&nbsp;ET</b> and trades at the next market open. In cash it's evaluated against the <b>entry</b> indicators — <b>${entryRefreshed}/${nEntry}</b> in. A new position opens at the next open if the entry signals align.`;
     html =
         `<div class="sig-proj-row1">`
       +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
@@ -2029,7 +2052,7 @@ function renderSignalMonitor(histBar){
   const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
     +curCell(r)+`<td>${stat(r[5])}</td></tr>`).join('');
-  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - top 5 must all align for a new entry signal; the 6th is a standalone override that fires one on its own</td></tr>';
+  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - Top 5 must all align for a new entry signal; the 6th is a standalone override that may fire independently</td></tr>';
   const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
     +overrideRows.map(r=>rowHtml(r)).join('')
     +exitDivider+exitHtml+'</tbody>';
