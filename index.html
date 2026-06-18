@@ -420,18 +420,17 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
   animation:cdlripple .4s ease-out forwards; }
 @keyframes cdlripple { 0% { transform:translate(-50%,-50%) scale(0.45); opacity:0.7 } 70% { opacity:0.18 } 100% { transform:translate(-50%,-50%) scale(1.55); opacity:0 } }
 /* Floating mini Live-Signal preview over the chart's blank right side. */
-.mini-mon { position:absolute; top:10px; right:54px; width:250px; max-width:52%; z-index:5; pointer-events:none;
+.mini-mon { position:absolute; top:10px; right:62px; width:252px; max-width:54%; z-index:5; pointer-events:none;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
 .mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; }
-.mini-mon .mini-pos { text-align:center; font-weight:700; font-size:0.74rem; margin-bottom:5px; }
+.mini-mon .mini-pos { text-align:center; font-weight:700; font-size:0.72rem; margin-bottom:5px; }
 .mini-mon .mini-sub { color:var(--dim); text-transform:uppercase; letter-spacing:0.06em; font-size:0.54rem; margin:5px 0 1px; border-top:1px solid var(--border); padding-top:3px; }
 .mini-row { display:flex; align-items:center; gap:6px; margin:1px 0; white-space:nowrap; }
-.mini-row .mini-name { color:var(--yellow); width:52px; flex:none; overflow:hidden; text-overflow:ellipsis; }
+.mini-row .mini-name { color:var(--yellow); width:50px; flex:none; overflow:hidden; text-overflow:ellipsis; }
+.mini-row .mini-val { width:46px; flex:none; text-align:right; color:var(--white); }
 .mini-row .mini-bar { width:72px; flex:none; }
 .mini-row .mini-sig { width:34px; flex:none; text-align:left; font-size:0.6rem; }
-.mini-row .mini-val { flex:1; text-align:center; }
-.mini-row .mini-val b { color:var(--white); font-weight:700; }
 table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
 table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
 table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; }
@@ -1953,14 +1952,9 @@ function renderSignalMonitor(histBar){
   // flips to SVXY. Anything short of full alignment = CASH. (MOVE/VIX is a
   // risk/exit overlay, not an entry trigger — shown under Exit Rules.)
   const regime = core;
-  const nBull = regime.filter(v=>v==='SVXY').length;
-  const regimeBull = regime.length>0 && regime.every(v=>v==='SVXY');
-  let proj, why;
-  if(spike){ proj='UVXY'; why='spike override — a confirmed VIX spike forces long vol'; }
-  else if(crush){ proj='SVXY'; why='crush override — a faded vol spike forces short vol'; }
-  else if(contango!=null && contango<0){ proj='UVXY'; why='term structure in backwardation — long vol'; }
-  else if(regimeBull){ proj='SVXY'; why='full bullish alignment — every term-structure signal reads short vol (the BB-trend confirmation is checked at evaluation)'; }
-  else { proj='CASH'; why=nBull+' of 5 term-structure signals bullish — the entry needs full alignment to go short vol, so it stays in cash'; }
+  const regimeBull = regime.length>0 && regime.every(v=>v==='SVXY');  // all 5 aligned → new SVXY entry
+  // proj is computed lower down (it is hold-aware: a held position is kept unless an exit fires).
+  let proj;
   // Position chips follow the SVXY/UVXY↔SVIX/UVIX toggle.
   const kindOf = s => (s==='SVXY'||s==='SVIX')?'sv':(s==='UVXY'||s==='UVIX')?'uv':'cash';
   const chip = s => { const k=kindOf(s); const nm=k==='sv'?svN():k==='uv'?uvN():'Cash';
@@ -1969,10 +1963,14 @@ function renderSignalMonitor(histBar){
   const posInstr = p => p==='LONG_VOL_SELLER'?'SVXY':p==='LONG_VOL'?'UVXY':'CASH';
   const ovr = spike?' <span class="vt-uv">(spike override)</span>':crush?' <span class="vt-sv">(crush override)</span>':'';
 
-  // Position used for the exit-rule status: live → official; hist → hovered bar's.
-  const curPos = hist ? b.position : (L&&L.official?L.official.position:null);
+  // Position used for the exit-rule status. Live → official. Hist → the position
+  // held that day per the chart's own position band (POSBYDATE), so the monitor
+  // always agrees with the candles (avoids the 2-rows-per-day / signal-vs-fill skew).
+  const curPos = hist ? ((POSBYDATE&&POSBYDATE[b.date])||'CASH') : (L&&L.official?L.official.position:null);
   const inPos = !!curPos && curPos!=='CASH';
   const isSV = curPos==='LONG_VOL_SELLER', isUV = curPos==='LONG_VOL';
+  // The trade that exits at the next open after this bar (hist only).
+  const _exitTrade = hist ? DATA.trades.find(t=>t.exit_date===b.date) : null;
 
   // ── Exit Only indicators — every reason that can close a position (built up
   // front so the mix line can count Hold/Exit). Status: Hold/Exit while open,
@@ -2016,18 +2014,40 @@ function renderSignalMonitor(histBar){
   ];
   const nExit=exitRules.length;
   const exHas=[inPos,inPos,inPos,inPos,contango!=null,movevix!=null,ratio13!=null];
-  let exHold=0, exExit=0, exRefreshed=0;
-  exitRules.forEach((r,i)=>{ if(inPos){ if(r[5]) exExit++; else exHold++; } if(exHas[i]) exRefreshed++; });
-  // Gauge bars → r[7]; data-as-at clock → r[6]. Take Profit / Stop Loss get a
-  // one-sided gauge of open P&L vs the (now-public) threshold; Trailing needs the
-  // running peak and Time needs the max horizon — not in the live feed, so no bar.
   const _fpc=v=>(v*100).toFixed(0)+'%', _fd=v=>(+v).toFixed(0)+'d';
   const tpTh = isSV?0.42728:(isUV?0.13601:null), slTh = isUV?-0.0271:null;
   const TR=0.09162, TM=40, dd=(peakPnl!=null&&openpnl!=null)?Math.max(0,peakPnl-openpnl):null;
-  // Exit gauge specs (null where not applicable to the current side / no data).
+  // Real exit triggers. Historical → the recorded exit_reason on this bar
+  // (b.signal 'EXIT_*'); live → computed from current values vs the thresholds.
+  const _exTrig=(()=>{
+    if(hist){ const rsn=_exitTrade?_exitTrade.exit_reason:null;
+      const map={TP:0,SL:1,TRAIL:2,TIMESTOP:3,NEG_VOL:4,MOVE_HI:5,MOVE_LO:5,RATIO:6}; const idx=rsn!=null&&rsn in map?map[rsn]:-1;
+      return [0,1,2,3,4,5,6].map(i=>i===idx); }
+    const tpT=inPos&&openpnl!=null&&tpTh&&openpnl>=tpTh;
+    const slT=inPos&&isUV&&openpnl!=null&&openpnl<=slTh;
+    const trT=inPos&&isSV&&dd!=null&&peakPnl!=null&&peakPnl>=0.1336&&dd>=TR;
+    const tmT=inPos&&isSV&&daysHeldN!=null&&daysHeldN>=TM&&openpnl!=null&&openpnl<0.047678;
+    return [tpT,slT,trT,tmT,carryTrig,moveTrig,ratioTrig];
+  })();
+  exitRules.forEach((r,i)=>{ r[5]=_exTrig[i]; });
+  const anyExit=_exTrig.some(Boolean);
+  let exHold=0, exExit=0, exRefreshed=0;
+  exitRules.forEach((r,i)=>{ if(inPos){ if(r[5]) exExit++; else exHold++; } if(exHas[i]) exRefreshed++; });
+  // Hold-aware projected next-open position: a held position is KEPT unless an exit
+  // fires; only flat positions evaluate a fresh entry. Historical bars use the
+  // actual recorded signal so the preview matches what really happened next day.
+  if(hist){ const di=OHLC?OHLC.findIndex(r=>r[0]===b.date):-1; const nd=(di>=0&&di+1<OHLC.length)?OHLC[di+1][0]:null;
+    proj = posInstr(nd?((POSBYDATE&&POSBYDATE[nd])||'CASH'):curPos); }
+  else if(spike) proj='UVXY';
+  else if(crush) proj='SVXY';
+  else if(inPos) proj = anyExit ? 'CASH' : posInstr(curPos);
+  else proj = (contango!=null&&contango<0)?'UVXY':(regimeBull?'SVXY':'CASH');
+  // Exit gauge specs (null where not applicable / no data).
   const xspec=[
     (inPos&&tpTh&&openpnl!=null)?{lo:-0.05,hi:tpTh*1.15,z:[[-0.05,tpTh,'n'],[tpTh,tpTh*1.15,'t']],v:openpnl,fmt:_fpc,tip:`take-profit at +${(tpTh*100).toFixed(0)}% · now ${(openpnl*100).toFixed(1)}%`}:null,
-    (inPos&&slTh&&openpnl!=null)?{lo:slTh*1.8,hi:0.04,z:[[slTh*1.8,slTh,'r'],[slTh,0.04,'n']],v:openpnl,fmt:_fpc,tip:`stop-loss at ${(slTh*100).toFixed(1)}% · now ${(openpnl*100).toFixed(1)}%`}:null,
+    (inPos&&openpnl!=null)?(isUV
+      ? {lo:slTh*1.8,hi:0.04,z:[[slTh*1.8,slTh,'r'],[slTh,0.04,'n']],v:openpnl,fmt:_fpc,tip:`stop-loss at ${(slTh*100).toFixed(1)}% · now ${(openpnl*100).toFixed(1)}%`}
+      : {lo:-0.20,hi:0.10,z:[[-0.20,0.10,'n']],v:openpnl,fmt:_fpc,tip:'SVXY has no hard stop — protected by the trailing stop'}):null,
     (inPos&&isSV&&dd!=null)?{lo:0,hi:Math.max(TR*1.5,dd*1.1),z:[[0,TR,'n'],[TR,Math.max(TR*1.5,dd*1.1),'r']],v:dd,fmt:_fpc,tip:`drawdown ${(dd*100).toFixed(1)}pt vs ${(TR*100).toFixed(1)}pt trail (peak ${(peakPnl*100).toFixed(1)}%)`}:null,
     (inPos&&isSV&&daysHeldN!=null)?{lo:0,hi:Math.max(TM*1.2,daysHeldN*1.1),z:[[0,TM,'n'],[TM,Math.max(TM*1.2,daysHeldN*1.1),'r']],v:daysHeldN,fmt:_fd,tip:`max ${TM}d · now ${daysHeldN}d`}:null,
     exHas[4]?{lo:egauge[0].lo,hi:egauge[0].hi,z:egauge[0].z,v:contango,fmt:fPP,tip:egauge[0].tip}:null,
@@ -2059,9 +2079,13 @@ function renderSignalMonitor(histBar){
   let html;
   if(hist){
     html =
-        `<div class="sig-proj-row1"><div><span class="lbl">Position</span>${chip(posInstr(b.position))}</div></div>`
+        `<div class="sig-proj-row1">`
+      +   `<div><span class="lbl">Position</span>${chip(posInstr(curPos))}</div>`
+      +   `<div class="sig-proj-arrow">&rarr;</div>`
+      +   `<div><span class="lbl lbl-proj">Next open</span>${chip(proj)}</div>`
+      +   `</div>`
       + entryMix + exitMix
-      + `<div class="sig-proj-note">Indicator readings <b>as of ${b.date}</b> (hovered bar). Move off the chart to return to live/today.</div>`;
+      + `<div class="sig-proj-note">Actual signals <b>as of ${b.date}</b> (hovered bar): position held that day and what the strategy did at the next open. Move off the chart to return to live/today.</div>`;
   } else {
     const off = (L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
     const note = inPos
@@ -2099,20 +2123,24 @@ function renderSignalMonitor(histBar){
   // ── Floating mini monitor: compact preview of the whole board over the chart ──
   if(document.getElementById('mini-monitor')){
     const mSig=s=>s==='SVXY'?'<span class="sig-svxy">SVXY</span>':s==='UVXY'?'<span class="sig-uvxy">UVXY</span>':s==='NA'?'<span style="color:var(--dim)">N/A</span>':'<span class="sig-cash">Cash</span>';
+    const mStat=trig=> !inPos?'<span style="color:var(--dim)">N/A</span>':(trig?'<span style="color:var(--coral)">Exit</span>':`<span style="color:${holdColor}">Hold</span>`);
     const stripTags=h=>(''+h).replace(/<[^>]*>/g,'');
+    // order: name · current value · bar · signal (values not bold)
     const mRow=(name,spec,valHtml,sigHtml)=>`<div class="mini-row"><span class="mini-name">${name}</span>`
-      +`<span class="mini-bar">${spec?gaugeMini(spec):''}</span><span class="mini-sig">${sigHtml}</span>`
-      +`<span class="mini-val"><b>${valHtml}</b></span></div>`;
+      +`<span class="mini-val">${valHtml}</span><span class="mini-bar">${spec?gaugeMini(spec):''}</span>`
+      +`<span class="mini-sig">${sigHtml}</span></div>`;
     const eNames=['Contango','VDelta','VIX9D','VIX1M','1M / 3M'];
     const xNames=['Take Profit','Stop Loss','Trailing','Time Stop','Neg Carry','MOVE/VIX','Rollover'];
     const scSpec={lo:0,hi:0.70,z:[[0,0.35,'n'],[0.35,0.70,'r']],v:isNaN(moveMag)?null:moveMag};
-    const moff=(L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
-    let mh=`<div class="mini-pos">${chip(moff)} <span class="sig-proj-arrow">&rarr;</span> ${chip(proj)}</div>`;
+    const moff=posInstr(curPos);   // displayed bar's position (hist = hovered bar, live = official)
+    const posCell=(lab,inst)=>{const k=kindOf(inst);const nm=k==='sv'?svN():k==='uv'?uvN():'Cash';const d=k==='sv'?' · short vol':k==='uv'?' · long vol':'';
+      return `<span style="color:var(--yellow)">${lab}</span> <span style="color:var(--white)">${nm}${d}</span>`;};
+    let mh=`<div class="mini-pos">${posCell('Current',moff)} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj)}</div>`;
     mh+='<div class="mini-sub">Entry</div>';
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5])));
     mh+=mRow('Spike/Crush', scSpec, isNaN(moveMag)?'—':(moveMag*100).toFixed(1)+'%', mSig(overrideRows[0][5]));
     mh+='<div class="mini-sub">Exit</div>';
-    exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', stat(r[5])));
+    exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(r[5])));
     document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh;
   }
   window._sigMonReady=true;
