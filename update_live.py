@@ -63,21 +63,19 @@ def load_prev(path: str = "live_status.json") -> dict:
 # CBOE end-of-day print (~5:30pm ET). `expected` explains when the print that
 # feeds the next-open trade decision actually lands.
 SIG_INFO = {
-    "vix9d": ("eod",
-              "CBOE end-of-day only. Unchanged through the session — tonight's "
-              "print posts ~5:30pm ET and feeds the ~7pm evaluation."),
+    "vix9d": ("live",
+              "Live ^VIX9D (Yahoo), ~5-min refresh; falls back to CBOE EOD if "
+              "unavailable. The 4pm close value feeds the ~7pm evaluation."),
     "vix1m": ("live",
               "Live VIX spot, refreshes ~every 5 min. The 4pm close value is the "
               "one that feeds the ~7pm evaluation."),
     "contango": ("live",
-                 "Moves intraday with VIX; the VIX3M leg is fixed until CBOE's "
-                 "EOD print (~5:30pm ET). Finalises for the ~7pm evaluation."),
+                 "Live VIX3M ÷ VIX1M (both Yahoo intraday); finalises for the "
+                 "~7pm evaluation."),
     "vdelta": ("live",
-               "Moves intraday with VIX; the VIX9D leg is fixed until CBOE's EOD "
-               "print (~5:30pm ET)."),
+               "Live VIX1M − VIX9D (both Yahoo intraday)."),
     "ratio_1m_3m": ("live",
-                    "Live VIX ÷ CBOE VIX3M; moves intraday, VIX3M leg fixed "
-                    "until the EOD print (~5:30pm ET)."),
+                    "Live VIX1M ÷ VIX3M (both Yahoo intraday)."),
     "move_vix_ratio": ("live",
                        "ICE MOVE ÷ VIX; refreshes intraday when MOVE is "
                        "available, combined with the 4pm VIX close at ~7pm."),
@@ -250,24 +248,28 @@ def main() -> None:
               f"(date={curve.get('vix9d_date')}, ET={et.strftime('%H:%M')}) "
               f"— not yet past the ~5:30pm post window")
 
-    # Live spot / ETF quotes (Yahoo intraday) — always refreshed.
+    # Live spot / ETF quotes (Yahoo intraday) — always refreshed. Yahoo also
+    # carries the term-structure indices intraday (^VIX9D, ^VIX3M), so we pull
+    # those live and only fall back to the CBOE end-of-day value if Yahoo fails.
     quotes = {sym.lower().lstrip("^"): yahoo_quote(sym)
-              for sym in ["^VIX", "SVXY", "UVXY", "SVIX", "UVIX",
+              for sym in ["^VIX", "^VIX9D", "^VIX3M", "SVXY", "UVXY", "SVIX", "UVIX",
                           "TQQQ", "SQQQ", "SPY", "^GSPC", "^MOVE"]}
 
-    # Live VIX spot overrides the EOD VIX1M for the freshest front-end reading.
+    # Live values override the EOD term structure for the freshest reading.
     vix_spot = quotes["vix"]["price"]
     vix1m = vix_spot if vix_spot is not None else curve.get("vix1m")
+    vix9d = quotes.get("vix9d", {}).get("price"); vix9d = vix9d if vix9d is not None else curve.get("vix9d")
+    vix3m = quotes.get("vix3m", {}).get("price"); vix3m = vix3m if vix3m is not None else curve.get("vix3m")
     move  = quotes.get("move", {}).get("price")
 
-    # Generic, non-proprietary derived readings.
+    # Generic, non-proprietary derived readings (use the live-or-EOD values).
     def ratio(a, b):
         return (a / b - 1.0) if (a and b) else None
-    contango   = ratio(curve.get("vix3m"), vix1m)
-    backend    = ratio(curve.get("vix6m"), curve.get("vix3m"))
-    vdelta     = (vix1m - curve["vix9d"]) if (vix1m and curve.get("vix9d")) else None
+    contango   = ratio(vix3m, vix1m)
+    backend    = ratio(curve.get("vix6m"), vix3m)
+    vdelta     = (vix1m - vix9d) if (vix1m and vix9d) else None
     # Matches the backtest definitions: ratio_1m_3m = VIX1M/VIX3M, MOVE/VIX1M.
-    ratio_1m_3m = (vix1m / curve["vix3m"]) if (vix1m and curve.get("vix3m")) else None
+    ratio_1m_3m = (vix1m / vix3m) if (vix1m and vix3m) else None
     move_vix    = (move / vix1m) if (move and vix1m) else None
     regime     = None
     if contango is not None:
@@ -283,7 +285,7 @@ def main() -> None:
         return None if v is None else round(float(v), 4)
 
     tracked = {
-        "vix9d":          curve.get("vix9d"),
+        "vix9d":          vix9d,
         "vix1m":          vix1m,
         "contango":       contango,
         "vdelta":         vdelta,
@@ -312,6 +314,8 @@ def main() -> None:
         "market": {
             "vix_spot": vix_spot,
             "vix1m_used": round(vix1m, 4) if vix1m else None,
+            "vix9d_used": round(vix9d, 4) if vix9d else None,
+            "vix3m_used": round(vix3m, 4) if vix3m else None,
             "curve": curve,
             "quotes": quotes,
         },
