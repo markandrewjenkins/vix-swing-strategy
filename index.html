@@ -410,11 +410,25 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .cur-cell .cur-bar { flex:none; }
 .cur-cell .sig-info { margin-left:0; }
 #candle-chart { position:relative; }
-.cdl-glow { position:absolute; width:140px; height:140px; transform:translate(-50%,-50%); border-radius:50%;
-  pointer-events:none; opacity:0; transition:opacity .25s ease; z-index:5;
-  background:radial-gradient(circle, rgba(240,152,47,0.09), rgba(240,152,47,0) 70%); }
-.cdl-glow.click-pulse { animation:glowclick 0.55s ease-out 1; }
-@keyframes glowclick { 0% { transform:translate(-50%,-50%) scale(0.6); opacity:0.85 } 100% { transform:translate(-50%,-50%) scale(1.6); opacity:0 } }
+/* Hover: a very small, faint halo that follows the cursor. */
+.cdl-glow { position:absolute; width:110px; height:110px; transform:translate(-50%,-50%); border-radius:50%;
+  pointer-events:none; opacity:0; transition:opacity .2s ease; z-index:5;
+  background:radial-gradient(circle, rgba(240,152,47,0.07), rgba(240,152,47,0) 70%); }
+/* Click: a brighter ripple, one per click (fresh element → no inter-click lag). */
+.cdl-ripple { position:absolute; width:64px; height:64px; transform:translate(-50%,-50%); border-radius:50%;
+  pointer-events:none; z-index:6; background:radial-gradient(circle, rgba(240,152,47,0.42), rgba(240,152,47,0) 66%);
+  animation:cdlripple .5s ease-out forwards; }
+@keyframes cdlripple { 0% { transform:translate(-50%,-50%) scale(0.4); opacity:0.95 } 100% { transform:translate(-50%,-50%) scale(2.3); opacity:0 } }
+/* Floating mini Live-Signal preview over the chart's blank right side. */
+.mini-mon { position:absolute; top:10px; right:10px; width:248px; max-width:46%; z-index:5; pointer-events:none;
+  background:rgba(20,17,11,0.82); border:1px solid var(--border2); border-radius:14px; padding:8px 11px 9px;
+  font-size:0.66rem; backdrop-filter:blur(2px); }
+.mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.6rem; margin-bottom:5px; }
+.mini-row { display:flex; align-items:center; gap:7px; margin:2px 0; white-space:nowrap; }
+.mini-row .mini-name { color:var(--yellow); width:58px; flex:none; overflow:hidden; text-overflow:ellipsis; }
+.mini-row .mini-bar { flex:none; }
+.mini-row .mini-call { margin-left:auto; font-size:0.78rem; }
+.mini-row .mini-call b { color:var(--white); font-weight:700; }
 table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
 table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
 table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; }
@@ -547,6 +561,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div id="cdl-info" class="cdl-info">Hover the chart for details</div>
         <div style="position:relative;width:100%;height:430px">
           <div id="candle-chart" style="width:100%;height:100%"></div>
+          <div id="mini-monitor" class="mini-mon"></div>
           <button id="cdl-toend" title="Jump to latest" onclick="summaryToEnd()" style="position:absolute;top:8px;right:64px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:4px;padding:3px 10px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
         </div>
         <div class="cdl-legend">
@@ -1742,15 +1757,17 @@ function renderSummary(){
   const _pin=t=>{ if(!t) return; window._pinnedDate=t; const sd=OHLCBYTIME[t];
     if(sd){ try{ sumMain.setCrosshairPosition((sd.high+sd.low)/2,t,candleSeries); }catch(_){} }
     renderInfo(t,sd); monitorHover(t); el.classList.add('cdl-pinned');
-    if(el._glow){ el._glow.classList.remove('click-pulse'); void el._glow.offsetWidth; el._glow.classList.add('click-pulse'); } };
+    if(el._ripple) el._ripple(); };
   sumMain.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
   sumPos.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
   if(!el._ctxBound){ el.addEventListener('contextmenu',e=>{ e.preventDefault(); window._pinnedDate=null; el.classList.remove('cdl-pinned'); try{sumMain.clearCrosshairPosition();}catch(_){} }); el._ctxBound=true; }
-  // Subtle orange cursor glow over the chart — light halo on hover, one pulse on click.
+  // Cursor flair: faint halo follows the mouse; each click spawns its own brighter
+  // ripple element (so rapid clicks never wait on a prior animation).
   if(!el._glowBound){ const glow=document.createElement('div'); glow.className='cdl-glow'; el.appendChild(glow); el._glow=glow;
-    glow.addEventListener('animationend',()=>glow.classList.remove('click-pulse'));
-    el.addEventListener('mousemove',e=>{ const r=el.getBoundingClientRect(); glow.style.left=(e.clientX-r.left)+'px'; glow.style.top=(e.clientY-r.top)+'px'; glow.style.opacity='1'; });
-    el.addEventListener('mouseleave',()=>{ glow.style.opacity='0'; }); el._glowBound=true; }
+    el.addEventListener('mousemove',e=>{ const r=el.getBoundingClientRect(); el._cx=e.clientX-r.left; el._cy=e.clientY-r.top; glow.style.left=el._cx+'px'; glow.style.top=el._cy+'px'; glow.style.opacity='1'; });
+    el.addEventListener('mouseleave',()=>{ glow.style.opacity='0'; });
+    el._ripple=()=>{ if(el._cx==null) return; const rp=document.createElement('div'); rp.className='cdl-ripple'; rp.style.left=el._cx+'px'; rp.style.top=el._cy+'px'; el.appendChild(rp); rp.addEventListener('animationend',()=>rp.remove()); };
+    el._glowBound=true; }
 
   if(!window._sumResize){ window.addEventListener('resize',()=>{
     if(sumMain&&el.clientWidth) sumMain.applyOptions({width:el.clientWidth});
@@ -1787,7 +1804,7 @@ function renderSignalMonitor(histBar){
     const lit={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'};
     const inZone=z=> val>=z[0] && val<=z[1];
     const rects=zones.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const on=inZone(z);
-      return `<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${bh}" fill="${on?lit[z[2]]:dim[z[2]]}" opacity="${on?0.95:0.4}"/>`;}).join('');
+      return `<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${bh}" rx="2.5" fill="${on?lit[z[2]]:dim[z[2]]}" opacity="${on?0.95:0.4}"/>`;}).join('');
     // boundary labels: min (left), each threshold (mid), max (right)
     const bnds=[...new Set([lo, ...zones.flatMap(z=>[z[0],z[1]]), hi])].sort((a,b)=>a-b);
     const labels=bnds.map((v,i)=>{ const x=sx(v); const anc=i===0?'start':i===bnds.length-1?'end':'middle';
@@ -1795,6 +1812,15 @@ function renderSignalMonitor(histBar){
     const mx=sx(val).toFixed(1);
     return `<span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${rects}${labels}`
       + `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${by+bh+0.5}" stroke="var(--white)" stroke-width="2"/></svg></span>`; };
+
+  // Compact pill gauge for the floating mini monitor (no labels, white marker).
+  const gaugeMini=(g)=>{ if(!g||g.v==null||isNaN(g.v)||g.hi<=g.lo) return '';
+    const W=72,H=9,pad=1; const sx=x=>pad+Math.max(0,Math.min(1,(x-g.lo)/(g.hi-g.lo)))*(W-2*pad);
+    const dim={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)'}, lit={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'};
+    const rects=g.z.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const on=g.v>=z[0]&&g.v<=z[1];
+      return `<rect x="${x0.toFixed(1)}" y="2" width="${Math.max(0,x1-x0).toFixed(1)}" height="5" rx="2.5" fill="${on?lit[z[2]]:dim[z[2]]}" opacity="${on?0.95:0.4}"/>`;}).join('');
+    const mx=sx(g.v).toFixed(1);
+    return `<svg width="${W}" height="${H}" style="vertical-align:middle">${rects}<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/></svg>`; };
 
   // Data-driven gauge domain for a bar_history field: robust [p1,p99] expanded
   // to include the trigger thresholds, with padding. Cached per field.
@@ -1830,17 +1856,27 @@ function renderSignalMonitor(histBar){
         d9=_domain('vix9d',[P.b9lo,P.b9hi]), d1=_domain('vix1m',[P.b1lo,P.b1hi]),
         dR=_domain('ratio_1m_3m',[P.br13,P.xr13]), dM=_domain('move_vix_ratio',[2,11]);
   const fPP=v=>(v*100).toFixed(0)+'%', fN0=v=>(+v).toFixed(0), fN1=v=>(+v).toFixed(1), fN2=v=>(+v).toFixed(2);
-  const gCont = ()=>gaugeHtml(dC.lo,dC.hi,[[dC.lo,0,'r'],[0,P.ct,'n'],[P.ct,dC.hi,'t']],contango,`bear <0% · bull ≥${(P.ct*100).toFixed(1)}% · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}`,fPP);
-  const gRatio= ()=>gaugeHtml(dR.lo,dR.hi,[[dR.lo,P.br13,'t'],[P.br13,P.xr13,'n'],[P.xr13,dR.hi,'r']],ratio13,`bull <${P.br13} · bear ≥${P.xr13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`,fN2);
-  const gMove = ()=>gaugeHtml(dM.lo,dM.hi,[[dM.lo,2,'t'],[2,11,'n'],[11,dM.hi,'r']],movevix,`low ≤2 · high ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`,fN1);
-  const _gauges=[
-    gCont(),
-    gaugeHtml(dV.lo,dV.hi,[[dV.lo,P.xvd,'r'],[P.xvd,P.bvd,'n'],[P.bvd,dV.hi,'t']],vdelta,`bear ≤${P.xvd} · bull >${P.bvd} · now ${vdelta!=null?vdelta.toFixed(2):'—'}`,fN1),
-    gaugeHtml(d9.lo,d9.hi,[[d9.lo,P.b9lo,'r'],[P.b9lo,P.b9hi,'t'],[P.b9hi,d9.hi,'r']],vix9d,`calm ${P.b9lo}–${P.b9hi} · now ${vix9d!=null?vix9d.toFixed(2):'—'}`,fN0),
-    gaugeHtml(d1.lo,d1.hi,[[d1.lo,P.b1lo,'r'],[P.b1lo,P.b1hi,'t'],[P.b1hi,d1.hi,'r']],vix1m,`calm ${P.b1lo}–${P.b1hi} · now ${vix1m!=null?vix1m.toFixed(2):'—'}`,fN0),
-    gRatio(),
+  // Gauge specs (domain + zones + value) — used for the full bars and the mini monitor.
+  const egauge=[
+    {lo:dC.lo,hi:dC.hi,z:[[dC.lo,0,'r'],[0,P.ct,'n'],[P.ct,dC.hi,'t']],v:contango,fmt:fPP,tip:`bear <0% · bull ≥${(P.ct*100).toFixed(1)}% · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}`},
+    {lo:dV.lo,hi:dV.hi,z:[[dV.lo,P.xvd,'r'],[P.xvd,P.bvd,'n'],[P.bvd,dV.hi,'t']],v:vdelta,fmt:fN1,tip:`bear ≤${P.xvd} · bull >${P.bvd} · now ${vdelta!=null?vdelta.toFixed(2):'—'}`},
+    {lo:d9.lo,hi:d9.hi,z:[[d9.lo,P.b9lo,'r'],[P.b9lo,P.b9hi,'t'],[P.b9hi,d9.hi,'r']],v:vix9d,fmt:fN0,tip:`calm ${P.b9lo}–${P.b9hi} · now ${vix9d!=null?vix9d.toFixed(2):'—'}`},
+    {lo:d1.lo,hi:d1.hi,z:[[d1.lo,P.b1lo,'r'],[P.b1lo,P.b1hi,'t'],[P.b1hi,d1.hi,'r']],v:vix1m,fmt:fN0,tip:`calm ${P.b1lo}–${P.b1hi} · now ${vix1m!=null?vix1m.toFixed(2):'—'}`},
+    {lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.br13,'t'],[P.br13,P.xr13,'n'],[P.xr13,dR.hi,'r']],v:ratio13,fmt:fN2,tip:`bull <${P.br13} · bear ≥${P.xr13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`},
   ];
-  rows.forEach((r,i)=>{ r[7]=_gauges[i]; });
+  const gCont = ()=>gaugeHtml(egauge[0].lo,egauge[0].hi,egauge[0].z,egauge[0].v,egauge[0].tip,fPP);
+  const gRatio= ()=>gaugeHtml(egauge[4].lo,egauge[4].hi,egauge[4].z,egauge[4].v,egauge[4].tip,fN2);
+  const gMove = ()=>gaugeHtml(dM.lo,dM.hi,[[dM.lo,2,'t'],[2,11,'n'],[11,dM.hi,'r']],movevix,`low ≤2 · high ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`,fN1);
+  rows.forEach((r,i)=>{ r[7]=gaugeHtml(egauge[i].lo,egauge[i].hi,egauge[i].z,egauge[i].v,egauge[i].tip,egauge[i].fmt); });
+  // ── Floating mini monitor (compact preview over the chart) ──
+  if(document.getElementById('mini-monitor')){
+    const mNames=['Contango','VDelta','VIX9D','VIX1M','1M / 3M'];
+    const mSig=s=>s==='SVXY'?'<span class="sig-svxy">SVXY</span>':s==='UVXY'?'<span class="sig-uvxy">UVXY</span>':'<span class="sig-cash">Cash</span>';
+    const mRows=rows.map((r,i)=>`<div class="mini-row"><span class="mini-name">${mNames[i]}</span>`
+      +`<span class="mini-bar">${gaugeMini(egauge[i])}</span>`
+      +`<span class="mini-call"><b>${r[4]}</b> ${mSig(r[5])}</span></div>`).join('');
+    document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' · '+b.date:'')+'</div>'+mRows;
+  }
 
   // MOVE/VIX is NOT an entry trigger — it's a cross-asset stress overlay that
   // only exits SVXY (high) or blocks/exits UVXY (low). It lives in Exit Rules.
