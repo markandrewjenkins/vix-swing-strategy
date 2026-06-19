@@ -394,7 +394,7 @@ tr:hover td { background: #1f1a10 }
 /* Summary page */
 .sig-etfnote { font-size:0.7rem; color:var(--dim); line-height:1.45; padding-top:8px; }
 .sig-etfnote b { color:var(--yellow); }
-.mini-mon .mini-note { font-size:0.46rem; color:var(--dim); line-height:1.35; margin-top:8px; padding-top:7px; border-top:1px solid var(--border); white-space:nowrap; }
+.mini-mon .mini-note { font-size:0.52rem; color:var(--dim); line-height:1.35; margin-top:8px; padding-top:7px; border-top:1px solid var(--border); white-space:nowrap; }
 .mini-mon .mini-note b { color:var(--dim); }
 .cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; margin-top:-7px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
 .cdl-info b { color:var(--yellow); }
@@ -1946,32 +1946,32 @@ function renderSignalMonitor(histBar){
   else { mv9=cv.vix9d_chg; mv1=(L&&L.market&&L.market.quotes&&L.market.quotes.vix&&L.market.quotes.vix.change_pct!=null)?L.market.quotes.vix.change_pct:cv.vix1m_chg; }
   const _mvs=[mv9,mv1].filter(v=>v!=null&&!isNaN(v)).map(Math.abs);
   const moveMag = _mvs.length ? Math.max(..._mvs) : NaN;
-  // Signed spike/crush move = larger-abs of the two 1-day VIX moves, oriented so a
-  // vol crush (VIX falling) reads positive (teal/SVXY) and a spike reads negative
-  // (red/UVXY). The bar axis is symmetric ±(99th-pct of per-bar max-abs move).
+  // Signed spike/crush move = larger-abs of the two 1-day VIX moves. A spike (VIX
+  // rising ≥ +35%) reads positive → teal/SVXY (right); a crush (VIX falling ≤ −35%)
+  // reads negative → red/UVXY (left). The strategy fades spikes (buy SVXY) and buys
+  // crushes (UVXY). Axis is symmetric ±(largest 1-day VIX increase ever, ex-Volpocalypse).
   let _scSigned = NaN;
   { const cand=[mv9,mv1].filter(v=>v!=null&&!isNaN(v));
     if(cand.length) _scSigned = cand.reduce((a,b)=>Math.abs(b)>Math.abs(a)?b:a); }
-  const scVal = isNaN(_scSigned) ? NaN : -_scSigned;
-  const _scDomain=()=>{ if(window._scDom) return window._scDom; const bh=DATA.bar_history||[]; const mags=[];
-    for(let i=1;i<bh.length;i++){ const a=bh[i],p=bh[i-1];
-      const m9=(a.vix9d&&p.vix9d)?Math.abs(a.vix9d/p.vix9d-1):null;
-      const m1=(a.vix1m&&p.vix1m)?Math.abs(a.vix1m/p.vix1m-1):null;
-      const ms=[m9,m1].filter(v=>v!=null&&!isNaN(v)); if(ms.length) mags.push(Math.max(...ms)); }
-    mags.sort((x,y)=>x-y); let p99=mags.length?mags[Math.ceil(mags.length*0.99)-1]:0.7;
-    p99=Math.max(p99,0.40); window._scDom={lo:-p99,hi:p99}; return window._scDom; };
+  const scVal = isNaN(_scSigned) ? NaN : _scSigned;
+  const _scDomain=()=>{ if(window._scDom) return window._scDom; const bh=DATA.bar_history||[]; let mx=0.40;
+    const EXCL=new Set(['2018-02-05']);   // exclude the Feb-2018 Volpocalypse outlier
+    for(let i=1;i<bh.length;i++){ const a=bh[i],p=bh[i-1]; if(EXCL.has(a.date)) continue;
+      const m9=(a.vix9d&&p.vix9d)?a.vix9d/p.vix9d-1:null;
+      const m1=(a.vix1m&&p.vix1m)?a.vix1m/p.vix1m-1:null;
+      const inc=Math.max(m9==null?-9:m9, m1==null?-9:m1); if(inc>mx) mx=inc; }
+    window._scDom={lo:-mx,hi:mx}; return window._scDom; };
   const _sc=_scDomain();
-  // Symmetric axis; expand to contain a rare value beyond the 99th-pct edge so the
-  // outer (open-ended) red/teal zones still capture and brighten for it.
+  // Symmetric axis; expand only if a value somehow exceeds the historical max.
   const scHi = isNaN(scVal)?_sc.hi:Math.max(_sc.hi, Math.abs(scVal)*1.02);
   const scLo = -scHi;
   const scZ=[[scLo,-0.35,'r'],[-0.35,0.35,'o'],[0.35,scHi,'t']];
-  const scTip=`spike ≤ −35% → UVXY · crush ≥ +35% → SVXY · now ${isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%'}`;
+  const scTip=`crush ≤ −35% → UVXY     spike ≥ +35% → SVXY     now ${isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%'}`;
   const overrideRows=[
-    ['Spike / Crush','Sudden &ge;35% 1-day move in VIX9D or VIX1M',
-      'Crush &rarr; SVXY','Spike &rarr; UVXY',
-      (spike?'<span class="neg">SPIKE </span>':crush?'<span class="pos">CRUSH </span>':'')+(isNaN(moveMag)?'<span style="color:var(--dim)">—</span>':pct(moveMag,1)),
-      spike?'UVXY':(crush?'SVXY':'NA')],
+    ['Spike / Crush','Sudden &ge;35% (Spike) or &le;&minus;35% (Crush) 1-day move in VIX9D or VIX1M',
+      'Spike &rarr; SVXY','Crush &rarr; UVXY',
+      (isNaN(scVal)?'<span style="color:var(--dim)">—</span>':pct(scVal,1)),
+      spike?'SVXY':(crush?'UVXY':'NA')],
   ];
 
   // ── Per-signal refresh + data-availability annotations ───────────────
@@ -2037,7 +2037,7 @@ function renderSignalMonitor(histBar){
     const cls=k==='sv'?'sig-svxy':k==='uv'?'sig-uvxy':'sig-cash';
     const d=k==='sv'?' &middot; short vol':k==='uv'?' &middot; long vol':''; return `<b class="${cls}">${nm}${d}</b>`; };
   const posInstr = p => p==='LONG_VOL_SELLER'?'SVXY':p==='LONG_VOL'?'UVXY':'CASH';
-  const ovr = spike?' <span class="vt-uv">(spike override)</span>':crush?' <span class="vt-sv">(crush override)</span>':'';
+  const ovr = spike?' <span class="vt-sv">(spike override)</span>':crush?' <span class="vt-uv">(crush override)</span>':'';
 
   // Position used for the exit-rule status. Live → official. Hist → the position
   // held that day per the chart's own position band (POSBYDATE), so the monitor
@@ -2126,8 +2126,8 @@ function renderSignalMonitor(histBar){
   // actual recorded signal so the preview matches what really happened next day.
   if(hist){ const di=OHLC?OHLC.findIndex(r=>r[0]===b.date):-1; const nd=(di>=0&&di+1<OHLC.length)?OHLC[di+1][0]:null;
     proj = posInstr(nd?((POSBYDATE&&POSBYDATE[nd])||'CASH'):curPos); }
-  else if(spike) proj='UVXY';
-  else if(crush) proj='SVXY';
+  else if(spike) proj='SVXY';
+  else if(crush) proj='UVXY';
   else if(inPos) proj = anyExit ? 'CASH' : posInstr(curPos);
   else proj = (contango!=null&&contango<0)?'UVXY':(regimeBull?'SVXY':'CASH');
   // Exit gauge specs. Zones encode role: 'h' (hold, muted grey), 'xs' (exits
@@ -2162,17 +2162,20 @@ function renderSignalMonitor(histBar){
   if(!eodPending) entryRefreshed++;            // spike/crush (EOD/close-based)
   const nEntry=6;
   const ovrActive = !!(spike||crush);
-  const ovrColor  = crush ? 'var(--teal)' : 'var(--coral)';      // crush → SVXY (teal), spike → UVXY (coral)
-  const countCol  = ovrActive ? (crush ? 'var(--tealmut)' : 'var(--coralmut)') : null;  // overridden counts dim to muted side colour
-  const _cs = countCol ? ` style="color:${countCol}"` : '';
+  const ovrColor  = spike ? 'var(--teal)' : 'var(--coral)';      // spike → SVXY (teal), crush → UVXY (coral)
+  const ovrLabel  = spike ? 'SPIKE OVERRIDE ACTIVE' : 'CRUSH OVERRIDE ACTIVE';
+  // When an override is active, each count dims to the muted version of its own colour.
+  const _csv = ovrActive ? ' style="color:var(--tealmut)"'  : '';   // short vol → muted teal
+  const _cuv = ovrActive ? ' style="color:var(--coralmut)"' : '';   // long vol  → muted coral
+  const _cca = ovrActive ? ' style="color:var(--cashmut)"'  : '';   // cash      → muted yellow
   const DOT = ' <span style="color:var(--border2)">&middot;</span> ';
   // When an override is active it jumps to the front of the line and the regular
   // term-structure tally dims (it has been overridden); otherwise show "No spike/crush".
-  const ovrFront = ovrActive ? `<b style="color:${ovrColor}">SPIKE/CRUSH OVERRIDE ACTIVE</b>${DOT}` : '';
+  const ovrFront = ovrActive ? `<b style="color:${ovrColor}">${ovrLabel}</b>${DOT}` : '';
   const noOvr    = ovrActive ? '' : `${DOT}<span style="color:var(--cashmut);font-weight:600">No spike/crush</span>`;
   const entryMix = `<div class="sig-proj-mixline"><span class="lbl">Entry indicator mix</span>`
     + ovrFront
-    + `<span class="vt-sv"${_cs}>${sv} short vol</span>${DOT}<span class="vt-uv"${_cs}>${uv} long vol</span>${DOT}<span class="vt-neu"${_cs}>${neu} cash</span>`
+    + `<span class="vt-sv"${_csv}>${sv} short vol</span>${DOT}<span class="vt-uv"${_cuv}>${uv} long vol</span>${DOT}<span class="vt-neu"${_cca}>${neu} cash</span>`
     + noOvr
     + `${DOT}<span class="sig-rf">(${entryRefreshed}/${nEntry} refreshed)</span></div>`;
   const exitMix = `<div class="sig-proj-mixline" style="margin-bottom:7px"><span class="lbl">Exit indicator mix</span>`
@@ -2250,7 +2253,7 @@ function renderSignalMonitor(histBar){
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj,'var(--white)')}</div>`;
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5])));
-    mh+=mRow('Spike/Crush', scSpec, isNaN(moveMag)?'—':(moveMag*100).toFixed(1)+'%', mSig(overrideRows[0][5]));
+    mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]));
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i)));
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
