@@ -363,6 +363,9 @@ tr:hover td { background: #1f1a10 }
 
 /* Market status row */
 #mkt-row { display:flex; align-items:center; justify-content:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:8px; font-size:0.74rem; font-family:'Saira', sans-serif; }
+/* When hoisted into the panel header, sit on the title line and shed the heading's uppercase/colour. */
+.ph-live #mkt-row { margin-bottom:0; text-transform:none; }
+.ph-live #mkt-row, .ph-live #mkt-row span { color:var(--dim); font-weight:600; }
 .mkt-left { display:inline-flex; align-items:center; gap:12px; }
 #mkt-status { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 #mkt-dot { display:none; }   /* redundant with the pulsing dot in the top status bar */
@@ -434,7 +437,7 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .mini-row .mini-bar { width:72px; flex:none; }
 .mini-row .mini-sig { width:34px; flex:none; text-align:left; font-size:0.6rem; }
 table.sig-mon th { text-align:left; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
-table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
+table.sig-mon td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle; }
 table.sig-mon td.sig-name { color:var(--yellow); font-weight:600; }
 table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-ind { font-weight:700; }
@@ -556,12 +559,13 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
   <!-- ══ P&L SUMMARY TAB ══════════════════════════════════════════════ -->
   <div id="tab-summary">
     <div class="panel">
-      <div class="ph"><span>Live Chart</span></div>
-      <div class="pb">
+      <div class="ph ph-live"><span>Live Chart</span>
         <div id="mkt-row">
           <span class="mkt-block"><span id="mkt-dot"></span><span id="mkt-label">Market closed</span><span id="mkt-countdown"></span></span>
           <span class="mkt-sessbar"><span class="seg c1"></span><span class="seg pre"></span><span class="seg reg"></span><span class="seg aft"></span><span class="seg c2"></span><span class="mkt-marker" id="mkt-marker"></span></span>
         </div>
+      </div>
+      <div class="pb">
         <div id="cdl-info" class="cdl-info">Hover the chart for details</div>
         <div style="position:relative;width:100%;height:430px">
           <div id="candle-chart" style="width:100%;height:100%"></div>
