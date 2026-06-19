@@ -33,6 +33,7 @@
   --tealmut: #357c6c;   /* muted teal — deactivated/opposite-side */
   --coralmut:#9a463a;   /* muted coral — deactivated/opposite-side */
   --cashmut: #9c8a55;   /* muted cash-yellow — deactivated override */
+  --namut:   #6e6138;   /* darker muted yellow — N/A text */
   --orangemut:#9a6a35;  /* muted orange — spike/crush mid band */
   --pos: var(--teal);
   --neg: var(--coral);
@@ -1843,7 +1844,7 @@ function renderSignalMonitor(histBar){
   const tag=(k)=>{ const d=inPos;
     if(k==='SVXY') return `<span class="sig-ind" style="color:${d?'var(--tealmut)':'var(--teal)'};font-weight:700">SVXY</span>`;
     if(k==='UVXY') return `<span class="sig-ind" style="color:${d?'var(--coralmut)':'var(--coral)'};font-weight:700">UVXY</span>`;
-    if(k==='NA')   return '<span style="color:var(--cashmut);font-weight:700">N/A</span>';
+    if(k==='NA')   return '<span style="color:var(--namut);font-weight:700">N/A</span>';
     return `<span class="sig-ind" style="color:${d?'var(--cashmut)':'var(--cashc)'};font-weight:700">Cash</span>`; };
   const num=(v,d=2)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v).toFixed(d);
   const pct=(v,d=1)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v>=0?'+':'')+(v*100).toFixed(d)+'%';
@@ -2083,9 +2084,9 @@ function renderSignalMonitor(histBar){
   // (and only when the trigger matches the held position). In-range-but-wrong-side
   // and not-applicable both read N/A (muted grey).
   const stat = i => {
-    if(!inPos) return `<span style="color:var(--cashmut);font-weight:700">N/A</span>`;
+    if(!inPos) return `<span style="color:var(--namut);font-weight:700">N/A</span>`;
     if(_exTrig[i] && _exApplies[i]) return `<span style="color:var(--cashc);font-weight:700">Exit</span>`;
-    if(!_exApplies[i] || _exOpp[i]) return `<span style="color:var(--cashmut);font-weight:700">N/A</span>`;
+    if(!_exApplies[i] || _exOpp[i]) return `<span style="color:var(--namut);font-weight:700">N/A</span>`;
     return `<span style="color:${holdColor};font-weight:700">Hold</span>`;
   };
   // [name, desc, bullish, bearish, current, statusTrigger]
@@ -2208,14 +2209,16 @@ function renderSignalMonitor(histBar){
   const _ds=s=>(s||'').replace(/\.$/,'');                 // drop trailing period
   const _bb=(s,c)=>s?s:`<span style="color:var(${c})">N/A</span>`;  // empty → coloured N/A
   // Current cell: value (right-aligned) · clock · gauge bar (left), vertically aligned.
-  const curCell=r=>`<td><div class="cur-cell"><span class="cur-val">${r[4]}</span><span class="cur-clk">${r[6]||''}</span><span class="cur-bar">${r[7]||''}</span></div></td>`;
+  // The white reading dulls when its section is inactive: entry values dim once a
+  // position is open; exit values dim while flat (exits disabled in cash).
+  const curCell=(r,dull)=>`<td><div class="cur-cell"><span class="cur-val" style="color:${dull?'var(--dim)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${r[6]||''}</span><span class="cur-bar">${r[7]||''}</span></div></td>`;
   const rowHtml=(r,cls='')=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
-    +curCell(r)+`<td>${tag(r[5])}</td></tr>`;
+    +curCell(r,inPos)+`<td>${tag(r[5])}</td></tr>`;
   const exitDivider='<tr class="sig-divider"><td colspan="6">Exit Indicators - Exit signal will be generated if any of these are triggered when in non-cash position</td></tr>';
   const exitHtml=exitRules.map((r,i)=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
-    +curCell(r)+`<td>${stat(i)}</td></tr>`).join('');
+    +curCell(r,!inPos)+`<td>${stat(i)}</td></tr>`).join('');
   const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - Top 5 must all align for a new entry signal; The 6th is a standalone override that generates its own entry signal independently if triggered</td></tr>';
   const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
     +overrideRows.map(r=>rowHtml(r)).join('')
@@ -2227,18 +2230,18 @@ function renderSignalMonitor(histBar){
     const mSig=s=>{ const d=inPos;
       if(s==='SVXY') return `<span style="color:${d?'var(--tealmut)':'var(--teal)'}">SVXY</span>`;
       if(s==='UVXY') return `<span style="color:${d?'var(--coralmut)':'var(--coral)'}">UVXY</span>`;
-      if(s==='NA')   return '<span style="color:var(--cashmut)">N/A</span>';
+      if(s==='NA')   return '<span style="color:var(--namut)">N/A</span>';
       return `<span style="color:${d?'var(--cashmut)':'var(--cashc)'}">Cash</span>`; };
     const mStat=i=>{
-      if(!inPos) return '<span style="color:var(--cashmut)">N/A</span>';
+      if(!inPos) return '<span style="color:var(--namut)">N/A</span>';
       if(_exTrig[i] && _exApplies[i]) return '<span style="color:var(--cashc)">Exit</span>';
-      if(!_exApplies[i] || _exOpp[i]) return '<span style="color:var(--cashmut)">N/A</span>';
+      if(!_exApplies[i] || _exOpp[i]) return '<span style="color:var(--namut)">N/A</span>';
       return `<span style="color:${holdColor}">Hold</span>`;
     };
     const stripTags=h=>(''+h).replace(/<[^>]*>/g,'');
     // order: name · current value · bar · signal (values not bold)
-    const mRow=(name,spec,valHtml,sigHtml)=>`<div class="mini-row"><span class="mini-name">${name}</span>`
-      +`<span class="mini-val">${valHtml}</span><span class="mini-bar">${spec?gaugeMini(spec):''}</span>`
+    const mRow=(name,spec,valHtml,sigHtml,dull)=>`<div class="mini-row"><span class="mini-name">${name}</span>`
+      +`<span class="mini-val" style="color:${dull?'var(--dim)':'var(--white)'}">${valHtml}</span><span class="mini-bar">${spec?gaugeMini(spec):''}</span>`
       +`<span class="mini-sig">${sigHtml}</span></div>`;
     const eNames=['Contango','VDelta','VIX9D','VIX1M','VIX1M/3M'];
     const xNames=['Take Profit','Stop Loss','Trailing','Time Stop','Neg Carry','MOVE/VIX','Rollover'];
@@ -2253,10 +2256,10 @@ function renderSignalMonitor(histBar){
     const help=t=>`<span class="mini-help" title="${(''+t).replace(/"/g,'&quot;')}">&#9432;</span>`;
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj,'var(--white)')}</div>`;
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
-    rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5])));
-    mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]));
+    rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5]), inPos));
+    mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
-    exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i)));
+    exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
     document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh;
   }
