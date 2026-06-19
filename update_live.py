@@ -252,7 +252,7 @@ def main() -> None:
     # carries the term-structure indices intraday (^VIX9D, ^VIX3M), so we pull
     # those live and only fall back to the CBOE end-of-day value if Yahoo fails.
     quotes = {sym.lower().lstrip("^"): yahoo_quote(sym)
-              for sym in ["^VIX", "^VIX9D", "^VIX3M", "SVXY", "UVXY", "SVIX", "UVIX",
+              for sym in ["^VIX", "^VIX9D", "^VIX3M", "^VVIX", "SVXY", "UVXY", "SVIX", "UVIX",
                           "TQQQ", "SQQQ", "SPY", "^GSPC", "^MOVE"]}
 
     # Live values override the EOD term structure for the freshest reading.
@@ -260,6 +260,7 @@ def main() -> None:
     vix1m = vix_spot if vix_spot is not None else curve.get("vix1m")
     vix9d = quotes.get("vix9d", {}).get("price"); vix9d = vix9d if vix9d is not None else curve.get("vix9d")
     vix3m = quotes.get("vix3m", {}).get("price"); vix3m = vix3m if vix3m is not None else curve.get("vix3m")
+    vvix  = quotes.get("vvix", {}).get("price"); vvix = vvix if vvix is not None else curve.get("vvix")
     move  = quotes.get("move", {}).get("price")
 
     # Generic, non-proprietary derived readings (use the live-or-EOD values).
@@ -316,6 +317,7 @@ def main() -> None:
             "vix1m_used": round(vix1m, 4) if vix1m else None,
             "vix9d_used": round(vix9d, 4) if vix9d else None,
             "vix3m_used": round(vix3m, 4) if vix3m else None,
+            "vvix_used": round(vvix, 4) if vvix else None,
             "curve": curve,
             "quotes": quotes,
         },

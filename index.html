@@ -405,7 +405,8 @@ table.sig-mon th:nth-child(5),table.sig-mon td:nth-child(5){ width:24%; }
 table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .sig-gauge { display:inline-block; vertical-align:middle; }
 .cur-cell { display:flex; align-items:center; gap:7px; }
-.cur-cell .cur-val { min-width:62px; text-align:right; flex:none; white-space:nowrap; }
+.cur-cell .cur-val { min-width:62px; text-align:right; flex:none; white-space:nowrap; font-size:0.86rem; }
+.cur-hd { display:inline-block; width:62px; text-align:right; }
 .cur-cell .cur-clk { width:15px; flex:none; text-align:center; }
 .cur-cell .cur-bar { flex:none; }
 .cur-cell .sig-info { margin-left:0; }
@@ -424,10 +425,11 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
 .mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; }
-.mini-mon .mini-pos { text-align:center; font-weight:400; font-size:0.68rem; margin-bottom:5px; white-space:nowrap; }
-.mini-mon .mini-sub { color:var(--dim); text-transform:uppercase; letter-spacing:0.06em; font-size:0.54rem; margin:5px 0 1px; border-top:1px solid var(--border); padding-top:3px; }
+.mini-mon .mini-pos { text-align:left; font-weight:400; font-size:0.68rem; margin-bottom:3px; white-space:nowrap; }
+.mini-mon .mini-sub { color:var(--dim); text-transform:uppercase; letter-spacing:0.06em; font-size:0.54rem; margin:3px 0 1px; border-top:1px solid var(--border); padding-top:2px; }
+.mini-mon .mini-help { pointer-events:auto; cursor:help; color:var(--dim); margin-left:3px; }
 .mini-row { display:flex; align-items:center; gap:6px; margin:1px 0; white-space:nowrap; }
-.mini-row .mini-name { color:var(--yellow); width:50px; flex:none; overflow:hidden; text-overflow:ellipsis; }
+.mini-row .mini-name { color:var(--yellow); width:64px; flex:none; }
 .mini-row .mini-val { width:46px; flex:none; text-align:right; color:var(--white); }
 .mini-row .mini-bar { width:72px; flex:none; }
 .mini-row .mini-sig { width:34px; flex:none; text-align:left; font-size:0.6rem; }
@@ -513,7 +515,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <span class="live-item"><span class="live-lbl">MOVE</span><span class="live-val" id="lv-move">—</span><span class="live-chg" id="lv-move-c"></span></span>
         <span class="live-item live-status" style="margin-left:auto;gap:14px">
           <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
-          <span class="live-lbl" id="lv-feed-note">Updating live every ~5 mins</span>
+          <span class="live-lbl" id="lv-feed-note">Updating every ~5 mins</span>
           <span class="live-lbl" id="lv-delay">Quotes are delayed ~15 mins</span>
           <span class="live-lbl">Last Refresh:&nbsp;<span class="live-val" id="lv-updated">—</span></span>
         </span>
@@ -1466,11 +1468,16 @@ async function loadLive(){
     };
     const vx = (id,val,chg) => { setVal('lv-'+id, numv(val,2)); setChg('lv-'+id+'-c', chg); };
     const vixq = q.vix||{};   // VIX1M shows the live spot, so use its intraday change
-    vx('vix9d', cv.vix9d, cv.vix9d_chg);
-    vx('vix1m', m.vix1m_used!=null?m.vix1m_used:cv.vix1m, vixq.change_pct!=null?vixq.change_pct:cv.vix1m_chg);
-    vx('vix3m', cv.vix3m, cv.vix3m_chg);
+    // Prefer the live (Yahoo intraday) value + its % change vs prior close; fall
+    // back to the CBOE EOD value/change only when the live quote is unavailable.
+    const _lv=(used,qo,eod,eodChg)=>[ (used!=null?used:(qo&&qo.price!=null?qo.price:eod)),
+                                      (qo&&qo.change_pct!=null?qo.change_pct:eodChg) ];
+    let z;
+    z=_lv(m.vix9d_used, q.vix9d, cv.vix9d, cv.vix9d_chg); vx('vix9d', z[0], z[1]);
+    z=_lv(m.vix1m_used, vixq,    cv.vix1m, cv.vix1m_chg); vx('vix1m', z[0], z[1]);
+    z=_lv(m.vix3m_used, q.vix3m, cv.vix3m, cv.vix3m_chg); vx('vix3m', z[0], z[1]);
     vx('vix1y', cv.vix1y, cv.vix1y_chg);
-    vx('vvix',  cv.vvix,  cv.vvix_chg);
+    z=_lv(m.vvix_used,  q.vvix,  cv.vvix,  cv.vvix_chg);  vx('vvix',  z[0], z[1]);
     const mq = q.move||{}; vx('move', mq.price, mq.change_pct);
 
     // ── Tradeable tickers: price + % change ─────────────────────────────
@@ -1501,10 +1508,10 @@ async function loadLive(){
     if(dot){ dot.style.background=phaseColor; dot.style.boxShadow = phaseActive ? '0 0 6px '+phaseColor : 'none'; }
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=phaseColor; }
-    if(note) note.textContent = live ? 'Updating live every ~5 mins'
+    if(note) note.textContent = live ? 'Updating every ~5 mins'
                               : regular ? 'Awaiting next refresh'
-                              : settle  ? 'Close settling, signals finalise ~7pm ET'
-                              : premkt  ? 'Awaiting the open'
+                              : settle  ? 'Live-chart bar paused · daily signals finalising, expected ~7pm ET'
+                              : premkt  ? 'Live-chart bar not live yet · daily signals warming up'
                               : 'Showing last settled close';
     if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';   // delay note only when data moves
     document.getElementById('lv-updated').textContent =
@@ -1557,7 +1564,7 @@ async function loadLive(){
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
-function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'Market closes',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'After hours closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
+function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'After hours begins',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'Market closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
   const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color,sep;
@@ -1795,10 +1802,9 @@ function renderSignalMonitor(histBar){
   const ratio13 = (L&&L.derived&&L.derived.ratio_1m_3m!=null)?L.derived.ratio_1m_3m:b.ratio_1m_3m;
   const movevix = (L&&L.derived&&L.derived.move_vix_ratio!=null)?L.derived.move_vix_ratio:b.move_vix_ratio;
   const P={ct:0.033,ch:0.146,bvd:0.32,xvd:-2.43,b9lo:14.8,b9hi:31.0,b1lo:8.0,b1hi:22.8,br13:0.932,xr13:1.096};
-  // Brighten the active gauge zone only when data is actually refreshing for the
-  // day (live, a market phase). Historical or fully-closed → keep zones dim.
-  const _mAct=(()=>{const t=_etNow();const dc=t.sod/3600;return t.wd!=='Sat'&&t.wd!=='Sun'&&dc>=4&&dc<20.25;})();
-  const GBRIGHT = !hist && _mAct;
+  // Always brighten the zone the current value lands in (the others stay dim).
+  // No live-vs-historical distinction.
+  const GBRIGHT = true;
   const tag=(k)=>k==='SVXY'?'<span class="sig-ind sig-svxy">SVXY</span>':k==='UVXY'?'<span class="sig-ind sig-uvxy">UVXY</span>':k==='NA'?'<span style="color:var(--dim);font-weight:700">N/A</span>':'<span class="sig-ind sig-neu">Cash</span>';
   const num=(v,d=2)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v).toFixed(d);
   const pct=(v,d=1)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v>=0?'+':'')+(v*100).toFixed(d)+'%';
@@ -1806,7 +1812,10 @@ function renderSignalMonitor(histBar){
   // marker for the current value. The zone the marker sits in brightens to the
   // exact position colour — teal (SVXY), red (UVXY), gold (Cash) — others dim.
   // zones = [[from,to,'t'|'r'|'n'], ...] spanning the domain [lo,hi].
-  const gaugeHtml=(lo,hi,zones,val,tip,fmt)=>{ if(val==null||isNaN(val)||hi<=lo) return '';
+  const gaugeHtml=(lo,hi,zones,val,tip,fmt,solid)=>{ if(val==null||isNaN(val)||hi<=lo) return '';
+    if(solid){ const Ws=176,Hs=24; const col={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'}[zones[0][2]];
+      return `<span class="sig-gauge" title="${tip||''}"><svg width="${Ws}" height="${Hs}" style="vertical-align:middle">`
+        + `<rect x="1" y="2" width="${Ws-2}" height="5" rx="2.5" fill="${col}" opacity="0.95"/></svg></span>`; }
     fmt = fmt || (v=>(+v).toFixed(1));
     const W=176,H=24,by=2,bh=5,pad=1; const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
     const dim={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)'};
@@ -1817,13 +1826,15 @@ function renderSignalMonitor(histBar){
     // boundary labels: min (left), each threshold (mid), max (right)
     const bnds=[...new Set([lo, ...zones.flatMap(z=>[z[0],z[1]]), hi])].sort((a,b)=>a-b);
     const labels=bnds.map((v,i)=>{ const x=sx(v); const anc=i===0?'start':i===bnds.length-1?'end':'middle';
-      return `<text x="${x.toFixed(1)}" y="${H-1}" font-size="6.5" fill="var(--dim)" text-anchor="${anc}">${fmt(v)}</text>`;}).join('');
+      return `<text x="${x.toFixed(1)}" y="${H-1}" font-size="7.5" fill="var(--dim)" text-anchor="${anc}">${fmt(v)}</text>`;}).join('');
     const mx=sx(val).toFixed(1);
     return `<span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${rects}${labels}`
       + `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${by+bh+0.5}" stroke="var(--white)" stroke-width="2"/></svg></span>`; };
 
   // Compact pill gauge for the floating mini monitor (no labels, white marker).
   const gaugeMini=(g)=>{ if(!g||g.v==null||isNaN(g.v)||g.hi<=g.lo) return '';
+    if(g.solid){ const Wm=72,Hm=9; const col={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'}[g.z[0][2]];
+      return `<svg width="${Wm}" height="${Hm}" style="vertical-align:middle"><rect x="1" y="2" width="${Wm-2}" height="5" rx="2.5" fill="${col}" opacity="0.95"/></svg>`; }
     const W=72,H=9,pad=1; const sx=x=>pad+Math.max(0,Math.min(1,(x-g.lo)/(g.hi-g.lo)))*(W-2*pad);
     const dim={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)'}, lit={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'};
     const rects=g.z.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const on=g.v>=z[0]&&g.v<=z[1]&&GBRIGHT;
@@ -2047,14 +2058,18 @@ function renderSignalMonitor(histBar){
     (inPos&&tpTh&&openpnl!=null)?{lo:-0.05,hi:tpTh*1.15,z:[[-0.05,tpTh,'n'],[tpTh,tpTh*1.15,'t']],v:openpnl,fmt:_fpc,tip:`take-profit at +${(tpTh*100).toFixed(0)}% · now ${(openpnl*100).toFixed(1)}%`}:null,
     (inPos&&openpnl!=null)?(isUV
       ? {lo:slTh*1.8,hi:0.04,z:[[slTh*1.8,slTh,'r'],[slTh,0.04,'n']],v:openpnl,fmt:_fpc,tip:`stop-loss at ${(slTh*100).toFixed(1)}% · now ${(openpnl*100).toFixed(1)}%`}
-      : {lo:-0.20,hi:0.10,z:[[-0.20,0.10,'n']],v:openpnl,fmt:_fpc,tip:'SVXY has no hard stop — protected by the trailing stop'}):null,
+      : {lo:0,hi:1,z:[[0,1,'t']],v:0.5,solid:true,fmt:_fpc,tip:'no exit for short-vol — SVXY has no hard stop (all-hold)'}):null,
     (inPos&&isSV&&dd!=null)?{lo:0,hi:Math.max(TR*1.5,dd*1.1),z:[[0,TR,'n'],[TR,Math.max(TR*1.5,dd*1.1),'r']],v:dd,fmt:_fpc,tip:`drawdown ${(dd*100).toFixed(1)}pt vs ${(TR*100).toFixed(1)}pt trail (peak ${(peakPnl*100).toFixed(1)}%)`}:null,
     (inPos&&isSV&&daysHeldN!=null)?{lo:0,hi:Math.max(TM*1.2,daysHeldN*1.1),z:[[0,TM,'n'],[TM,Math.max(TM*1.2,daysHeldN*1.1),'r']],v:daysHeldN,fmt:_fd,tip:`max ${TM}d · now ${daysHeldN}d`}:null,
     exHas[4]?{lo:egauge[0].lo,hi:egauge[0].hi,z:egauge[0].z,v:contango,fmt:fPP,tip:egauge[0].tip}:null,
     exHas[5]?{lo:dM.lo,hi:dM.hi,z:[[dM.lo,2,'t'],[2,11,'n'],[11,dM.hi,'r']],v:movevix,fmt:fN1,tip:`low ≤2 · high ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`}:null,
     exHas[6]?{lo:egauge[4].lo,hi:egauge[4].hi,z:egauge[4].z,v:ratio13,fmt:fN2,tip:egauge[4].tip}:null,
   ];
-  xspec.forEach((s,i)=>{ if(s) exitRules[i][7]=gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt); });
+  // Exits that don't apply to the held side → solid held-colour bar (all options = hold):
+  // Trailing/Time/Neg-carry are short-vol exits, so for a long-vol (UVXY) hold they're N/A.
+  if(inPos&&isUV){ const S={lo:0,hi:1,z:[[0,1,'r']],v:0.5,solid:true,fmt:_fpc,tip:'no exit for long-vol (all-hold)'};
+    xspec[2]=S; xspec[3]=S; xspec[4]=S; }
+  xspec.forEach((s,i)=>{ if(s) exitRules[i][7]=gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt,s.solid); });
   const _exClk=[['exTP','__pnl',openpnl],['exSL','__pnl',openpnl],['exTRAIL','__pnl',openpnl],['exTIME','__days',(inPos?1:null)],
                 ['exCARRY','contango',contango],['exMOVE','move_vix_ratio',movevix],['exROLL','ratio_1m_3m',ratio13]];
   exitRules.forEach((r,i)=>{ if(exHas[i]) r[6]=annotate(_exClk[i][0],_exClk[i][1],_r4(_exClk[i][2]),'live'); });
@@ -2102,7 +2117,7 @@ function renderSignalMonitor(histBar){
   }
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=html;
 
-  const head='<thead><tr><th>Indicator</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th>Current</th><th>Signal</th></tr></thead>';
+  const head='<thead><tr><th>Indicator</th><th>Description</th><th>Bullish (SVXY)</th><th>Bearish (UVXY)</th><th><span class="cur-hd">Current</span></th><th>Signal</th></tr></thead>';
   const _ds=s=>(s||'').replace(/\.$/,'');                 // drop trailing period
   const _bb=(s,c)=>s?s:`<span style="color:var(${c})">N/A</span>`;  // empty → coloured N/A
   // Current cell: value (right-aligned) · clock · gauge bar (left), vertically aligned.
@@ -2129,18 +2144,22 @@ function renderSignalMonitor(histBar){
     const mRow=(name,spec,valHtml,sigHtml)=>`<div class="mini-row"><span class="mini-name">${name}</span>`
       +`<span class="mini-val">${valHtml}</span><span class="mini-bar">${spec?gaugeMini(spec):''}</span>`
       +`<span class="mini-sig">${sigHtml}</span></div>`;
-    const eNames=['Contango','VDelta','VIX9D','VIX1M','1M / 3M'];
+    const eNames=['Contango','VDelta','VIX9D','VIX1M','VIX1M/3M'];
     const xNames=['Take Profit','Stop Loss','Trailing','Time Stop','Neg Carry','MOVE/VIX','Rollover'];
     const scSpec={lo:0,hi:0.70,z:[[0,0.35,'n'],[0.35,0.70,'r']],v:isNaN(moveMag)?null:moveMag};
     const moff=posInstr(curPos);   // displayed bar's position (hist = hovered bar, live = official)
-    const posCell=(lab,inst)=>{const k=kindOf(inst);const txt=k==='sv'?'Short Vol':k==='uv'?'Long Vol':'Cash';
+    const posCell=(lab,inst,labCol)=>{const k=kindOf(inst);const txt=k==='sv'?'Short Vol':k==='uv'?'Long Vol':'Cash';
       const col=k==='sv'?'var(--teal)':k==='uv'?'var(--coral)':'var(--cashc)';
-      return `<span style="color:var(--white)">${lab}</span> <span style="color:${col}">${txt}</span>`;};
-    let mh=`<div class="mini-pos">${posCell('Current',moff)} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj)}</div>`;
-    mh+='<div class="mini-sub">Entry</div>';
+      return `<span style="color:${labCol}">${lab}</span> <span style="color:${col}">${txt}</span>`;};
+    // help tooltips: full indicator name + description, per the detailed monitor
+    const eTip=rows.map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n')+'\n'+stripTags(overrideRows[0][0])+': '+_ds(overrideRows[0][1]);
+    const xTip=exitRules.map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
+    const help=t=>`<span class="mini-help" title="${(''+t).replace(/"/g,'&quot;')}">&#9432;</span>`;
+    let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj,'var(--white)')}</div>`;
+    mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5])));
     mh+=mRow('Spike/Crush', scSpec, isNaN(moveMag)?'—':(moveMag*100).toFixed(1)+'%', mSig(overrideRows[0][5]));
-    mh+='<div class="mini-sub">Exit</div>';
+    mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(r[5])));
     document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh;
   }
