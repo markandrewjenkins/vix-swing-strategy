@@ -1831,7 +1831,20 @@ function renderSignalMonitor(histBar){
   // Always brighten the zone the current value lands in (the others stay dim).
   // No live-vs-historical distinction.
   const GBRIGHT = true;
-  const tag=(k)=>k==='SVXY'?'<span class="sig-ind sig-svxy">SVXY</span>':k==='UVXY'?'<span class="sig-ind sig-uvxy">UVXY</span>':k==='NA'?'<span style="color:var(--cashmut);font-weight:700">N/A</span>':'<span class="sig-ind sig-neu">Cash</span>';
+  // Position state — needed early so the gauges can colour by it. Live → official;
+  // hist → the position held that day per the chart's position band (POSBYDATE).
+  const curPos = hist ? ((POSBYDATE&&POSBYDATE[b.date])||'CASH') : (L&&L.official?L.official.position:null);
+  const inPos = !!curPos && curPos!=='CASH';
+  const isSV = curPos==='LONG_VOL_SELLER', isUV = curPos==='LONG_VOL';
+  const POSC  = isUV ? 'var(--coral)'    : 'var(--teal)';      // bright held-position colour
+  const POSCM = isUV ? 'var(--coralmut)' : 'var(--tealmut)';   // muted held-position colour
+  // Entry-signal tag. Bright when flat (actionable); muted when already in a
+  // position (entry signals are moot once we've entered).
+  const tag=(k)=>{ const d=inPos;
+    if(k==='SVXY') return `<span class="sig-ind" style="color:${d?'var(--tealmut)':'var(--teal)'};font-weight:700">SVXY</span>`;
+    if(k==='UVXY') return `<span class="sig-ind" style="color:${d?'var(--coralmut)':'var(--coral)'};font-weight:700">UVXY</span>`;
+    if(k==='NA')   return '<span style="color:var(--cashmut);font-weight:700">N/A</span>';
+    return `<span class="sig-ind" style="color:${d?'var(--cashmut)':'var(--cashc)'};font-weight:700">Cash</span>`; };
   const num=(v,d=2)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v).toFixed(d);
   const pct=(v,d=1)=>v==null||isNaN(v)?'<span style="color:var(--dim)">—</span>':(v>=0?'+':'')+(v*100).toFixed(d)+'%';
   // Mini gauge: bullish (teal) / bearish (red) zones + neutral band, with a white
@@ -1840,51 +1853,54 @@ function renderSignalMonitor(histBar){
   // zones = [[from,to,'t'|'r'|'n'], ...] spanning the domain [lo,hi].
   // Capitalise the first letter of each word in a gauge tooltip.
   const _titleCase=s=>(s||'').replace(/\b[a-z]/g,c=>c.toUpperCase());
-  // Whether a zone should render "bright". Entry zones (r/t/n) brighten when the
-  // value lands in them. Exit zones encode the side they exit: 'xs' (short-vol/
-  // SVXY), 'xl' (long-vol/UVXY) — they brighten only when the value is inside AND
-  // it's the held side. 'h' (hold band, muted yellow) and 'o' (spike-crush mid,
-  // muted orange) never brighten.
-  const _zoneOn=(z,val)=>{ const hit=val>=z[0]&&val<=z[1]&&GBRIGHT; const c=z[2];
-    if(c==='h'||c==='o') return false;
-    if(c==='xs') return hit && isSV;
-    if(c==='xl') return hit && isUV;
-    return hit; };
-  const gaugeHtml=(lo,hi,zones,val,tip,fmt,solid,noMark)=>{ if(val==null||isNaN(val)||hi<=lo) return '';
-    tip=_titleCase(tip);
-    if(solid){ const Ws=176,Hs=24; const col={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'}[zones[0][2]];
-      return `<span class="sig-gauge" title="${tip||''}"><svg width="${Ws}" height="${Hs}" style="vertical-align:middle">`
-        + `<rect x="1" y="2" width="${Ws-2}" height="5" rx="2.5" fill="${col}" opacity="0.95"/></svg></span>`; }
+  // ── Zone colouring model ──────────────────────────────────────────────
+  // Entry zones: 'r' (UVXY/coral), 't' (SVXY/teal), 'n' (neutral/cash). When FLAT
+  // the zone the value lands in brightens; when IN A POSITION the whole entry row
+  // dims to the muted version (we've already entered — entry signals are moot).
+  // Exit zones (only rendered when in a position): 'P' = the position-coloured hold
+  // band (bright teal/coral by held side); 'C' = a cash-coloured exit extreme
+  // (dark until the reading lands in it, then bright cash-gold). When flat — or for
+  // an exit that doesn't apply to the held side — the bar is the disabled hatch.
+  const CASHB='#d7b150', CASHD='#3f3723';
+  const _zoneStyle=(z,val)=>{ const c=z[2]; const hit=val!=null&&!isNaN(val)&&val>=z[0]&&val<=z[1]&&GBRIGHT;
+    if(c==='P') return {fill:POSC,op:0.95};
+    if(c==='C') return hit?{fill:CASHB,op:1}:{fill:CASHD,op:1};
+    if(inPos){ const f={r:'var(--coralmut)',t:'var(--tealmut)',n:'var(--gray)'}[c]; return {fill:f,op:0.4}; }
+    if(hit){ const f={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'}[c]; return {fill:f,op:0.95}; }
+    const f={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)'}[c]; return {fill:f,op:0.4}; };
+  // Disabled / not-applicable bar: near-black with muted-orange diagonal hatching.
+  let _hcn=0;
+  const _hatchSvg=(W,H,by,bh)=>{ const id='hc'+(++_hcn); let lines='';
+    for(let x=-bh;x<W;x+=5) lines+=`<line x1="${x}" y1="${by+bh}" x2="${x+bh}" y2="${by}" stroke="var(--orangemut)" stroke-width="1" opacity="0.55"/>`;
+    return `<svg width="${W}" height="${H}" style="vertical-align:middle"><clipPath id="${id}"><rect x="1" y="${by}" width="${W-2}" height="${bh}" rx="2.5"/></clipPath>`
+      + `<rect x="1" y="${by}" width="${W-2}" height="${bh}" rx="2.5" fill="#15110a"/><g clip-path="url(#${id})">${lines}</g></svg>`; };
+  const gaugeHtml=(lo,hi,zones,val,tip,fmt,opts)=>{ opts=opts||{}; tip=_titleCase(tip);
+    const W=176,H=24,by=2,bh=5,pad=1;
+    if(opts.hatch) return `<span class="sig-gauge" title="${tip||''}">${_hatchSvg(W,H,by,bh)}</span>`;
+    if(val==null||isNaN(val)||hi<=lo) return '';
     fmt = fmt || (v=>(+v).toFixed(1));
-    const W=176,H=24,by=2,bh=5,pad=1; const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
-    const dim={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)',h:'var(--cashmut)',o:'var(--orangemut)',xs:'var(--teal)',xl:'var(--coral)'};
-    const lit={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)',h:'var(--cashmut)',o:'var(--orangemut)',xs:'var(--teal)',xl:'var(--coral)'};
-    const rects=zones.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const on=_zoneOn(z,val);
-      const op=(z[2]==='h'||z[2]==='o')?0.5:(on?0.95:0.4);
-      return `<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${bh}" rx="2.5" fill="${on?lit[z[2]]:dim[z[2]]}" opacity="${op}"/>`;}).join('');
+    const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
+    const rects=zones.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const st=_zoneStyle(z,val);
+      return `<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${bh}" rx="2.5" fill="${st.fill}" opacity="${st.op}"/>`;}).join('');
     // boundary labels: min (left), each threshold (mid), max (right)
     const bnds=[...new Set([lo, ...zones.flatMap(z=>[z[0],z[1]]), hi])].sort((a,b)=>a-b);
     const labels=bnds.map((v,i)=>{ const x=sx(v); const anc=i===0?'start':i===bnds.length-1?'end':'middle';
       return `<text x="${x.toFixed(1)}" y="${H-1}" font-size="7.5" fill="var(--dim)" text-anchor="${anc}">${fmt(v)}</text>`;}).join('');
     const mx=sx(val).toFixed(1);
-    const marker = noMark ? '' : `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${by+bh+0.5}" stroke="var(--white)" stroke-width="2"/>`;
     return `<span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${rects}${labels}`
-      + `${marker}</svg></span>`; };
+      + `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${by+bh+0.5}" stroke="var(--white)" stroke-width="2"/></svg></span>`; };
 
   // Compact pill gauge for the floating mini monitor (no labels, white marker).
-  const gaugeMini=(g)=>{ if(!g||g.v==null||isNaN(g.v)||g.hi<=g.lo) return '';
+  const gaugeMini=(g)=>{ if(!g) return '';
     const ttl=_titleCase(g.tip), wrap=s=>`<span class="sig-gauge" title="${ttl||''}">${s}</span>`;
-    if(g.solid){ const Wm=72,Hm=9; const col={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'}[g.z[0][2]];
-      return wrap(`<svg width="${Wm}" height="${Hm}" style="vertical-align:middle"><rect x="1" y="2" width="${Wm-2}" height="5" rx="2.5" fill="${col}" opacity="0.95"/></svg>`); }
-    const W=72,H=9,pad=1; const sx=x=>pad+Math.max(0,Math.min(1,(x-g.lo)/(g.hi-g.lo)))*(W-2*pad);
-    const dim={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)',h:'var(--cashmut)',o:'var(--orangemut)',xs:'var(--teal)',xl:'var(--coral)'};
-    const lit={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)',h:'var(--cashmut)',o:'var(--orangemut)',xs:'var(--teal)',xl:'var(--coral)'};
-    const rects=g.z.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const on=_zoneOn(z,g.v);
-      const op=(z[2]==='h'||z[2]==='o')?0.5:(on?0.95:0.4);
-      return `<rect x="${x0.toFixed(1)}" y="2" width="${Math.max(0,x1-x0).toFixed(1)}" height="5" rx="2.5" fill="${on?lit[z[2]]:dim[z[2]]}" opacity="${op}"/>`;}).join('');
+    const W=72,H=9,by=2,bh=5,pad=1;
+    if(g.hatch) return wrap(_hatchSvg(W,H,by,bh));
+    if(g.v==null||isNaN(g.v)||g.hi<=g.lo) return '';
+    const sx=x=>pad+Math.max(0,Math.min(1,(x-g.lo)/(g.hi-g.lo)))*(W-2*pad);
+    const rects=g.z.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const st=_zoneStyle(z,g.v);
+      return `<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${bh}" rx="2.5" fill="${st.fill}" opacity="${st.op}"/>`;}).join('');
     const mx=sx(g.v).toFixed(1);
-    const marker = g.noMark ? '' : `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/>`;
-    return wrap(`<svg width="${W}" height="${H}" style="vertical-align:middle">${rects}${marker}</svg>`); };
+    return wrap(`<svg width="${W}" height="${H}" style="vertical-align:middle">${rects}<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/></svg>`); };
 
   // Data-driven gauge domain for a bar_history field: robust [p1,p99] expanded
   // to include the trigger thresholds, with padding. Cached per field.
@@ -1949,23 +1965,14 @@ function renderSignalMonitor(histBar){
   // Signed spike/crush move = larger-abs of the two 1-day VIX moves. A spike (VIX
   // rising ≥ +35%) reads positive → teal/SVXY (right); a crush (VIX falling ≤ −35%)
   // reads negative → red/UVXY (left). The strategy fades spikes (buy SVXY) and buys
-  // crushes (UVXY). Axis is symmetric ±(largest 1-day VIX increase ever, ex-Volpocalypse).
+  // crushes (UVXY). Axis is fixed ±100%; the bar value is clamped to that range.
   let _scSigned = NaN;
   { const cand=[mv9,mv1].filter(v=>v!=null&&!isNaN(v));
     if(cand.length) _scSigned = cand.reduce((a,b)=>Math.abs(b)>Math.abs(a)?b:a); }
   const scVal = isNaN(_scSigned) ? NaN : _scSigned;
-  const _scDomain=()=>{ if(window._scDom) return window._scDom; const bh=DATA.bar_history||[]; let mx=0.40;
-    const EXCL=new Set(['2018-02-05']);   // exclude the Feb-2018 Volpocalypse outlier
-    for(let i=1;i<bh.length;i++){ const a=bh[i],p=bh[i-1]; if(EXCL.has(a.date)) continue;
-      const m9=(a.vix9d&&p.vix9d)?a.vix9d/p.vix9d-1:null;
-      const m1=(a.vix1m&&p.vix1m)?a.vix1m/p.vix1m-1:null;
-      const inc=Math.max(m9==null?-9:m9, m1==null?-9:m1); if(inc>mx) mx=inc; }
-    window._scDom={lo:-mx,hi:mx}; return window._scDom; };
-  const _sc=_scDomain();
-  // Symmetric axis; expand only if a value somehow exceeds the historical max.
-  const scHi = isNaN(scVal)?_sc.hi:Math.max(_sc.hi, Math.abs(scVal)*1.02);
-  const scLo = -scHi;
-  const scZ=[[scLo,-0.35,'r'],[-0.35,0.35,'o'],[0.35,scHi,'t']];
+  const scLo=-1, scHi=1;
+  const scBarV = isNaN(scVal) ? NaN : Math.max(-1, Math.min(1, scVal));
+  const scZ=[[scLo,-0.35,'r'],[-0.35,0.35,'n'],[0.35,scHi,'t']];
   const scTip=`crush ≤ −35% → UVXY     spike ≥ +35% → SVXY     now ${isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%'}`;
   const overrideRows=[
     ['Spike / Crush','Sudden &ge;35% (Spike) or &le;&minus;35% (Crush) 1-day move in VIX9D or VIX1M',
@@ -2010,7 +2017,7 @@ function renderSignalMonitor(histBar){
     overrideRows.forEach(r=>{ r[6]=annotate(r[0],'__spike',spike?'SPIKE':(crush?'CRUSH':'NONE'),'live'); });
   }
   // Spike/Crush one-sided gauge: the 1-day move vs the ±35% override threshold.
-  overrideRows[0][7]=gaugeHtml(scLo,scHi,scZ,isNaN(scVal)?null:scVal,scTip,v=>(v*100).toFixed(0)+'%');
+  overrideRows[0][7]=gaugeHtml(scLo,scHi,scZ,isNaN(scBarV)?null:scBarV,scTip,v=>(v*100).toFixed(0)+'%');
 
   // ── Projected end-of-day position: how the live signals combine ──────
   // Indicative read of where the signals are leaning intraday. The OFFICIAL
@@ -2039,12 +2046,7 @@ function renderSignalMonitor(histBar){
   const posInstr = p => p==='LONG_VOL_SELLER'?'SVXY':p==='LONG_VOL'?'UVXY':'CASH';
   const ovr = spike?' <span class="vt-sv">(spike override)</span>':crush?' <span class="vt-uv">(crush override)</span>':'';
 
-  // Position used for the exit-rule status. Live → official. Hist → the position
-  // held that day per the chart's own position band (POSBYDATE), so the monitor
-  // always agrees with the candles (avoids the 2-rows-per-day / signal-vs-fill skew).
-  const curPos = hist ? ((POSBYDATE&&POSBYDATE[b.date])||'CASH') : (L&&L.official?L.official.position:null);
-  const inPos = !!curPos && curPos!=='CASH';
-  const isSV = curPos==='LONG_VOL_SELLER', isUV = curPos==='LONG_VOL';
+  // (curPos / inPos / isSV / isUV computed earlier — needed by the gauges.)
   // The trade that exits at the next open after this bar (hist only).
   const _exitTrade = hist ? DATA.trades.find(t=>t.exit_date===b.date) : null;
 
@@ -2130,26 +2132,21 @@ function renderSignalMonitor(histBar){
   else if(crush) proj='UVXY';
   else if(inPos) proj = anyExit ? 'CASH' : posInstr(curPos);
   else proj = (contango!=null&&contango<0)?'UVXY':(regimeBull?'SVXY':'CASH');
-  // Exit gauge specs. Zones encode role: 'h' (hold, muted grey), 'xs' (exits
-  // short-vol/SVXY), 'xl' (exits long-vol/UVXY). An exit zone brightens only when
-  // the value lands in it AND it's the held side; otherwise it stays muted. Exits
-  // that don't apply to the held side render an all-grey "hold" bar.
-  const _allgrey=(lo,hi,v,fmt,tip)=>({lo,hi,z:[[lo,hi,'h']],v:(v==null?(lo+hi)/2:v),fmt,tip,noMark:true});
-  const xspec=[
-    (inPos&&tpTh&&openpnl!=null)?{lo:-0.05,hi:tpTh*1.15,z:[[-0.05,tpTh,'h'],[tpTh,tpTh*1.15,isSV?'xs':'xl']],v:openpnl,fmt:_fpc,tip:`take-profit at +${(tpTh*100).toFixed(0)}% · now ${(openpnl*100).toFixed(1)}%`}:null,
-    (inPos&&openpnl!=null)?(isUV
-      ? {lo:slTh*1.8,hi:0.04,z:[[slTh*1.8,slTh,'xl'],[slTh,0.04,'h']],v:openpnl,fmt:_fpc,tip:`stop-loss at ${(slTh*100).toFixed(1)}% · now ${(openpnl*100).toFixed(1)}%`}
-      : _allgrey(-0.20,0.10,openpnl,_fpc,'no stop-loss for short-vol — SVXY has no hard stop')):null,
-    (inPos&&isSV&&dd!=null)?{lo:0,hi:Math.max(TR*1.5,dd*1.1),z:[[0,TR,'h'],[TR,Math.max(TR*1.5,dd*1.1),'xs']],v:dd,fmt:_fpc,tip:`drawdown ${(dd*100).toFixed(1)}pt vs ${(TR*100).toFixed(1)}pt trail (peak ${(peakPnl*100).toFixed(1)}%)`}
-      : (inPos&&isUV?_allgrey(0,1,null,_fpc,'trailing stop is a short-vol exit — N/A for long-vol'):null),
-    (inPos&&isSV&&daysHeldN!=null)?{lo:0,hi:Math.max(TM*1.2,daysHeldN*1.1),z:[[0,TM,'h'],[TM,Math.max(TM*1.2,daysHeldN*1.1),'xs']],v:daysHeldN,fmt:_fd,tip:`max ${TM}d · now ${daysHeldN}d`}
-      : (inPos&&isUV?_allgrey(0,1,null,_fd,'time stop is a short-vol exit — N/A for long-vol'):null),
-    (inPos&&isSV&&contango!=null)?{lo:dC.lo,hi:dC.hi,z:[[dC.lo,0,'xs'],[0,dC.hi,'h']],v:contango,fmt:fPP,tip:`carry turns negative below 0% · now ${(contango*100).toFixed(1)}%`}
-      : (inPos&&isUV&&contango!=null?_allgrey(dC.lo,dC.hi,contango,fPP,'negative carry is a short-vol exit — N/A for long-vol'):null),
-    (inPos&&movevix!=null)?{lo:dM.lo,hi:dM.hi,z:[[dM.lo,2,'xl'],[2,11,'h'],[11,dM.hi,'xs']],v:movevix,fmt:fN1,tip:`low ≤2 exits long-vol · high ≥11 exits short-vol · now ${movevix.toFixed(2)}`}:null,
-    (inPos&&ratio13!=null)?{lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.br13,'xl'],[P.br13,P.xr13,'h'],[P.xr13,dR.hi,'xs']],v:ratio13,fmt:fN2,tip:`≥${P.xr13} exits short-vol · <${P.br13} exits long-vol · now ${ratio13.toFixed(3)}`}:null,
-  ];
-  xspec.forEach((s,i)=>{ if(s) exitRules[i][7]=gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt,false,s.noMark); });
+  // Exit gauge specs. Zones use 'P' (position-coloured hold band) + 'C' (cash-
+  // coloured exit extreme). When the exit doesn't apply to the held side (or we're
+  // flat), the bar is disabled (hatched). _exApplies gates that per indicator.
+  const exitSpec=(i)=>{ const off=!_exApplies[i];
+    switch(i){
+      case 0:{ const th=tpTh||0.30; return {hatch:off,lo:-0.05,hi:th*1.15,z:[[-0.05,th,'P'],[th,th*1.15,'C']],v:openpnl,fmt:_fpc,tip:`take-profit at +${(th*100).toFixed(0)}% · now ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; }
+      case 1:{ const th=slTh||-0.0271; return {hatch:off,lo:th*1.8,hi:0.04,z:[[th*1.8,th,'C'],[th,0.04,'P']],v:openpnl,fmt:_fpc,tip:`stop-loss at ${(th*100).toFixed(1)}% · now ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; }
+      case 2:{ const hi=Math.max(TR*1.5,(dd||0)*1.1); return {hatch:off,lo:0,hi,z:[[0,TR,'P'],[TR,hi,'C']],v:dd,fmt:_fpc,tip:`drawdown ${dd!=null?(dd*100).toFixed(1):'—'}pt vs ${(TR*100).toFixed(1)}pt trail`}; }
+      case 3:{ const hi=Math.max(TM*1.2,(daysHeldN||0)*1.1); return {hatch:off,lo:0,hi,z:[[0,TM,'P'],[TM,hi,'C']],v:daysHeldN,fmt:_fd,tip:`max ${TM}d · now ${daysHeldN!=null?daysHeldN:'—'}d`}; }
+      case 4:return {hatch:off,lo:dC.lo,hi:dC.hi,z:[[dC.lo,0,'C'],[0,dC.hi,'P']],v:contango,fmt:fPP,tip:`carry turns negative below 0% · now ${contango!=null?(contango*100).toFixed(1):'—'}%`};
+      case 5:return {hatch:off,lo:dM.lo,hi:dM.hi,z:[[dM.lo,2,'C'],[2,11,'P'],[11,dM.hi,'C']],v:movevix,fmt:fN1,tip:`low ≤2 / high ≥11 exits · now ${movevix!=null?movevix.toFixed(2):'—'}`};
+      case 6:return {hatch:off,lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.br13,'C'],[P.br13,P.xr13,'P'],[P.xr13,dR.hi,'C']],v:ratio13,fmt:fN2,tip:`≥${P.xr13} / <${P.br13} exits · now ${ratio13!=null?ratio13.toFixed(3):'—'}`};
+    } };
+  const xspec=[0,1,2,3,4,5,6].map(exitSpec);
+  xspec.forEach((s,i)=>{ exitRules[i][7]=gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt,{hatch:s.hatch}); });
   const _exClk=[['exTP','__pnl',openpnl],['exSL','__pnl',openpnl],['exTRAIL','__pnl',openpnl],['exTIME','__days',(inPos?1:null)],
                 ['exCARRY','contango',contango],['exMOVE','move_vix_ratio',movevix],['exROLL','ratio_1m_3m',ratio13]];
   exitRules.forEach((r,i)=>{ if(exHas[i]) r[6]=annotate(_exClk[i][0],_exClk[i][1],_r4(_exClk[i][2]),'live'); });
@@ -2227,7 +2224,11 @@ function renderSignalMonitor(histBar){
 
   // ── Floating mini monitor: compact preview of the whole board over the chart ──
   if(document.getElementById('mini-monitor')){
-    const mSig=s=>s==='SVXY'?'<span class="sig-svxy">SVXY</span>':s==='UVXY'?'<span class="sig-uvxy">UVXY</span>':s==='NA'?'<span style="color:var(--cashmut)">N/A</span>':'<span class="sig-cash">Cash</span>';
+    const mSig=s=>{ const d=inPos;
+      if(s==='SVXY') return `<span style="color:${d?'var(--tealmut)':'var(--teal)'}">SVXY</span>`;
+      if(s==='UVXY') return `<span style="color:${d?'var(--coralmut)':'var(--coral)'}">UVXY</span>`;
+      if(s==='NA')   return '<span style="color:var(--cashmut)">N/A</span>';
+      return `<span style="color:${d?'var(--cashmut)':'var(--cashc)'}">Cash</span>`; };
     const mStat=i=>{
       if(!inPos) return '<span style="color:var(--cashmut)">N/A</span>';
       if(_exTrig[i] && _exApplies[i]) return '<span style="color:var(--cashc)">Exit</span>';
@@ -2241,7 +2242,7 @@ function renderSignalMonitor(histBar){
       +`<span class="mini-sig">${sigHtml}</span></div>`;
     const eNames=['Contango','VDelta','VIX9D','VIX1M','VIX1M/3M'];
     const xNames=['Take Profit','Stop Loss','Trailing','Time Stop','Neg Carry','MOVE/VIX','Rollover'];
-    const scSpec={lo:scLo,hi:scHi,z:scZ,v:isNaN(scVal)?null:scVal,fmt:v=>(v*100).toFixed(0)+'%',tip:scTip};
+    const scSpec={lo:scLo,hi:scHi,z:scZ,v:isNaN(scBarV)?null:scBarV,fmt:v=>(v*100).toFixed(0)+'%',tip:scTip};
     const moff=posInstr(curPos);   // displayed bar's position (hist = hovered bar, live = official)
     const posCell=(lab,inst,labCol)=>{const k=kindOf(inst);const txt=k==='sv'?'Short Vol':k==='uv'?'Long Vol':'Cash';
       const col=k==='sv'?'var(--teal)':k==='uv'?'var(--coral)':'var(--cashc)';
