@@ -364,6 +364,7 @@ tr:hover td { background: #1f1a10 }
 /* Market status row */
 #mkt-row { display:flex; align-items:center; justify-content:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:8px; font-size:0.74rem; font-family:'Saira', sans-serif; }
 /* When hoisted into the panel header, sit on the title line and shed the heading's uppercase/colour. */
+.ph-live { justify-content:flex-start; gap:34px; }
 .ph-live #mkt-row { margin-bottom:0; text-transform:none; }
 .ph-live #mkt-row, .ph-live #mkt-row span { color:var(--dim); font-weight:600; }
 .mkt-left { display:inline-flex; align-items:center; gap:12px; }
@@ -386,7 +387,10 @@ tr:hover td { background: #1f1a10 }
 .cdl-seg:not(.active):hover { color:var(--text); }
 #mkt-refresh { color:var(--dim); }
 /* Summary page */
-.cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
+.sig-etfnote { font-size:0.7rem; color:var(--dim); line-height:1.45; padding-top:8px; }
+.sig-etfnote b { color:var(--yellow); }
+.mini-mon .mini-note { font-size:0.5rem; color:var(--dim); line-height:1.35; margin-top:5px; padding-top:3px; border-top:1px solid var(--border); white-space:normal; }
+.cdl-info { font-size:0.78rem; color:var(--text); padding:4px 2px 9px; margin-top:-7px; min-height:1.5em; border-bottom:1px solid var(--border); margin-bottom:8px; line-height:1.5; }
 .cdl-info b { color:var(--yellow); }
 .cdl-info b.sig-svxy { color:var(--teal); } .cdl-info b.sig-uvxy { color:var(--coral); } .cdl-info b.sig-cash { color:var(--cashc); }
 .pos-band-label { font-size:0.64rem; color:var(--dim); letter-spacing:0.05em; margin:10px 0 3px; text-transform:uppercase; }
@@ -431,6 +435,7 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .mini-mon .mini-pos { text-align:left; font-weight:400; font-size:0.68rem; margin-bottom:3px; white-space:nowrap; }
 .mini-mon .mini-sub { color:var(--dim); text-transform:uppercase; letter-spacing:0.06em; font-size:0.54rem; margin:3px 0 1px; border-top:1px solid var(--border); padding-top:2px; }
 .mini-mon .mini-help { pointer-events:auto; cursor:help; color:var(--dim); margin-left:3px; }
+.mini-mon .sig-gauge { pointer-events:auto; cursor:help; }
 .mini-row { display:flex; align-items:center; gap:6px; margin:1px 0; white-space:nowrap; }
 .mini-row .mini-name { color:var(--yellow); width:64px; flex:none; }
 .mini-row .mini-val { width:46px; flex:none; text-align:right; color:var(--white); }
@@ -588,6 +593,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       <div class="ph"><span>Live Signal Monitor</span></div>
       <div class="pb"><div id="sig-proj" class="sig-proj"></div></div>
       <div class="pb" style="overflow-x:auto;padding-top:0"><table id="signal-monitor" class="sig-mon"></table></div>
+      <div class="pb" style="padding-top:0"><div class="sig-etfnote">Signals read from the vol ETFs themselves are always computed from <b>SVXY</b> and <b>UVXY</b> (the longest-history originals) — the SVXY/UVXY &harr; SVIX/UVIX toggle only relabels the displayed instruments and does not change these signals.</div></div>
     </div>
   </div>
 
@@ -1497,7 +1503,7 @@ async function loadLive(){
     // ── Feed freshness: live vs paused ──────────────────────────────────
     const gen = L.generated_utc ? new Date(L.generated_utc) : null;
     const ageMin = gen ? (Date.now()-gen.getTime())/60000 : null;
-    const _t = _etNow(); const _dec = _t.sod/3600; const _wk = _t.wd!=='Sat'&&_t.wd!=='Sun';
+    const _t = _etNow(); const _dec = _t.sod/3600; const _holiday = _isMktHoliday(); const _wk = _t.wd!=='Sat'&&_t.wd!=='Sun'&&!_holiday;
     const regular = _wk && _dec>=9.5 && _dec<16;
     const settle  = _wk && _dec>=16 && _dec<20.25;   // after-hours: close settles, CBOE EOD posts
     const premkt  = _wk && _dec>=4  && _dec<9.5;
@@ -1516,6 +1522,7 @@ async function loadLive(){
                               : regular ? 'Awaiting next refresh'
                               : settle  ? 'Live-chart bar paused · daily signals finalising, expected ~7pm ET'
                               : premkt  ? 'Live-chart bar not live yet · daily signals warming up'
+                              : _holiday ? 'Market holiday — showing last settled close'
                               : 'Showing last settled close';
     if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';   // delay note only when data moves
     document.getElementById('lv-updated').textContent =
@@ -1567,11 +1574,20 @@ async function loadLive(){
 
 // Summary: SVXY candlesticks + trade overlay + signal monitor
 function _etNow(){ const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date()); const g=t=>p.find(x=>x.type===t).value; const h=(+g('hour'))%24,m=+g('minute'),sec=+g('second'); return {wd:g('weekday'), sod:h*3600+m*60+sec}; }
+// Full-day NYSE market holidays (observed dates). Early-close half-days are not
+// listed — those still trade. Extend this list each year as the NYSE publishes it.
+const _MKT_HOLIDAYS=new Set([
+  '2026-01-01','2026-01-19','2026-02-16','2026-04-03','2026-05-25','2026-06-19','2026-07-03','2026-09-07','2026-11-26','2026-12-25',
+  '2027-01-01','2027-01-18','2027-02-15','2027-03-26','2027-05-31','2027-06-18','2027-07-05','2027-09-06','2027-11-25','2027-12-24',
+  '2028-01-17','2028-02-21','2028-04-14','2028-05-29','2028-06-19','2028-07-04','2028-09-04','2028-11-23','2028-12-25',
+]);
+function _etDate(){ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
+function _isMktHoliday(){ return _MKT_HOLIDAYS.has(_etDate()); }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
-function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'; if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'After hours begins',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'Market closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
+function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'&&!_isMktHoliday(); if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'Regular hours end',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'Market closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
 function updateMarket(){
-  const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'; let label,color,sep;
+  const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'&&!_isMktHoliday(); let label,color,sep;
   const DASH='\u00a0-\u00a0', GAP='\u00a0\u00a0';   // snug gap for closed/pre, dash for open/after
   if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; sep=GAP; }
   else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; sep=GAP; }
@@ -1816,7 +1832,10 @@ function renderSignalMonitor(histBar){
   // marker for the current value. The zone the marker sits in brightens to the
   // exact position colour — teal (SVXY), red (UVXY), gold (Cash) — others dim.
   // zones = [[from,to,'t'|'r'|'n'], ...] spanning the domain [lo,hi].
+  // Capitalise the first letter of each word in a gauge tooltip.
+  const _titleCase=s=>(s||'').replace(/\b[a-z]/g,c=>c.toUpperCase());
   const gaugeHtml=(lo,hi,zones,val,tip,fmt,solid)=>{ if(val==null||isNaN(val)||hi<=lo) return '';
+    tip=_titleCase(tip);
     if(solid){ const Ws=176,Hs=24; const col={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'}[zones[0][2]];
       return `<span class="sig-gauge" title="${tip||''}"><svg width="${Ws}" height="${Hs}" style="vertical-align:middle">`
         + `<rect x="1" y="2" width="${Ws-2}" height="5" rx="2.5" fill="${col}" opacity="0.95"/></svg></span>`; }
@@ -1837,14 +1856,15 @@ function renderSignalMonitor(histBar){
 
   // Compact pill gauge for the floating mini monitor (no labels, white marker).
   const gaugeMini=(g)=>{ if(!g||g.v==null||isNaN(g.v)||g.hi<=g.lo) return '';
+    const ttl=_titleCase(g.tip), wrap=s=>`<span class="sig-gauge" title="${ttl||''}">${s}</span>`;
     if(g.solid){ const Wm=72,Hm=9; const col={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'}[g.z[0][2]];
-      return `<svg width="${Wm}" height="${Hm}" style="vertical-align:middle"><rect x="1" y="2" width="${Wm-2}" height="5" rx="2.5" fill="${col}" opacity="0.95"/></svg>`; }
+      return wrap(`<svg width="${Wm}" height="${Hm}" style="vertical-align:middle"><rect x="1" y="2" width="${Wm-2}" height="5" rx="2.5" fill="${col}" opacity="0.95"/></svg>`); }
     const W=72,H=9,pad=1; const sx=x=>pad+Math.max(0,Math.min(1,(x-g.lo)/(g.hi-g.lo)))*(W-2*pad);
     const dim={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)'}, lit={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'};
     const rects=g.z.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const on=g.v>=z[0]&&g.v<=z[1]&&GBRIGHT;
       return `<rect x="${x0.toFixed(1)}" y="2" width="${Math.max(0,x1-x0).toFixed(1)}" height="5" rx="2.5" fill="${on?lit[z[2]]:dim[z[2]]}" opacity="${on?0.95:0.4}"/>`;}).join('');
     const mx=sx(g.v).toFixed(1);
-    return `<svg width="${W}" height="${H}" style="vertical-align:middle">${rects}<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/></svg>`; };
+    return wrap(`<svg width="${W}" height="${H}" style="vertical-align:middle">${rects}<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/></svg>`); };
 
   // Data-driven gauge domain for a bar_history field: robust [p1,p99] expanded
   // to include the trigger thresholds, with padding. Cached per field.
@@ -1864,7 +1884,7 @@ function renderSignalMonitor(histBar){
       'Elevated','Deeply negative', num(vdelta,2),
       vdelta>P.bvd?'SVXY':vdelta<=P.xvd?'UVXY':'NEU'],
     ['VIX9D Level','9-day implied vol. In-zone = calm enough to sell vol.',
-      'In calm zone','Elevated or extreme', num(vix9d,2),
+      'In calm zone','Complacent or elevated', num(vix9d,2),
       (vix9d!=null&&vix9d>=P.b9lo&&vix9d<P.b9hi)?'SVXY':(vix9d!=null?'UVXY':'NEU')],
     ['VIX1M Level','1-month implied vol zone.',
       'In calm zone','Elevated', num(vix1m,2),
@@ -2017,7 +2037,7 @@ function renderSignalMonitor(histBar){
   const exitRules=[
     ['Take Profit','Closed once the unrealised gain hits the profit target', 'Reaches take-profit zone','', pnlCur, false],
     ['Stop Loss','Closed once the unrealised loss hits the max (UVXY hard stop)', '','Reaches stop-loss zone', pnlCur, false],
-    ['Trailing Stop','Closed after giving back too much from the running peak (SVXY)', '','Gives back set band from the peak', pnlCur, false],
+    ['Trailing Stop','Closed after giving back too much from the running peak (SVXY)', '','Gain falls a set amount below its peak', pnlCur, false],
     ['Time Stop','Closed after the maximum holding period', 'Held to max horizon','', daysHeldCur, false],
     ['Negative Vol Carry','Roll yield turns unfavourable — carry no longer pays (SVXY)',
       'Contango (carry positive)','Backwardation (carry negative)', pct(contango,1), carryTrig],
@@ -2129,11 +2149,11 @@ function renderSignalMonitor(histBar){
   const rowHtml=(r,cls='')=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +curCell(r)+`<td>${tag(r[5])}</td></tr>`;
-  const exitDivider='<tr class="sig-divider"><td colspan="6">Exit Only Indicators - Exit signal will be generated if any of these are triggered when position is open</td></tr>';
+  const exitDivider='<tr class="sig-divider"><td colspan="6">Exit Indicators - Exit signal will be generated if any of these are triggered when in non-cash position</td></tr>';
   const exitHtml=exitRules.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
     +curCell(r)+`<td>${stat(r[5])}</td></tr>`).join('');
-  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - Top 5 must all align for a new entry signal; the 6th is a standalone override that may fire independently</td></tr>';
+  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - Top 5 must all align for a new entry signal; The 6th is a standalone override that generates its own entry signal independently if triggered</td></tr>';
   const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
     +overrideRows.map(r=>rowHtml(r)).join('')
     +exitDivider+exitHtml+'</tbody>';
@@ -2165,6 +2185,7 @@ function renderSignalMonitor(histBar){
     mh+=mRow('Spike/Crush', scSpec, isNaN(moveMag)?'—':(moveMag*100).toFixed(1)+'%', mSig(overrideRows[0][5]));
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(r[5])));
+    mh+=`<div class="mini-note">ETF-derived signals always use SVXY/UVXY — the SVIX/UVIX toggle doesn't affect them.</div>`;
     document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh;
   }
   window._sigMonReady=true;
