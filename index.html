@@ -420,11 +420,11 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
   animation:cdlripple .4s ease-out forwards; }
 @keyframes cdlripple { 0% { transform:translate(-50%,-50%) scale(0.45); opacity:0.7 } 70% { opacity:0.18 } 100% { transform:translate(-50%,-50%) scale(1.55); opacity:0 } }
 /* Floating mini Live-Signal preview over the chart's blank right side. */
-.mini-mon { position:absolute; top:10px; right:62px; width:252px; max-width:54%; z-index:5; pointer-events:none;
+.mini-mon { position:absolute; top:10px; right:78px; width:252px; max-width:54%; z-index:5; pointer-events:none;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
 .mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; }
-.mini-mon .mini-pos { text-align:center; font-weight:700; font-size:0.72rem; margin-bottom:5px; }
+.mini-mon .mini-pos { text-align:center; font-weight:400; font-size:0.68rem; margin-bottom:5px; white-space:nowrap; }
 .mini-mon .mini-sub { color:var(--dim); text-transform:uppercase; letter-spacing:0.06em; font-size:0.54rem; margin:5px 0 1px; border-top:1px solid var(--border); padding-top:3px; }
 .mini-row { display:flex; align-items:center; gap:6px; margin:1px 0; white-space:nowrap; }
 .mini-row .mini-name { color:var(--yellow); width:50px; flex:none; overflow:hidden; text-overflow:ellipsis; }
@@ -2133,8 +2133,9 @@ function renderSignalMonitor(histBar){
     const xNames=['Take Profit','Stop Loss','Trailing','Time Stop','Neg Carry','MOVE/VIX','Rollover'];
     const scSpec={lo:0,hi:0.70,z:[[0,0.35,'n'],[0.35,0.70,'r']],v:isNaN(moveMag)?null:moveMag};
     const moff=posInstr(curPos);   // displayed bar's position (hist = hovered bar, live = official)
-    const posCell=(lab,inst)=>{const k=kindOf(inst);const nm=k==='sv'?svN():k==='uv'?uvN():'Cash';const d=k==='sv'?' · short vol':k==='uv'?' · long vol':'';
-      return `<span style="color:var(--yellow)">${lab}</span> <span style="color:var(--white)">${nm}${d}</span>`;};
+    const posCell=(lab,inst)=>{const k=kindOf(inst);const txt=k==='sv'?'Short Vol':k==='uv'?'Long Vol':'Cash';
+      const col=k==='sv'?'var(--teal)':k==='uv'?'var(--coral)':'var(--cashc)';
+      return `<span style="color:var(--white)">${lab}</span> <span style="color:${col}">${txt}</span>`;};
     let mh=`<div class="mini-pos">${posCell('Current',moff)} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj)}</div>`;
     mh+='<div class="mini-sub">Entry</div>';
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5])));
