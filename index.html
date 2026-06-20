@@ -2210,10 +2210,41 @@ function renderSignalMonitor(histBar){
   const exitHtml=exitRules.map((r,i)=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
     +curCell(r,!inPos)+`<td>${stat(i)}</td></tr>`).join('');
-  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - Top 5 must all align for a new entry signal; The 6th is a standalone override that generates its own entry signal independently if triggered</td></tr>';
+  const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - the 5 term-structure signals plus BB-Trend (below) must all align for a short-vol entry; the Spike/Crush override fires independently</td></tr>';
+  // ── Additional active components (qualitative) — also feed entry/exit/hold ──
+  // States read from the latest/hovered bar (display-only fields; no logic impact).
+  const _on=(t)=>`<span style="color:var(--teal)">${t}</span>`, _off=`<span style="color:var(--namut)">—</span>`;
+  const extraRows=[
+    ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — the 6th confirmation for a short-vol regime entry',
+      'Uptrend → confirms SVXY entry','Downtrend → blocks SVXY entry',
+      b.bb_buy?_on('Uptrend'):'<span style="color:var(--coral)">Downtrend</span>','Entry'],
+    ['Spike character (intraday)','Whether an intraday VIX spike faded or held into the close (from OHLC)',
+      'Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY, confirms UVXY',
+      b.vix_fade?_on('Faded'):(b.vix_sustained?'<span style="color:var(--coral)">Sustained</span>':_off),'Entry'],
+    ['Vol-follow carry','Negative roll yield together with a bearish front end',
+      '—','Active → long-vol (UVXY) entry path',
+      b.neg_vol?'<span style="color:var(--coral)">Active</span>':_off,'Entry'],
+    ['Extended bear-roll','Rolling count of bearish days; an elevated count flags sustained stress',
+      'Low → fine to hold / enter SVXY','Elevated → exits SVXY in profit, supports UVXY',
+      (b.bear_roll!=null?(''+b.bear_roll):'—'),'Entry + Exit'],
+    ['Put/Call reversal','Equity put/call bullish flip (only when P/C data is available)',
+      '—','Bull → exits long-vol (UVXY)',
+      b.pc_bull?'<span style="color:var(--coral)">Bull</span>':_off,'Exit'],
+    ['UVXY entry gates','Long-vol entry is blocked when MOVE/VIX is low, or when VIX1M is above the spike-chase cap (unless the spike is sustained)',
+      '—','Clear → long-vol entry allowed',
+      (b.mv_lo?'<span style="color:var(--coral)">MOVE-low block</span>':_on('Clear')),'Gate'],
+    ['Position sizing','Short-vol size is cut in a high-vol regime (30-day VIX average elevated); long-vol is sized smaller than short-vol',
+      'Normal regime → full SVXY size','High-vol → reduced SVXY size',
+      b.high_vol_regime?'<span style="color:var(--coral)">High-vol (reduced)</span>':_on('Normal'),'Sizing'],
+  ];
+  const extraDivider='<tr class="sig-divider"><td colspan="6">Additional Components - further inputs that contribute to the entry / exit / hold decision (shown qualitatively)</td></tr>';
+  const extraHtml=extraRows.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
+    +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
+    +`<td><div class="cur-cell"><span class="cur-val" style="color:var(--dimwhite)">${r[4]}</span></div></td>`
+    +`<td><span style="color:var(--dim);font-size:0.72rem">${r[5]}</span></td></tr>`).join('');
   const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
     +overrideRows.map(r=>rowHtml(r)).join('')   // spike/crush value follows inPos dull/bright like the entry rows
-    +exitDivider+exitHtml+'</tbody>';
+    +exitDivider+exitHtml+extraDivider+extraHtml+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;
 
   // ── Floating mini monitor: compact preview of the whole board over the chart ──
@@ -2251,6 +2282,16 @@ function renderSignalMonitor(histBar){
     mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
+    // Additional active components (compact name · state)
+    const mExtra=(name,state,col)=>`<div class="mini-row"><span class="mini-name" style="width:auto;flex:1">${name}</span><span class="mini-sig" style="color:${col}">${state}</span></div>`;
+    const xtraTip='Additional inputs to the entry/exit/hold decision:\n'+extraRows.map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
+    mh+=`<div class="mini-sub">More components ${help(xtraTip)}</div>`;
+    mh+=mExtra('BB-Trend', b.bb_buy?'Uptrend':'Downtrend', b.bb_buy?'var(--teal)':'var(--coral)');
+    mh+=mExtra('Spike char.', b.vix_fade?'Faded':(b.vix_sustained?'Sustained':'—'), b.vix_fade?'var(--teal)':(b.vix_sustained?'var(--coral)':'var(--namut)'));
+    mh+=mExtra('Vol-follow', b.neg_vol?'Active':'—', b.neg_vol?'var(--coral)':'var(--namut)');
+    mh+=mExtra('Bear-roll', (b.bear_roll!=null?(''+b.bear_roll):'—'), 'var(--dimwhite)');
+    mh+=mExtra('UVXY gate', b.mv_lo?'Blocked':'Clear', b.mv_lo?'var(--coral)':'var(--teal)');
+    mh+=mExtra('Sizing', b.high_vol_regime?'High-vol':'Normal', b.high_vol_regime?'var(--coral)':'var(--teal)');
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
     document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh;
   }
