@@ -1836,9 +1836,18 @@ function renderSignalMonitor(histBar){
   // Always brighten the zone the current value lands in (the others stay dim).
   // No live-vs-historical distinction.
   const GBRIGHT = true;
-  // Position state — needed early so the gauges can colour by it. Live → official;
-  // hist → the position held that day per the chart's position band (POSBYDATE).
-  const curPos = hist ? ((POSBYDATE&&POSBYDATE[b.date])||'CASH') : (L&&L.official?L.official.position:null);
+  // Position state — needed early so the gauges can colour by it. Live → official.
+  // Hist → derived from the bar's OWN recorded decision (b.signal), so the monitor
+  // always reconciles with that bar's signals and with the actual trade. A bar's
+  // signal is the decision made on its close; it executes at the next open. So:
+  //   "held coming in" (curPos) and "decision / next open" (projHist) come straight
+  //   from the signal label — no off-by-one against the next calendar bar.
+  const _sigMap = { LONG_SVXY:['CASH','LONG_VOL_SELLER'], LONG_UVXY:['CASH','LONG_VOL'],
+                    EXIT_SVXY:['LONG_VOL_SELLER','CASH'], EXIT_UVXY:['LONG_VOL','CASH'],
+                    HOLD_SVXY:['LONG_VOL_SELLER','LONG_VOL_SELLER'], HOLD_UVXY:['LONG_VOL','LONG_VOL'] };
+  const _sigPair = (hist && b.signal && _sigMap[b.signal]) ? _sigMap[b.signal] : ['CASH','CASH'];
+  const projHist = _sigPair[1];   // position the bar's decision puts us in at next open
+  const curPos = hist ? _sigPair[0] : (L&&L.official?L.official.position:null);
   const inPos = !!curPos && curPos!=='CASH';
   const isSV = curPos==='LONG_VOL_SELLER', isUV = curPos==='LONG_VOL';
   const POSC  = isUV ? 'var(--coral)'    : 'var(--teal)';      // bright held-position colour
@@ -2143,10 +2152,10 @@ function renderSignalMonitor(histBar){
   let exHold=0, exExit=0, exRefreshed=0;
   exitRules.forEach((r,i)=>{ if(inPos){ if(r[5]) exExit++; else exHold++; } if(exHas[i]) exRefreshed++; });
   // Hold-aware projected next-open position: a held position is KEPT unless an exit
-  // fires; only flat positions evaluate a fresh entry. Historical bars use the
-  // actual recorded signal so the preview matches what really happened next day.
-  if(hist){ const di=OHLC?OHLC.findIndex(r=>r[0]===b.date):-1; const nd=(di>=0&&di+1<OHLC.length)?OHLC[di+1][0]:null;
-    proj = posInstr(nd?((POSBYDATE&&POSBYDATE[nd])||'CASH'):curPos); }
+  // fires; only flat positions evaluate a fresh entry. Historical bars derive it
+  // from the bar's own recorded decision (projHist) so it always reconciles with
+  // that bar's signals and with the actual trade — no off-by-one to the next bar.
+  if(hist){ proj = posInstr(projHist); }
   else if(spike) proj='SVXY';
   else if(crush) proj='UVXY';
   else if(inPos) proj = anyExit ? 'CASH' : posInstr(curPos);
