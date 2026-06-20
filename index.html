@@ -507,9 +507,6 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <button class="tab active" onclick="switchTab('summary')">Live Chart w/ Signals</button>
     <button class="tab" onclick="switchTab('analytics')">P&amp;L Summary</button>
     <button class="tab" onclick="switchTab('trades')">Trades</button>
-    <button class="tab" onclick="switchTab('monthly')">Monthly</button>
-    <button class="tab" onclick="switchTab('conditions')">Conditions</button>
-    <button class="tab" onclick="switchTab('vix')">VIX Monitor</button>
   </div>
 </div>
 
@@ -580,7 +577,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       </div>
       <div class="pb">
         <div id="cdl-info" class="cdl-info">Hover the chart for details</div>
-        <div style="position:relative;width:100%;height:430px">
+        <div style="position:relative;width:100%;height:620px">
           <div id="candle-chart" style="width:100%;height:100%"></div>
           <div id="mini-monitor" class="mini-mon"></div>
           <button id="cdl-toend" title="Jump to latest" onclick="summaryToEnd()" style="position:absolute;bottom:30px;right:12px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
@@ -675,39 +672,6 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           <th>Entry $</th><th>Exit $</th><th>Return</th><th>P&amp;L $</th><th>Exit reason</th><th>Equity after</th>
         </tr></thead><tbody id="trade-tbody"></tbody></table>
       </div>
-    </div>
-  </div>
-
-  <!-- ══ MONTHLY TAB ════════════════════════════════════════════════ -->
-  <div id="tab-monthly" style="display:none">
-    <div class="panel"><div class="ph"><span>Monthly returns (%)</span></div>
-      <div class="pb" style="position:relative;height:300px"><canvas id="monthlyChart"></canvas></div>
-    </div>
-    <div class="panel" style="margin-top:0"><div class="ph"><span>Monthly P&amp;L detail</span></div>
-      <div style="overflow-x:auto"><table id="monthly-table"></table></div>
-    </div>
-  </div>
-
-  <!-- ══ CONDITIONS TAB ════════════════════════════════════════════ -->
-  <div id="tab-conditions" style="display:none">
-    <div class="row">
-      <div class="panel" style="flex:1 1 340px"><div class="ph"><span>Condition frequency</span></div><div class="pb" id="cond-bars"></div></div>
-      <div class="panel" style="flex:1 1 250px"><div class="ph"><span>VIX regime distribution</span></div>
-        <div class="pb" style="position:relative;height:250px"><canvas id="regimeChart"></canvas></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ VIX MONITOR TAB ════════════════════════════════════════════ -->
-  <div id="tab-vix" style="display:none">
-    <div class="row">
-      <div class="panel" style="flex:0 0 260px"><div class="ph"><span>Current VIX levels</span></div><div class="pb" id="vix-bars"></div></div>
-      <div class="panel" style="flex:2 1 420px"><div class="ph"><span>VIX1M history + signal background</span></div>
-        <div class="pb" style="position:relative;height:240px"><canvas id="vixHistChart"></canvas></div>
-      </div>
-    </div>
-    <div class="panel"><div class="ph"><span>Last 30 bars</span></div>
-      <div style="overflow-x:auto"><table id="bar-log"></table></div>
     </div>
   </div>
 
@@ -888,13 +852,10 @@ function buildPositionState(){
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
-const TABS=['summary','analytics','trades','monthly','conditions','vix'];
+const TABS=['summary','analytics','trades'];
 function switchTab(n){
   TABS.forEach(t=>{const el=document.getElementById('tab-'+t); if(el) el.style.display=t===n?'':'none';});
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABS[i]===n));
-  if(n==='monthly'&&!window._m){renderMonthly();window._m=true;}
-  if(n==='conditions'&&!window._c){renderConditions();window._c=true;}
-  if(n==='vix'&&!window._v){renderVIX();window._v=true;}
 }
 // Global instrument toggle — switches the whole dashboard SVXY/UVXY <-> SVIX/UVIX
 function setInstr(m){
@@ -1694,7 +1655,7 @@ function renderSummary(){
   const markers=displayMarkers();
 
   const el=document.getElementById('candle-chart'); el.innerHTML='';
-  sumMain=LC.createChart(el,{ width:el.clientWidth||900, height:430,
+  sumMain=LC.createChart(el,{ width:el.clientWidth||900, height:el.clientHeight||620,
     layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
     rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.14}},
@@ -1872,9 +1833,11 @@ function renderSignalMonitor(histBar){
     if(c==='P') return {fill:POSC,op:0.95};
     if(c==='C') return (hit&&trig)?{fill:CASHB,op:1}:{fill:CASHD,op:1};
     if(c==='d') return {fill:'var(--cashmut)',op:0.5};
-    // 'R'/'T' — spike/crush extremes: brighten on hit regardless of position.
-    if(c==='R') return hit?{fill:'var(--coral)',op:0.95}:{fill:'var(--coralmut)',op:0.4};
-    if(c==='T') return hit?{fill:'var(--teal)',op:0.95}:{fill:'var(--tealmut)',op:0.4};
+    // 'R'/'T' — spike/crush extremes. Brighten when the reading reaches the tail
+    // UNLESS we're already in the position that signal points to (crush→UVXY, spike
+    // →SVXY): then it's confirming, not actionable, so stays muted.
+    if(c==='R') return (hit&&!isUV)?{fill:'var(--coral)',op:0.95}:{fill:'var(--coralmut)',op:0.4};
+    if(c==='T') return (hit&&!isSV)?{fill:'var(--teal)',op:0.95}:{fill:'var(--tealmut)',op:0.4};
     if(inPos){ const f={r:'var(--coralmut)',t:'var(--tealmut)',n:'var(--gray)'}[c]; return {fill:f,op:0.4}; }
     if(hit){ const f={r:'var(--coral)',t:'var(--teal)',n:'var(--cashc)'}[c]; return {fill:f,op:0.95}; }
     const f={r:'var(--coral)',t:'var(--teal)',n:'var(--gray)'}[c]; return {fill:f,op:0.4}; };
@@ -2083,19 +2046,17 @@ function renderSignalMonitor(histBar){
   const moveTrig  = inPos && ((isSV && moveSig==='high') || (isUV && moveSig==='low'));
   const ratioTrig = inPos && ((isSV && ratio13!=null && ratio13>=P.xr13) || (isUV && ratio13!=null && ratio13<P.br13));
   const holdColor = isUV ? 'var(--coral)' : 'var(--teal)';   // Exit text colour = held side
-  // Does each exit apply to the held side? (some are SVXY- or UVXY-only)
+  // Does each exit apply to the held side? (some are SVXY- or UVXY-only). The
+  // two-sided ones (MOVE, Rollover) apply to BOTH sides — they just exit in a
+  // different direction per side, so their bars are built side-specifically below
+  // (no "opposite-zone = N/A": for the held side the other tail is just deeper hold).
   const _exApplies=[inPos, inPos&&isUV, inPos&&isSV, inPos&&isSV, inPos&&isSV, inPos, inPos];
-  // Is the current value sitting in the OPPOSITE side's exit zone? (two-sided exits)
-  const _exOpp=[false,false,false,false,false,
-    inPos&&((isSV&&movevix!=null&&movevix<2)||(isUV&&movevix!=null&&movevix>11)),
-    inPos&&((isSV&&ratio13!=null&&ratio13<P.br13)||(isUV&&ratio13!=null&&ratio13>=P.xr13))];
   // Single source of truth for an exit's state — status text, bar hatch (N/A), and
   // bar brightening (exit) all derive from this so they never disagree. (_exTrig is
   // defined just below; exState is only called later at render time.)
   const exState = i => {
-    if(!inPos) return 'na';
-    if(_exTrig[i] && _exApplies[i]) return 'exit';
-    if(!_exApplies[i] || _exOpp[i]) return 'na';
+    if(!inPos || !_exApplies[i]) return 'na';
+    if(_exTrig[i]) return 'exit';
     return 'hold';
   };
   const stat = i => { const s=exState(i);
@@ -2164,8 +2125,16 @@ function renderSignalMonitor(histBar){
       case 2:{ const hi=Math.max(TR*1.5,(dd||0)*1.1); o={lo:0,hi,z:[[0,TR,'P'],[TR,hi,'C']],v:dd,fmt:_fpc,tip:`drawdown ${dd!=null?(dd*100).toFixed(1):'—'}pt vs ${(TR*100).toFixed(1)}pt trail`}; break; }
       case 3:{ const hi=Math.max(TM*1.2,(daysHeldN||0)*1.1); o={lo:0,hi,z:[[0,TM,'P'],[TM,hi,'C']],v:daysHeldN,fmt:_fd,tip:`max ${TM}d · now ${daysHeldN!=null?daysHeldN:'—'}d`}; break; }
       case 4:o={lo:dC.lo,hi:dC.hi,z:[[dC.lo,0,'C'],[0,dC.hi,'P']],v:contango,fmt:fPP,tip:`carry turns negative below 0% · now ${contango!=null?(contango*100).toFixed(1):'—'}%`}; break;
-      case 5:o={lo:dM.lo,hi:dM.hi,z:[[dM.lo,2,'C'],[2,11,'P'],[11,dM.hi,'C']],v:movevix,fmt:fN1,tip:`low ≤2 / high ≥11 exits · now ${movevix!=null?movevix.toFixed(2):'—'}`}; break;
-      case 6:o={lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.br13,'C'],[P.br13,P.xr13,'P'],[P.xr13,dR.hi,'C']],v:ratio13,fmt:fN2,tip:`≥${P.xr13} / <${P.br13} exits · now ${ratio13!=null?ratio13.toFixed(3):'—'}`}; break;
+      // MOVE/VIX — high (≥11) exits short-vol; low (≤2) exits long-vol. Per held
+      // side only that tail is the exit; the rest of the range is hold.
+      case 5:o=isUV
+        ? {lo:dM.lo,hi:dM.hi,z:[[dM.lo,2,'C'],[2,dM.hi,'P']],v:movevix,fmt:fN1,tip:`exits long-vol when ≤2 · now ${movevix!=null?movevix.toFixed(2):'—'}`}
+        : {lo:dM.lo,hi:dM.hi,z:[[dM.lo,11,'P'],[11,dM.hi,'C']],v:movevix,fmt:fN1,tip:`exits short-vol when ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`}; break;
+      // Term-structure rollover — short-vol exits when ratio rises into backwardation
+      // (≥xr13); long-vol exits when the curve re-steepens into contango (<br13).
+      case 6:o=isUV
+        ? {lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.br13,'C'],[P.br13,dR.hi,'P']],v:ratio13,fmt:fN2,tip:`exits long-vol when <${P.br13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`}
+        : {lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.xr13,'P'],[P.xr13,dR.hi,'C']],v:ratio13,fmt:fN2,tip:`exits short-vol when ≥${P.xr13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`}; break;
     }
     return {...o, hatch:off, trig}; };
   const xspec=[0,1,2,3,4,5,6].map(exitSpec);
@@ -2243,7 +2212,7 @@ function renderSignalMonitor(histBar){
     +curCell(r,!inPos)+`<td>${stat(i)}</td></tr>`).join('');
   const entryDivider='<tr class="sig-divider"><td colspan="6">Entry Indicators - Top 5 must all align for a new entry signal; The 6th is a standalone override that generates its own entry signal independently if triggered</td></tr>';
   const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
-    +overrideRows.map(r=>rowHtml(r,'', !(spike||crush))).join('')   // spike/crush value dull unless an override is active
+    +overrideRows.map(r=>rowHtml(r)).join('')   // spike/crush value follows inPos dull/bright like the entry rows
     +exitDivider+exitHtml+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;
 
@@ -2279,7 +2248,7 @@ function renderSignalMonitor(histBar){
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj,'var(--white)')}</div>`;
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5]), inPos));
-    mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), !(spike||crush));
+    mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
