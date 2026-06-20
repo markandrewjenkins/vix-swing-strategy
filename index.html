@@ -235,6 +235,8 @@ td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--tex
 tr:hover td { background: #1f1a10 }
 
 /* ── Exit badges ──────────────────────────────────────────────────── */
+.exr-cell { min-width:140px; }
+.exr-desc { color:var(--dim); font-size:0.66rem; line-height:1.25; margin:2px 0 1px; max-width:200px; white-space:normal; }
 .eb {
   display: inline-block;
   padding: 2px 7px;
@@ -742,6 +744,46 @@ const fmtPrice= v => v==null||isNaN(v)?'—':'$'+parseFloat(v).toFixed(2);
 const ebClass = r => r==='TP'?'eb-tp':r==='SL'||r==='TRAIL'||r==='TIMESTOP'?'eb-sl':
                      r==='NEG_VOL'||r==='MOVE_HI'||r==='MOVE_LO'?'eb-move':'eb-ratio';
 
+// ── Exit-reason bar for the Trades table (value vs threshold, like the monitor) ──
+// Hold band = muted yellow; the exit tail = cash-gold, bright since the exit fired;
+// white tick = the value that triggered, dim tick = the threshold.
+function _exrBar(lo,hi,thr,val,fmt,ge){
+  if(val==null||isNaN(val)||hi<=lo) return '';
+  const W=130,H=20,by=2,bh=5,pad=1; const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
+  const h0=ge?lo:thr, h1=ge?thr:hi, e0=ge?thr:lo, e1=ge?hi:thr;
+  const rH=`<rect x="${sx(h0).toFixed(1)}" y="${by}" width="${Math.max(0,sx(h1)-sx(h0)).toFixed(1)}" height="${bh}" rx="2.5" fill="var(--cashmut)" opacity="0.5"/>`;
+  const rE=`<rect x="${sx(e0).toFixed(1)}" y="${by}" width="${Math.max(0,sx(e1)-sx(e0)).toFixed(1)}" height="${bh}" rx="2.5" fill="#d7b150" opacity="1"/>`;
+  const mx=sx(val).toFixed(1), tx=sx(thr).toFixed(1);
+  const lab=`<text x="1" y="${H-1}" font-size="7" fill="var(--dim)">${fmt(lo)}</text>`
+    +`<text x="${tx}" y="${H-1}" font-size="7" fill="var(--dim)" text-anchor="middle">${fmt(thr)}</text>`
+    +`<text x="${W-1}" y="${H-1}" font-size="7" fill="var(--dim)" text-anchor="end">${fmt(hi)}</text>`;
+  return `<svg width="${W}" height="${H}" style="vertical-align:middle">${rH}${rE}${lab}`
+    +`<line x1="${mx}" y1="0.5" x2="${mx}" y2="${by+bh+0.5}" stroke="var(--white)" stroke-width="2"/></svg>`;
+}
+// bar_history lookup for the trade's signal bar (the trading day before the fill).
+function _tBarBefore(date){ if(!window._tbd){ window._tbd={}; (DATA.bar_history||[]).forEach(r=>window._tbd[r.date]=r);
+    window._tbdDates=(DATA.bar_history||[]).map(r=>r.date).sort(); }
+  const ds=window._tbdDates; let lo=0,hi=ds.length-1,res=null;
+  while(lo<=hi){const m=(lo+hi)>>1; if(ds[m]<date){res=ds[m];lo=m+1;}else hi=m-1;}
+  return res?window._tbd[res]:(window._tbd[date]||null); }
+// Returns {name, desc, bar} for a trade's exit reason.
+function exitReasonMeta(t){
+  const sv=tIsSV(t), r=t.exit_reason, b=_tBarBefore(t.exit_date)||{};
+  const fpc=v=>(v*100).toFixed(0)+'%', f2=v=>(+v).toFixed(2);
+  const tp=sv?0.42728:0.13601;
+  switch(r){
+    case 'TP': return {name:'Take Profit',desc:'Unrealized gain reached the profit target',bar:_exrBar(-0.05,tp*1.2,tp,t.pnl_pct,fpc,true)};
+    case 'SL': return {name:'Stop Loss',desc:'Unrealized loss hit the hard stop (UVXY)',bar:_exrBar(-0.0271*1.8,0.04,-0.0271,t.pnl_pct,fpc,false)};
+    case 'TRAIL': return {name:'Trailing Stop',desc:'Gain fell a set band below its running peak',bar:_exrBar(-0.05,Math.max(0.2,t.pnl_pct+0.05),0.09162,t.pnl_pct,fpc,false)};
+    case 'TIMESTOP': return {name:'Time Stop',desc:'Held to the max horizon without enough gain',bar:_exrBar(0,Math.max(48,t.days*1.1),40,t.days,v=>(v|0)+'d',true)};
+    case 'NEG_VOL': return {name:'Negative Vol Carry',desc:'Roll yield turned negative (backwardation)',bar:_exrBar(-0.12,0.18,0,b.contango,fpc,false)};
+    case 'MOVE_HI': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress spiked — exits short-vol',bar:_exrBar(0,16,11,b.move_vix_ratio,f2,true)};
+    case 'MOVE_LO': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress collapsed — exits long-vol',bar:_exrBar(0,16,2,b.move_vix_ratio,f2,false)};
+    case 'RATIO': return {name:'Term-Structure Rollover',desc:'Near curve flipped against the position',bar:_exrBar(0.75,1.20,sv?1.096:0.932,b.ratio_1m_3m,f2,sv)};
+  }
+  return {name:r,desc:'',bar:''};
+}
+
 // ── Load ──────────────────────────────────────────────────────────────────
 async function load(){
   try{
@@ -1183,7 +1225,7 @@ function renderTrades(){
     <td style="text-align:right">${alt?'—':fmtPrice(t.exit_price)}</td>
     <td style="text-align:right;color:${r>0?TEAL:CORAL};font-weight:600">${fmtPct(r)}</td>
     <td style="text-align:right;color:${p>0?TEAL:CORAL}">${p>0?'+':''}${fmtK(Math.abs(p)*Math.sign(p))}</td>
-    <td><span class="eb ${ebClass(t.exit_reason)}">${t.exit_reason}</span></td>
+    <td>${(()=>{const m=exitReasonMeta(t);return `<div class="exr-cell" title="${m.desc.replace(/"/g,'&quot;')}"><div class="exr-name"><span class="eb ${ebClass(t.exit_reason)}">${m.name}</span></div><div class="exr-desc">${m.desc}</div>${m.bar}</div>`;})()}</td>
     <td style="text-align:right">${fmtK(t.equity_after)}</td>
   </tr>`}).join('');
 }
