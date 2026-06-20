@@ -582,7 +582,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div style="position:relative;width:100%;height:620px">
           <div id="candle-chart" style="width:100%;height:100%"></div>
           <div id="mini-monitor" class="mini-mon"></div>
-          <button id="cdl-toend" title="Jump to latest" onclick="summaryToEnd()" style="position:absolute;bottom:30px;right:12px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
+          <button id="cdl-toend" title="Jump to latest" onclick="summaryToEnd()" style="position:absolute;bottom:30px;right:78px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
           <div id="cdl-lock" style="position:absolute;top:8px;left:10px;z-index:6;display:none;background:rgba(20,17,11,0.9);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-size:0.66rem;letter-spacing:0.02em;pointer-events:none"></div>
         </div>
         <div class="cdl-legend">
@@ -2261,29 +2261,29 @@ function renderSignalMonitor(histBar){
   const _na=`<span style="color:var(--namut)">N/A</span>`;
   const _dBB=_domain('bb_trend',[0]), CAP=45.93, _dV=_domain('vix1m',[CAP]), REG=31.31, _dMA=_domain('vix1m_ma30',[REG]);
   const _spkDay=b.spike_9d||b.spike_1m;
-  const gFull=(s)=>gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,v=>'',{nolab:true,hatch:s.hatch});
-  const sBB ={lo:_dBB.lo,hi:_dBB.hi,z:[[_dBB.lo,0,'r'],[0,_dBB.hi,'t']],v:b.bb_trend,tip:'BB-trend on log-SVXY — uptrend favours short-vol'};
-  const sGate={lo:_dV.lo,hi:_dV.hi,z:[[_dV.lo,CAP,'t'],[CAP,_dV.hi,'r']],v:b.vix1m,tip:'VIX1M vs the spike-chase cap for long-vol entries'};
-  const sSize={lo:_dMA.lo,hi:_dMA.hi,z:[[_dMA.lo,REG,'t'],[REG,_dMA.hi,'r']],v:b.vix1m_ma30,tip:'30-day VIX average — high-vol regime reduces short-vol size'};
-  const sSpk =_spkDay?{lo:0,hi:1,z:[[0,0.5,'r'],[0.5,1,'t']],v:b.vix_fade?0.75:0.25,tip:'Intraday spike: faded vs sustained'}:{lo:0,hi:1,z:[[0,1,'n']],v:0.5,hatch:true,tip:'Only relevant on a spike day'};
-  const sVF  =b.neg_vol?{lo:0,hi:1,z:[[0,1,'r']],v:0.5,tip:'Negative carry active'}:{lo:0,hi:1,z:[[0,1,'n']],v:0.5,hatch:true,tip:'Relevant only when carry is negative'};
+  const gFull=(s)=>gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt||(v=>''),{nolab:s.nolab,hatch:s.hatch});
+  const sBB ={lo:_dBB.lo,hi:_dBB.hi,z:[[_dBB.lo,0,'r'],[0,_dBB.hi,'t']],v:b.bb_trend,fmt:v=>v.toFixed(2),tip:`BB-trend on log-SVXY · threshold 0 (short-vol regime needs trend ≥ 0, not falling) · now ${b.bb_trend!=null?b.bb_trend.toFixed(2):'—'}`};
+  const sGate={lo:_dV.lo,hi:_dV.hi,z:[[_dV.lo,CAP,'t'],[CAP,_dV.hi,'r']],v:b.vix1m,fmt:fN0,tip:`long-vol entry blocked if VIX1M ≥ ${CAP} (spike-chase cap) or MOVE/VIX ≤ 2 · now ${b.vix1m!=null?b.vix1m.toFixed(1):'—'}`};
+  const sSize={lo:_dMA.lo,hi:_dMA.hi,z:[[_dMA.lo,REG,'t'],[REG,_dMA.hi,'r']],v:b.vix1m_ma30,fmt:fN0,tip:`high-vol regime when 30-day VIX avg > ${REG} → SVXY size ×0.48 (UVXY always ×0.43) · now ${b.vix1m_ma30!=null?b.vix1m_ma30.toFixed(1):'—'}`};
+  const sSpk =_spkDay?{lo:0,hi:1,z:[[0,0.5,'r'],[0.5,1,'t']],v:b.vix_fade?0.75:0.25,nolab:true,tip:'on a ≥35% 1-day VIX spike — Sustained: spiked ≥8% above open AND closed near the high; Faded: spiked ≥8% but closed back near/below open'}:{lo:0,hi:1,z:[[0,1,'n']],v:0.5,hatch:true,tip:'only relevant on a spike day (≥35% 1-day VIX move)'};
+  const sVF  =b.neg_vol?{lo:0,hi:1,z:[[0,1,'r']],v:0.5,nolab:true,tip:'negative vol carry: OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end → long-vol'}:{lo:0,hi:1,z:[[0,1,'n']],v:0.5,hatch:true,tip:'relevant only when carry is negative (OBV divergence)'};
   const compHtml=(arr)=>arr.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
     +`<td><div class="cur-cell"><span class="cur-val">${r[4]}</span><span class="cur-bar">${r[5]||''}</span></div></td>`
     +`<td><span style="color:var(--dim);font-size:0.72rem">${r[6]}</span></td></tr>`).join('');
   const _gated=(b.mv_lo||(b.vix1m!=null&&b.vix1m>=CAP));
   const compEntry=[
-    ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — the regime confirmation for a short-vol entry','Uptrend confirms SVXY','Downtrend blocks SVXY',
+    ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — short-vol regime confirmation; needs trend ≥ 0 (not falling through zero)','Trend ≥ 0 confirms SVXY','Trend < 0 blocks SVXY',
       b.bb_buy?'<span style="color:var(--teal)">Uptrend</span>':'<span style="color:var(--coral)">Downtrend</span>', gFull(sBB),'Entry'],
-    ['Spike character','On a spike day, whether VIX faded intraday or held into the close (from OHLC)','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
+    ['Spike character','On a ≥35% 1-day VIX spike, whether it faded or held into the close: Sustained = spiked ≥8% above open & closed near high; Faded = spiked ≥8% but closed back','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
       _spkDay?(b.vix_fade?'<span style="color:var(--teal)">Faded</span>':'<span style="color:var(--coral)">Sustained</span>'):_na, gFull(sSpk),'Entry'],
-    ['Vol-follow carry','Negative roll yield with a bearish front end — an independent long-vol entry path','—','Active → UVXY entry path',
+    ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end — an independent long-vol entry path','—','Active → UVXY entry path',
       b.neg_vol?'<span style="color:var(--coral)">Active</span>':_na, gFull(sVF),'Entry'],
-    ['UVXY entry gates','Long-vol entry is blocked when MOVE/VIX is low or VIX1M is above the spike-chase cap','—','Clear → UVXY entry allowed',
+    ['UVXY entry gates','Long-vol entry is blocked when MOVE/VIX ≤ 2 or VIX1M ≥ 45.9 (the spike-chase cap), unless the spike held intraday','—','Clear → UVXY entry allowed',
       _gated?'<span style="color:var(--coral)">Blocked</span>':'<span style="color:var(--teal)">Clear</span>', gFull(sGate),'Gate'],
   ];
   const compSize=[
-    ['Position sizing','Short-vol size is cut in a high-vol regime (elevated 30-day VIX average); long-vol is always sized smaller than short-vol','Normal → full SVXY size','High-vol → reduced SVXY size',
+    ['Position sizing','Short-vol size is cut to ×0.48 in a high-vol regime (30-day VIX average > 31.3); long-vol is always sized ×0.43','Normal → full SVXY size','High-vol → SVXY ×0.48',
       b.high_vol_regime?'<span style="color:var(--coral)">High-vol</span>':'<span style="color:var(--teal)">Normal</span>', gFull(sSize),'Sizing'],
   ];
   const sizeDivider='<tr class="sig-divider"><td colspan="6">Position Sizing - scales the trade rather than triggering it</td></tr>';
@@ -2320,23 +2320,23 @@ function renderSignalMonitor(histBar){
       const col=k==='sv'?'var(--teal)':k==='uv'?'var(--coral)':'var(--cashc)';
       return `<span style="color:${labCol}">${lab}</span> <span style="color:${col}">${txt}</span>`;};
     // help tooltips: full indicator name + description, per the detailed monitor
-    const eTip=rows.map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n')+'\n'+stripTags(overrideRows[0][0])+': '+_ds(overrideRows[0][1]);
+    const _ms=(t,c)=>`<span style="color:${c}">${t}</span>`;
+    // Entry group includes the additional entry components (same grouping as the full monitor).
+    const eTip=[...rows,overrideRows[0],...compEntry].map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
     const xTip=exitRules.map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
+    const zTip=compSize.map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
     const help=t=>`<span class="mini-help" title="${(''+t).replace(/"/g,'&quot;')}">&#9432;</span>`;
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj,'var(--white)')}</div>`;
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5]), inPos));
     mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
-    mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
-    exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
-    // Additional active components — compact rows with bars (thresholds hidden)
-    const _ms=(t,c)=>`<span style="color:${c}">${t}</span>`;
-    const xtraTip='Additional inputs to the entry/exit/hold decision:\n'+[...compEntry,...compSize].map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
-    mh+=`<div class="mini-sub">More components ${help(xtraTip)}</div>`;
     mh+=mRow('BB-Trend', sBB, b.bb_buy?_ms('Up','var(--teal)'):_ms('Down','var(--coral)'), '', false);
     mh+=mRow('Spike char.', sSpk, _spkDay?(b.vix_fade?_ms('Fade','var(--teal)'):_ms('Sust','var(--coral)')):_ms('N/A','var(--namut)'), '', false);
     mh+=mRow('Vol-follow', sVF, b.neg_vol?_ms('Active','var(--coral)'):_ms('N/A','var(--namut)'), '', false);
     mh+=mRow('UVXY gate', sGate, _gated?_ms('Block','var(--coral)'):_ms('Clear','var(--teal)'), '', false);
+    mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
+    exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
+    mh+=`<div class="mini-sub">Position sizing ${help(zTip)}</div>`;
     mh+=mRow('Sizing', sSize, b.high_vol_regime?_ms('High','var(--coral)'):_ms('Norm','var(--teal)'), '', false);
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
     document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh;
