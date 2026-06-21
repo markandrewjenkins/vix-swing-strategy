@@ -513,7 +513,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 </div>
 
 <!-- ══ LIVE MARKET STRIP ═══════════════════════════════════════════════════ -->
-<div id="live-strip" title="Live market readings. Signals finalize ~7pm ET each day (once the daily data is in); trades execute the next market open. Intraday values are indicative only.">
+<div id="live-strip" title="Live market readings. Signals finalize ~7pm ET each day (once the daily data is in); trades execute the same day in after-hours (~7-8pm ET). Intraday values are indicative only.">
   <div class="live-main">
     <div class="live-pos-block">
       <span class="live-pos-lbl">Current Position</span>
@@ -2229,19 +2229,19 @@ function renderSignalMonitor(histBar){
         `<div class="sig-proj-row1">`
       +   `<div><span class="lbl">Position</span>${chip(posInstr(curPos))}</div>`
       +   `<div class="sig-proj-arrow">&rarr;</div>`
-      +   `<div><span class="lbl lbl-proj">Next open</span>${chip(proj)}</div>`
+      +   `<div><span class="lbl lbl-proj">Same-day AH</span>${chip(proj)}</div>`
       +   `</div>`
       + entryMix + exitMix
-      + `<div class="sig-proj-note">Actual signals <b>as of ${b.date}</b> (hovered bar): position held that day and what the strategy did at the next open. Move off the chart to return to live/today.</div>`;
+      + `<div class="sig-proj-note">Actual signals <b>as of ${b.date}</b> (hovered bar): position held that day and what the strategy did in that day's after-hours. Move off the chart to return to live/today.</div>`;
   } else {
     const off = (L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
     const _clk = `<span class="sig-info" style="color:var(--teal)">&#9201;</span>`;
-    const note = `Signals finalize once the CBOE end-of-day VIX term structure posts (~<b>5:30pm&nbsp;ET</b>) and the day's close is confirmed; the decision locks in by ~<b>7pm&nbsp;ET</b> and trades at the next market open. If a position is open, it is evaluated against the <b>exit</b> indicators. If any of the 7 exit indicators are triggered, the position will be closed at the next open. Hover over the ${_clk} to the right of the Current values for its refresh timing, and hover over the bar to the right of the ${_clk} to view more details on the current value of the indicator and its positioning against the entry / exit criteria.`;
+    const note = `Signals finalize once the CBOE end-of-day VIX term structure posts (~<b>5:30pm&nbsp;ET</b>) and the day's close is confirmed; the decision locks in by ~<b>7pm&nbsp;ET</b> and trades the <b>same day in after-hours</b> (~7-8pm&nbsp;ET, ≈ the regular-session close). If a position is open, it is evaluated against the <b>exit</b> indicators. If any of the 7 exit indicators are triggered, the position is closed the same evening. Hover over the ${_clk} to the right of the Current values for its refresh timing, and hover over the bar to the right of the ${_clk} to view more details on the current value of the indicator and its positioning against the entry / exit criteria.`;
     html =
         `<div class="sig-proj-row1">`
       +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
       +   `<div class="sig-proj-arrow">&rarr;</div>`
-      +   `<div><span class="lbl lbl-proj">Projected (next open)</span>${chip(proj)}${ovr}</div>`
+      +   `<div><span class="lbl lbl-proj">Projected (same-day AH)</span>${chip(proj)}${ovr}</div>`
       +   `</div>`
       + entryMix + exitMix
       + `<div class="sig-proj-note">${note}</div>`;
