@@ -461,6 +461,12 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-proj .sig-proj-note { color:var(--dim); font-size:0.74rem; }
 .sig-proj .sig-proj-tally { color:var(--dim); font-size:0.72rem; margin-top:3px; }
 .sig-proj .vt-sv { color:var(--teal); font-weight:700; } .sig-proj .vt-uv { color:var(--coral); font-weight:700; } .sig-proj .vt-neu { color:var(--dim); font-weight:700; }
+.sig-logic { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; font-size:0.8rem; margin-top:5px; padding-top:5px; border-top:1px solid var(--border); }
+.sig-logic .lbl { color:var(--dim); margin-right:6px; }
+.sig-logic .lg-track { white-space:nowrap; letter-spacing:1px; }
+.sig-logic .lg-track b { letter-spacing:0; }
+.sig-logic-why { font-size:0.74rem; color:var(--dim); margin:2px 0 1px; }
+.mini-combo { font-size:0.55rem; color:var(--dim); letter-spacing:0.5px; margin:3px 0 1px; white-space:nowrap; }
 .sig-proj-row1 { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 11px; font-size:0.95rem; margin-bottom:3px; }
 .sig-proj-row2 { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 30px; font-size:0.8rem; margin-bottom:4px; }
 .sig-proj-row1 > div, .sig-proj-row2 > div { white-space:nowrap; }
@@ -2222,6 +2228,28 @@ function renderSignalMonitor(histBar){
   const exitMix = `<div class="sig-proj-mixline" style="margin-bottom:7px"><span class="lbl">Exit indicator mix</span>`
     + `<b style="color:var(--teal)">${exHold} hold</b>${DOT}<b style="color:var(--coral)">${exExit} exit</b>`
     + `${DOT}<span class="sig-rf">(${exRefreshed}/${nExit} refreshed)</span></div>`;
+  // ── Decision-logic readout: how the individual signals COMBINE into a trade ──
+  // Short-vol (SVXY) needs ALL 6 entry signals aligned; long-vol (UVXY) needs the
+  // full 4-signal bear regime; spike/crush is a standalone override. This shows how
+  // close each side is and why contrary single signals don't flip the decision.
+  const _pips=(n,tot,col)=>{let s='';for(let k=0;k<tot;k++)s+=`<span style="color:${k<n?col:'var(--border2)'}">&#9679;</span>`;return s;};
+  const svxy6 = core.filter(v=>v==='SVXY').length + (b.bb_buy?1:0);     // /6 (5 term-structure + BB-Trend)
+  const uvxy4 = [1,2,3,4].filter(i=>core[i]==='UVXY').length;           // /4 bear regime: VDelta,VIX9D,VIX1M,ratio
+  // Explain the ACTUAL decision (proj), so the readout never contradicts the result.
+  const _pk = kindOf(proj);
+  let _why;
+  if(inPos){
+    if(_pk==='cash') _why = `holding ${isUV?'long vol':'short vol'} &rarr; <b style="color:var(--cashc)">exit</b> &mdash; an exit indicator fired`;
+    else _why = `<b style="color:${isUV?'var(--coral)':'var(--teal)'}">holding ${isUV?'long vol':'short vol'}</b> &mdash; no exit triggered; entry signals don't apply while in a position`;
+  } else if(_pk==='sv') _why = svxy6===6 ? `all 6 short-vol signals aligned &rarr; <b style="color:var(--teal)">SVXY</b>` : `spike-fade entry &rarr; <b style="color:var(--teal)">SVXY</b> (buy the vol dip)`;
+  else if(_pk==='uv') _why = crush ? `<b style="color:var(--coral)">crush override</b> &rarr; UVXY` : (uvxy4===4 ? `full bear regime (4/4) &rarr; <b style="color:var(--coral)">UVXY</b>` : `bear / vol-follow path &rarr; <b style="color:var(--coral)">UVXY</b>`);
+  else _why = `neither side is complete &rarr; <b style="color:var(--cashc)">stay / cash</b> &mdash; contrary single signals don't flip the trade; a side must hit its <i>full</i> set`;
+  const decisionLogic =
+      `<div class="sig-logic"><span class="lbl">How it combines</span>`
+    + `<span class="lg-track">Short-vol ${_pips(svxy6,6,'var(--teal)')} <b>${svxy6}/6</b></span>`
+    + `${DOT}<span class="lg-track">Long-vol ${_pips(uvxy4,4,'var(--coral)')} <b>${uvxy4}/4</b></span>`
+    + `${DOT}<span class="lg-track">Override <b style="color:${spike?'var(--teal)':crush?'var(--coral)':'var(--namut)'}">${spike?'SPIKE':crush?'CRUSH':'none'}</b></span></div>`
+    + `<div class="sig-logic-why">${_why}</div>`;
   const lastTxt = (L&&L.generated_utc)?toEtClock(L.generated_utc)+' ET':(hist?b.date:'—');
   let html;
   if(hist){
@@ -2231,7 +2259,7 @@ function renderSignalMonitor(histBar){
       +   `<div class="sig-proj-arrow">&rarr;</div>`
       +   `<div><span class="lbl lbl-proj">Same-day AH</span>${chip(proj)}</div>`
       +   `</div>`
-      + entryMix + exitMix
+      + entryMix + exitMix + decisionLogic
       + `<div class="sig-proj-note">Actual signals <b>as of ${b.date}</b> (hovered bar): position held that day and what the strategy did in that day's after-hours. Move off the chart to return to live/today.</div>`;
   } else {
     const off = (L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
@@ -2243,7 +2271,7 @@ function renderSignalMonitor(histBar){
       +   `<div class="sig-proj-arrow">&rarr;</div>`
       +   `<div><span class="lbl lbl-proj">Projected (same-day AH)</span>${chip(proj)}${ovr}</div>`
       +   `</div>`
-      + entryMix + exitMix
+      + entryMix + exitMix + decisionLogic
       + `<div class="sig-proj-note">${note}</div>`;
   }
   const projEl=document.getElementById('sig-proj'); if(projEl) projEl.innerHTML=html;
@@ -2336,6 +2364,11 @@ function renderSignalMonitor(histBar){
     const zTip=compSize.map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
     const help=t=>`<span class="mini-help" title="${(''+t).replace(/"/g,'&quot;')}">&#9432;</span>`;
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj,'var(--white)')}</div>`;
+    // compact combination readout: short-vol needs 6/6, long-vol 4/4, or an override
+    const _cwhy = inPos ? (kindOf(proj)==='cash'?_ms('exit','var(--cashc)'):_ms('hold','var(--dim)'))
+      : (kindOf(proj)==='sv'?_ms('&rarr;SV','var(--teal)'):kindOf(proj)==='uv'?_ms('&rarr;LV','var(--coral)'):_ms('&rarr;cash','var(--cashc)'));
+    const _cmboTip='How a trade forms: short-vol (SVXY) needs all 6 entry signals aligned; long-vol (UVXY) needs the full 4-signal bear regime; spike/crush is a standalone override. Contrary single signals do not flip the trade.';
+    mh+=`<div class="mini-combo">${help(_cmboTip)} SV ${_pips(svxy6,6,'var(--teal)')} ${svxy6}/6 &nbsp; LV ${_pips(uvxy4,4,'var(--coral)')} ${uvxy4}/4 &nbsp; ${_cwhy}</div>`;
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5]), inPos));
     mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
