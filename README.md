@@ -32,9 +32,9 @@ those stay in the private project.
 - **VIX9D / VIX3M / VIX6M / VIX1Y term structure:** CBOE **end-of-day** CSVs
   (no free intraday feed), so the curve updates after the close.
 - **The strategy's official position:** signals finalize **~7pm ET** each day
-  (once the daily term-structure data is in), and trades **execute the next
-  market open** — no intraday repaint. The live strip's derived readings are
-  labelled indicative.
+  (once the daily term-structure data is in), and trades **execute the same day
+  in after-hours** (~7–8pm ET, ≈ the regular-session close) — fully causal, no
+  intraday repaint. The live strip's derived readings are labelled indicative.
 - **GitHub cron is best-effort** — runs are routinely delayed 5–15 min. The page
   also self-polls `live_status.json` every 60 s while open, so an open tab stays
   as fresh as the latest committed update.
@@ -87,11 +87,12 @@ refresh the displayed history after a strategy change, regenerate it in the
 private project and copy it over:
 
 ```bash
-# in the private project
+# in the private project root ("VIX Swing Strategy"), which now NESTS this repo
 python backtest.py --start 2011-11-30 --params best_params.json
-cp backtest_results.json "../vix-swing-strategy/backtest_results.json"
+cp backtest_results.json "vix-swing-strategy/backtest_results.json"
 
-# in this repo
+# in this repo (the nested public folder)
+cd vix-swing-strategy
 git add backtest_results.json && git commit -m "Refresh backtest results" && git push
 ```
 
