@@ -428,6 +428,17 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .cur-cell .cur-bar { flex:none; }
 .cur-cell .sig-info { margin-left:0; }
 #candle-chart { position:relative; }
+/* Bar Replay control bar (TradingView-style playback). */
+#replay-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:9px; font-size:0.72rem; }
+.rp-btn { background:rgba(20,17,11,0.88); color:var(--yellow); border:1px solid var(--border2); border-radius:11px;
+  padding:4px 11px; font-family:'Saira',sans-serif; font-size:0.72rem; letter-spacing:0.02em; cursor:pointer; transition:background .15s,border-color .15s; }
+.rp-btn:hover { background:rgba(240,152,47,0.16); border-color:var(--yellow); }
+.rp-main { font-weight:600; }
+.rp-main.on { background:rgba(240,152,47,0.18); border-color:var(--yellow); }
+.rp-exit:hover { background:rgba(242,86,58,0.18); border-color:var(--coral); color:var(--coral); }
+.rp-lab { color:var(--dim); display:inline-flex; align-items:center; gap:5px; }
+.rp-date { background:#14110b; color:var(--cdbf,#cdbf95); border:1px solid var(--border2); border-radius:8px; padding:3px 6px; font-family:'Saira',sans-serif; font-size:0.7rem; color-scheme:dark; }
+#replay-status { color:var(--dim); font-variant-numeric:tabular-nums; }
 /* Hover: a very small, faint halo that follows the cursor. */
 .cdl-glow { position:absolute; width:110px; height:110px; transform:translate(-50%,-50%); border-radius:50%;
   pointer-events:none; opacity:0; transition:opacity .2s ease; z-index:5;
@@ -588,6 +599,24 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         </div>
       </div>
       <div class="pb">
+        <div id="replay-bar">
+          <button id="replay-toggle" class="rp-btn rp-main" onclick="replayEnter()">&#9654; Bar Replay</button>
+          <span id="replay-controls" style="display:none;flex-wrap:wrap;gap:7px;align-items:center">
+            <label class="rp-lab">From <input type="date" id="replay-date" class="rp-date"></label>
+            <button class="rp-btn" title="Start / restart from date" onclick="Replay.start(document.getElementById('replay-date').value)">&#9198; Start</button>
+            <button class="rp-btn" title="Step back" onclick="Replay.step(-1)">&#9194;</button>
+            <button id="replay-play" class="rp-btn" title="Play / pause" onclick="Replay.toggle()">&#9654;</button>
+            <button class="rp-btn" title="Step forward" onclick="Replay.step(1)">&#9193;</button>
+            <label class="rp-lab">Speed
+              <select id="replay-speed" class="rp-date" onchange="Replay.setSpeed(+this.value)">
+                <option value="0.5">0.5&times;</option><option value="1" selected>1&times;</option>
+                <option value="2">2&times;</option><option value="4">4&times;</option><option value="8">8&times;</option>
+              </select>
+            </label>
+            <button class="rp-btn rp-exit" title="Exit replay" onclick="Replay.stop()">&#10005; Exit</button>
+            <span id="replay-status"></span>
+          </span>
+        </div>
         <div id="cdl-info" class="cdl-info">Hover the chart for details</div>
         <div style="position:relative;width:100%;height:620px">
           <div id="candle-chart" style="width:100%;height:100%"></div>
@@ -617,6 +646,20 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
   <div id="tab-analytics" style="display:none">
     <div class="kpi-grid" id="kpi-strip"></div>
 
+    <!-- Daily mark-to-market: every trading day, cumulative P&L + daily % change.
+         Lightweight-Charts (zoom/pan, crosshair, markers) like the live chart. -->
+    <div class="panel" style="margin-top:12px">
+      <div class="ph"><span>Daily P&amp;L (mark-to-market)</span></div>
+      <div class="pb">
+        <div id="daily-info" class="cdl-info">Hover the chart for daily P&amp;L</div>
+        <div style="position:relative;width:100%;height:360px">
+          <div id="daily-lock" style="position:absolute;top:8px;left:10px;z-index:6;display:none;background:rgba(20,17,11,0.9);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-size:0.66rem;letter-spacing:0.02em;pointer-events:none"></div>
+          <div id="daily-lc" style="position:relative;width:100%;height:100%"></div>
+          <button id="daily-toend" title="Jump to latest" onclick="dailyToEnd()" style="position:absolute;bottom:40px;right:78px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Combined equity + position chart -->
     <div class="panel" style="margin-top:12px">
       <div class="ph">
@@ -625,19 +668,6 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       </div>
       <div class="pb" style="position:relative;height:320px">
         <canvas id="eqChart"></canvas>
-      </div>
-    </div>
-
-    <!-- Daily mark-to-market: every trading day, cumulative P&L + daily % change.
-         Lightweight-Charts (zoom/pan, crosshair, markers) like the live chart. -->
-    <div class="panel" style="margin-top:12px">
-      <div class="ph"><span>Daily P&amp;L (mark-to-market)</span></div>
-      <div class="pb">
-        <div id="daily-info" class="cdl-info">Hover the chart for daily P&amp;L</div>
-        <div style="position:relative;width:100%;height:360px">
-          <div id="daily-lc" style="width:100%;height:100%"></div>
-          <button id="daily-toend" title="Jump to latest" onclick="dailyToEnd()" style="position:absolute;bottom:40px;right:78px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
-        </div>
       </div>
     </div>
 
@@ -932,8 +962,15 @@ function setInstr(m){
   const r=document.getElementById('instr-real'), a=document.getElementById('instr-alt');
   if(r) r.classList.toggle('active', m==='real');
   if(a) a.classList.toggle('active', m==='alt');
+  // Preserve the Daily P&L zoom across the toggle: applyChartMode's summaryToEnd
+  // pushes the candle chart's default view onto the daily chart via the sync, so
+  // grab the daily range NOW and let buildDaily restore it after the rebuild.
+  if(typeof dailyChart!=='undefined' && dailyChart){ try{_dailyPendRange=dailyChart.timeScale().getVisibleLogicalRange();}catch(_){_dailyPendRange=null;} }
+  _suppressSync=true;                                        // hold off candle<->daily cross-fire during rebuild
   if(typeof applyChartMode==='function') applyChartMode();   // live chart
   rerenderActive();                                          // P&L Summary / Trades / Monthly / labels
+  // release the sync after the async range events from the rebuild have flushed
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ _suppressSync=false; _dailyPendRange=null; }));
 }
 
 // ── Chart helpers ─────────────────────────────────────────────────────────
@@ -1700,6 +1737,8 @@ function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!
 //    crosshair, $/% tooltips, entry/exit markers, drawdown, "Latest" button. ──
 let dailyChart=null, dailySeries=null, _dailyDates=null, _dailyMap=null;
 let _chartSyncing=false;   // guard so paired charts don't ping-pong
+let _suppressSync=false;   // hard-disable candle<->daily sync (e.g. across a toggle rebuild)
+let _dailyPendRange=null;  // daily view captured pre-toggle so the rebuild keeps it
 function dailyToEnd(){ if(!dailyChart||!_dailyDates) return; const N=_dailyDates.length,BARS=Math.min(N,90),FUT=6;
   try{ dailyChart.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} }
 function buildDaily(){
@@ -1710,42 +1749,68 @@ function buildDaily(){
   const data=ec.map(b=>({time:b.date,value:+(+b.equity).toFixed(2)}));
   // open-position P&L per day (underlying trade mark-to-market) for the status bar
   const _op={}; (DATA.bar_history||[]).forEach(b=>{ _op[b.date]=b.open_pnl_pct; });
+  const _pb=(typeof POSBYDATE!=='undefined'&&POSBYDATE)?POSBYDATE:{};
   _dailyDates=ec.map(b=>b.date); _dailyMap={};
-  ec.forEach((b,i)=>{ const prev=i>0?ec[i-1].equity:sc;
-    _dailyMap[b.date]={eq:b.equity,cum:b.equity/sc-1,day:prev?b.equity/prev-1:0,dd:(b.drawdown||0),pos:_op[b.date]}; });
+  ec.forEach((b,i)=>{ const prev=i>0?ec[i-1].equity:sc; const held=_pb[b.date]&&_pb[b.date]!=='CASH';
+    _dailyMap[b.date]={eq:b.equity,cum:b.equity/sc-1,day:prev?b.equity/prev-1:0,dd:(b.drawdown||0),pos:_op[b.date],held:held}; });
   // markers: entries WHITE, exits teal/red by P&L; SVXY above the line, UVXY below
   const WHITE='#fdf4d6'; const mk=[];
   aTrades().forEach(t=>{ const sv=tIsSV(t), win=tRet(t)>0, posn=sv?'aboveBar':'belowBar', shp=sv?'arrowDown':'arrowUp';
     mk.push({time:t.entry_date,position:posn,color:WHITE,shape:shp,text:(sv?svN():uvN())});
     mk.push({time:t.exit_date, position:posn,color:win?TEAL:CORAL,shape:shp,text:(tRet(t)>=0?'+':'')+(tRet(t)*100).toFixed(1)+'%'}); });
   mk.sort((a,b)=>a.time<b.time?-1:1);
-  if(dailyChart){ try{dailyChart.remove();}catch(_){} dailyChart=null; }
+  // preserve the current view across rebuilds (toggle / tab-switch) instead of snapping back
+  let _keepRange=_dailyPendRange||null; if(dailyChart){ if(!_keepRange){ try{_keepRange=dailyChart.timeScale().getVisibleLogicalRange();}catch(_){} } try{dailyChart.remove();}catch(_){} dailyChart=null; }
   dailyChart=LC.createChart(el,{ width:el.clientWidth||900, height:el.clientHeight||360,
     layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
-    rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.26}},
+    rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.10}},
+    leftPriceScale:{visible:true,borderColor:'#443714',scaleMargins:{top:0.06,bottom:0.06}},
     timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.3},
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
-  dailySeries=dailyChart.addAreaSeries({lineColor:YELLOW,topColor:'rgba(232,185,79,0.25)',bottomColor:'rgba(232,185,79,0.01)',lineWidth:2,
+  dailySeries=dailyChart.addAreaSeries({lineColor:YELLOW,topColor:'rgba(232,185,79,0.25)',bottomColor:'rgba(232,185,79,0.01)',lineWidth:2,priceScaleId:'right',
     priceLineVisible:true,priceLineColor:'#cdbf95',priceLineWidth:1,priceLineStyle:2,
     priceFormat:{type:'custom',formatter:v=>'$'+abbrev(v)}});
   dailySeries.setData(data); dailySeries.setMarkers(mk);
-  // drawdown histogram in a bottom band (like the equity chart above)
-  const ddS=dailyChart.addHistogramSeries({priceScaleId:'dd',color:'rgba(242,86,58,0.30)',base:0,priceLineVisible:false,lastValueVisible:false});
+  // drawdown histogram on its own left % axis — hangs down from 0% like the equity chart
+  const ddS=dailyChart.addHistogramSeries({priceScaleId:'left',color:'rgba(242,86,58,0.32)',base:0,priceLineVisible:false,lastValueVisible:false,
+    priceFormat:{type:'custom',formatter:v=>Math.round(v)+'%'}});
   ddS.setData(ec.map(b=>({time:b.date,value:+(b.drawdown||0).toFixed(2)})));
-  dailyChart.priceScale('dd').applyOptions({scaleMargins:{top:0.80,bottom:0}});
   const info=document.getElementById('daily-info');
-  const fmt=d=>{const m=_dailyMap[d]; if(!m) return ''; const dc=m.day>=0?'var(--teal)':'var(--coral)',cc=m.cum>=0?'var(--teal)':'var(--coral)';
-    const posTxt=(m.pos!=null&&m.pos!==0)?`<b style="color:${m.pos>=0?'var(--teal)':'var(--coral)'}">${(m.pos>=0?'+':'')+(m.pos*100).toFixed(1)}%</b>`:'<b style="color:var(--cashc)">flat</b>';
-    return `<b>${d}</b> &nbsp; total <b style="color:${cc}">${(m.cum*100).toFixed(1)}%</b> &nbsp; position ${posTxt} &nbsp; day <b style="color:${dc}">${(m.day>=0?'+':'')+(m.day*100).toFixed(2)}%</b> &nbsp; DD <b style="color:var(--coral)">${m.dd.toFixed(1)}%</b> &nbsp; equity $${abbrev(m.eq)}`;};
-  if(info) dailyChart.subscribeCrosshairMove(p=>{ if(p&&p.time&&_dailyMap[p.time]) info.innerHTML=fmt(p.time); });
+  const fmt=d=>{const m=_dailyMap[d]; if(!m) return ''; const cc=m.cum>=0?'var(--teal)':'var(--coral)';
+    const na='<b style="color:var(--namut)">N/A</b>';
+    const posTxt=m.held?`<b style="color:${m.pos>=0?'var(--teal)':'var(--coral)'}">${(m.pos>=0?'+':'')+(m.pos*100).toFixed(1)}%</b>`:na;
+    const dayTxt=m.held?`<b style="color:${m.day>=0?'var(--teal)':'var(--coral)'}">${(m.day>=0?'+':'')+(m.day*100).toFixed(2)}%</b>`:na;
+    return `<b>${d}</b> &nbsp; total <b style="color:${cc}">${(m.cum*100).toFixed(1)}%</b> &nbsp; position ${posTxt} &nbsp; day ${dayTxt} &nbsp; DD <b style="color:var(--coral)">${m.dd.toFixed(1)}%</b> &nbsp; equity $${abbrev(m.eq)}`;};
+  // crosshair freezes when a bar is pinned; lock snaps it to that bar's equity
+  const _dLockX=()=>{ const t=window._dailyPinned; if(t==null) return; const m=_dailyMap[t];
+    if(m){ try{ dailyChart.setCrosshairPosition(m.eq, t, dailySeries); }catch(_){} } };
+  if(info) dailyChart.subscribeCrosshairMove(p=>{ if(window._dailyPinned!=null){ _dLockX(); return; }
+    if(p&&p.time&&_dailyMap[p.time]) info.innerHTML=fmt(p.time); });
+  // left-click pins (readout freeze + crosshair snap + ripple) until right-click clears
+  const _dLock=document.getElementById('daily-lock');
+  const _dPin=t=>{ if(t==null||!_dailyMap[t]) return; window._dailyPinned=t;
+    try{ dailyChart.setCrosshairPosition(_dailyMap[t].eq,t,dailySeries); }catch(_){}
+    info.innerHTML=fmt(t); el.classList.add('cdl-pinned');
+    if(_dLock){ _dLock.innerHTML='&#128274; Locked on <b>'+t+'</b> — right-click the chart to unlock'; _dLock.style.display=''; }
+    if(el._ripple) el._ripple(); };
+  dailyChart.subscribeClick(p=>{ if(p&&p.time) _dPin(p.time); });
+  if(!el._ctxBound){ el.addEventListener('contextmenu',e=>{ e.preventDefault(); window._dailyPinned=null; el.classList.remove('cdl-pinned'); if(_dLock)_dLock.style.display='none'; try{dailyChart.clearCrosshairPosition();}catch(_){} }); el._ctxBound=true; }
+  // cursor flair: halo follows the mouse; each click spawns its own brighter ripple
+  if(!el._glowBound){ const glow=document.createElement('div'); glow.className='cdl-glow'; el.appendChild(glow); el._glow=glow;
+    el.addEventListener('mousemove',e=>{ const r=el.getBoundingClientRect(); el._cx=e.clientX-r.left; el._cy=e.clientY-r.top; glow.style.left=el._cx+'px'; glow.style.top=el._cy+'px'; glow.style.opacity='1'; });
+    el.addEventListener('mouseleave',()=>{ glow.style.opacity='0'; });
+    el._ripple=()=>{ if(el._cx==null) return; const rp=document.createElement('div'); rp.className='cdl-ripple'; rp.style.left=el._cx+'px'; rp.style.top=el._cy+'px'; el.appendChild(rp); rp.addEventListener('animationend',()=>rp.remove()); };
+    el._glowBound=true; }
   dailyChart.timeScale().subscribeVisibleLogicalRangeChange(()=>{ const btn=document.getElementById('daily-toend'); if(btn){
     try{const vr=dailyChart.timeScale().getVisibleLogicalRange(); btn.style.display=(vr&&vr.to<_dailyDates.length-1)?'block':'none';}catch(_){} } });
   // sync zoom/scroll with the live candle chart (by time, since datasets differ)
-  dailyChart.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(_chartSyncing||!rng||!sumMain) return;
+  dailyChart.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(_chartSyncing||_suppressSync||!rng||!sumMain) return;
     _chartSyncing=true; try{ sumMain.timeScale().setVisibleRange(rng); }catch(_){} _chartSyncing=false; });
-  dailyChart.timeScale().fitContent();
+  if(_keepRange){ try{dailyChart.timeScale().setVisibleLogicalRange(_keepRange);}catch(_){ dailyChart.timeScale().fitContent(); } }
+  else dailyChart.timeScale().fitContent();
 }
+function replayEnter(){ if(window.Replay&&window.Replay.enter) window.Replay.enter(); }
 function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : CASHC; }
 function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVXY' : 'CASH'; }
 
@@ -1806,7 +1871,7 @@ function renderSummary(){
   let _sync=false;
   sumMain.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(r&&!_sync){_sync=true;try{sumPos.timeScale().setVisibleLogicalRange(r);}catch(_){} _sync=false;} _updateToEndBtn(); });
   // sync zoom/scroll to the Daily P&L chart (by time, datasets differ)
-  sumMain.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(_chartSyncing||!rng||!dailyChart) return;
+  sumMain.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(_chartSyncing||_suppressSync||!rng||!dailyChart) return;
     _chartSyncing=true; try{ dailyChart.timeScale().setVisibleRange(rng); }catch(_){} _chartSyncing=false; });
   summaryToEnd();
 
@@ -1894,6 +1959,50 @@ function renderSummary(){
     el.addEventListener('mouseleave',()=>{ glow.style.opacity='0'; });
     el._ripple=()=>{ if(el._cx==null) return; const rp=document.createElement('div'); rp.className='cdl-ripple'; rp.style.left=el._cx+'px'; rp.style.top=el._cy+'px'; el.appendChild(rp); rp.addEventListener('animationend',()=>rp.remove()); };
     el._glowBound=true; }
+
+  // ── Bar Replay (TradingView-style) ───────────────────────────────────────
+  // Reveals bars one at a time from a chosen start date, driving the chart,
+  // position band, detail readout, Signal Monitor and mini-monitor in lock-step.
+  if(window._replayTimer){ clearInterval(window._replayTimer); window._replayTimer=null; }
+  (function(){
+    const fullC=CANDLES, fullM=markers, times=fullC.map(c=>c.time);
+    const posData=fullC.map(c=>({time:c.time,value:1,color:posColorOf(posByDate[c.time]||'CASH')}));
+    let idx=times.length-1, active=false, playing=false, speed=1;
+    const statusEl=document.getElementById('replay-status'), playBtn=document.getElementById('replay-play'),
+          ctrls=document.getElementById('replay-controls'), toggleBtn=document.getElementById('replay-toggle');
+    const idxOf=d=>{ if(!d) return 0; let lo=0; for(let i=0;i<times.length;i++){ if(times[i]<=d) lo=i; else break; } return lo; };
+    function paint(){
+      const cut=times[idx];
+      candleSeries.setData(fullC.slice(0,idx+1));
+      candleSeries.setMarkers(fullM.filter(m=>m.time<=cut));
+      posSeries.setData(posData.slice(0,idx+1));
+      try{ sumMain.timeScale().scrollToRealTime(); }catch(_){}
+      window._pinnedDate=cut; el.classList.add('cdl-pinned');
+      renderInfo(cut, OHLCBYTIME[cut]); monitorHover(cut);
+      if(statusEl) statusEl.textContent=(idx+1)+' / '+times.length+'  ·  '+cut;
+      if(playBtn) playBtn.innerHTML = playing ? '&#10073;&#10073;' : '&#9654;';
+    }
+    function tick(){ if(idx>=times.length-1){ pause(); return; } idx++; paint(); }
+    function play(){ if(!active) start(); if(playing) return; playing=true;
+      window._replayTimer=setInterval(tick, Math.max(80, 650/speed)); paint(); }
+    function pause(){ playing=false; if(window._replayTimer){ clearInterval(window._replayTimer); window._replayTimer=null; } if(playBtn) playBtn.innerHTML='&#9654;'; }
+    window.Replay={
+      enter(){ active=true; if(ctrls) ctrls.style.display='inline-flex'; if(toggleBtn) toggleBtn.classList.add('on');
+        const di=document.getElementById('replay-date');
+        if(di && !di.value){ di.min=times[0]; di.max=times[times.length-1]; di.value=times[Math.max(0,times.length-120)]; }
+        this.start(di?di.value:times[Math.max(0,times.length-120)]); },
+      start(d){ active=true; pause(); idx=idxOf(d); paint(); },
+      toggle(){ if(playing) pause(); else play(); },
+      play, pause,
+      step(n){ pause(); idx=Math.max(0,Math.min(times.length-1, idx+n)); paint(); },
+      setSpeed(s){ speed=s||1; if(playing){ pause(); play(); } },
+      stop(){ pause(); active=false; window._pinnedDate=null; el.classList.remove('cdl-pinned');
+        if(ctrls) ctrls.style.display='none'; if(toggleBtn) toggleBtn.classList.remove('on');
+        candleSeries.setData(fullC); candleSeries.setMarkers(fullM); posSeries.setData(posData);
+        try{ sumMain.clearCrosshairPosition(); }catch(_){} summaryToEnd();
+        renderInfo(null); monitorHover(null); }
+    };
+  })();
 
   if(!window._sumResize){ window.addEventListener('resize',()=>{
     if(sumMain&&el.clientWidth) sumMain.applyOptions({width:el.clientWidth});
