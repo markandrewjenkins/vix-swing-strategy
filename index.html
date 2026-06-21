@@ -626,14 +626,16 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       </div>
     </div>
 
-    <!-- Daily mark-to-market: every trading day, cumulative P&L + daily % change -->
+    <!-- Daily mark-to-market: every trading day, cumulative P&L + daily % change.
+         Lightweight-Charts (zoom/pan, crosshair, markers) like the live chart. -->
     <div class="panel" style="margin-top:0">
-      <div class="ph">
-        <span>Daily P&amp;L (mark-to-market)</span>
-        <div style="display:flex;gap:14px;align-items:center" id="daily-legend"></div>
-      </div>
-      <div class="pb" style="position:relative;height:300px">
-        <canvas id="dailyChart"></canvas>
+      <div class="ph"><span>Daily P&amp;L (mark-to-market)</span></div>
+      <div class="pb">
+        <div id="daily-info" class="cdl-info">Hover the chart for daily P&amp;L</div>
+        <div style="position:relative;width:100%;height:360px">
+          <div id="daily-lc" style="width:100%;height:100%"></div>
+          <button id="daily-toend" title="Jump to latest" onclick="dailyToEnd()" style="position:absolute;bottom:8px;right:12px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
+        </div>
       </div>
     </div>
 
@@ -917,6 +919,9 @@ const TABS=['summary','analytics','trades'];
 function switchTab(n){
   TABS.forEach(t=>{const el=document.getElementById('tab-'+t); if(el) el.style.display=t===n?'':'none';});
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABS[i]===n));
+  // The daily LC chart needs a non-zero container width, so (re)build it when the
+  // analytics tab actually becomes visible.
+  if(n==='analytics' && typeof buildDaily==='function') setTimeout(()=>{try{buildDaily();}catch(_){}},40);
 }
 // Global instrument toggle — switches the whole dashboard SVXY/UVXY <-> SVIX/UVIX
 function setInstr(m){
@@ -1047,29 +1052,8 @@ function renderAnalytics(){
   });
 
 
-  // Daily mark-to-market: every trading day (full resolution), cumulative equity
-  // (line, left $ axis) + daily % change (bars, right % axis). Unlike the chart
-  // above it is not downsampled and surfaces the per-day swings while in a position.
-  const ecD=aEq();
-  const dLabels=ecD.map(b=>b.date);
-  const dEq=ecD.map(b=>+(b.equity/1000).toFixed(2));
-  const dPct=ecD.map((b,i)=> (i>0 && ecD[i-1].equity) ? +((b.equity/ecD[i-1].equity-1)*100).toFixed(3) : 0);
-  const dPctCol=dPct.map(v=> v>=0 ? 'rgba(82,230,189,0.7)' : 'rgba(242,86,58,0.7)');
-  document.getElementById('daily-legend').innerHTML=legHtml([[YELLOW,'Cumulative P&L'],[TEAL,'Daily gain'],[CORAL,'Daily loss']]);
-  mkChart('dailyChart',{
-    data:{labels:dLabels,datasets:[
-      {type:'line',label:'Cumulative',data:dEq,borderColor:YELLOW,borderWidth:1.6,pointRadius:0,yAxisID:'y',tension:0,fill:false},
-      {type:'bar',label:'Daily %',data:dPct,backgroundColor:dPctCol,borderWidth:0,yAxisID:'y2',barPercentage:1,categoryPercentage:1},
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label==='Daily %'?' Day: '+(c.parsed.y>=0?'+':'')+c.parsed.y.toFixed(2)+'%':' P&L: $'+abbrev(c.parsed.y*1000)}}},
-      scales:{
-        x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:13,family:FONT}},grid:{color:GRID}},
-        y:{position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+abbrev(v*1000)},grid:{color:GRID}},
-        y2:{position:'right',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>(v>=0?'+':'')+v+'%'},grid:{display:false}},
-      }
-    }
-  });
+  // Daily mark-to-market chart (Lightweight-Charts) — built/refreshed via buildDaily().
+  buildDaily();
 
   // Profit structure
   const gP=aTrades().filter(t=>tRet(t)>0).reduce((a,t)=>a+tPnl(t),0);
@@ -1709,6 +1693,44 @@ function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMod
 // right third left blank for upcoming dates. Holds across the ETF toggle too.
 function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; const BARS=42, FUT=Math.round(BARS/4); try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
+
+// ── Daily P&L chart (Lightweight-Charts) — mirrors the live chart: zoom/pan,
+//    crosshair, $/% tooltips, entry/exit markers, "Latest" button. ──
+let dailyChart=null, _dailyDates=null, _dailyMap=null;
+function dailyToEnd(){ if(!dailyChart||!_dailyDates) return; const N=_dailyDates.length,BARS=Math.min(N,90),FUT=6;
+  try{ dailyChart.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} }
+function buildDaily(){
+  const LC=window.LightweightCharts, el=document.getElementById('daily-lc');
+  if(!LC||!el||typeof aEq!=='function') return;
+  const ec=aEq(); if(!ec||!ec.length) return;
+  const sc=DATA.meta.start_capital;
+  const data=ec.map(b=>({time:b.date,value:+(+b.equity).toFixed(2)}));
+  _dailyDates=ec.map(b=>b.date); _dailyMap={};
+  ec.forEach((b,i)=>{ const prev=i>0?ec[i-1].equity:sc; _dailyMap[b.date]={eq:b.equity,cum:b.equity/sc-1,day:prev?b.equity/prev-1:0}; });
+  const mk=[];
+  aTrades().forEach(t=>{ const sv=tIsSV(t);
+    mk.push({time:t.entry_date,position:'belowBar',color:sv?TEAL:CORAL,shape:'arrowUp',text:(sv?svN():uvN())});
+    mk.push({time:t.exit_date,position:'aboveBar',color:GRAY,shape:'arrowDown',text:'exit'}); });
+  mk.sort((a,b)=>a.time<b.time?-1:1);
+  if(dailyChart){ try{dailyChart.remove();}catch(_){} dailyChart=null; }
+  dailyChart=LC.createChart(el,{ width:el.clientWidth||900, height:el.clientHeight||360,
+    layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
+    grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
+    rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.12,bottom:0.10}},
+    timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.3},
+    crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
+  const series=dailyChart.addAreaSeries({lineColor:YELLOW,topColor:'rgba(232,185,79,0.25)',bottomColor:'rgba(232,185,79,0.01)',lineWidth:2,
+    priceLineVisible:true,priceLineColor:'#cdbf95',priceLineWidth:1,priceLineStyle:2,
+    priceFormat:{type:'custom',formatter:v=>'$'+abbrev(v)}});
+  series.setData(data); series.setMarkers(mk);
+  const info=document.getElementById('daily-info');
+  const fmt=d=>{const m=_dailyMap[d]; if(!m) return ''; const dc=m.day>=0?'var(--teal)':'var(--coral)',cc=m.cum>=0?'var(--teal)':'var(--coral)';
+    return `<b>${d}</b> &nbsp; P&amp;L <b>$${abbrev(m.eq-sc)}</b> &nbsp; total <b style="color:${cc}">${(m.cum*100).toFixed(1)}%</b> &nbsp; day <b style="color:${dc}">${(m.day>=0?'+':'')+(m.day*100).toFixed(2)}%</b> &nbsp; equity $${abbrev(m.eq)}`;};
+  if(info) dailyChart.subscribeCrosshairMove(p=>{ if(p&&p.time&&_dailyMap[p.time]) info.innerHTML=fmt(p.time); });
+  dailyChart.timeScale().subscribeVisibleLogicalRangeChange(()=>{ const btn=document.getElementById('daily-toend'); if(!btn) return;
+    try{const vr=dailyChart.timeScale().getVisibleLogicalRange(); btn.style.display=(vr&&vr.to<_dailyDates.length-1)?'block':'none';}catch(_){} });
+  dailyChart.timeScale().fitContent();
+}
 function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : CASHC; }
 function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVXY' : 'CASH'; }
 
