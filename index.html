@@ -1618,6 +1618,26 @@ function renderAltTrades(){
   </tr>`).join('');
 }
 
+// When the live feed is unavailable, don't zero the quotes — show the last settled
+// close we DO have (the backtest's final bar + the SVXY close), dulled to signal it
+// isn't live. Only fills cells that are currently blank so it never clobbers a quote.
+function _fallbackQuotes(){
+  // Prefer the last good feed cached in localStorage (covers every quote); fall back
+  // to the backtest's final bar for the VIX curve + SVXY close. Everything dulled.
+  let L=null; try{ L=JSON.parse(localStorage.getItem('lastLive')||'null'); }catch(_){}
+  const cv=(L&&L.market&&L.market.curve)||{}, q=(L&&L.market&&L.market.quotes)||{};
+  const bh=(window.DATA&&DATA.bar_history)||[]; const b=bh[bh.length-1];
+  const fill=(id,txt)=>{ const el=document.getElementById('lv-'+id); if(!el) return;
+    if(el.textContent==='—'||el.textContent===''){ el.textContent=txt; el.className='live-val dull'; } };
+  const n2=v=>v==null||isNaN(v)?null:(+v).toFixed(2);
+  const pr=v=>v==null||isNaN(v)?null:'$'+(+v).toFixed(2);
+  [['vix9d',cv.vix9d??(b&&b.vix9d)],['vix1m',cv.vix1m??(b&&b.vix1m)],['vix3m',cv.vix3m??(b&&b.vix3m)],
+   ['vix1y',cv.vix1y],['vvix',cv.vvix],['move',(q.move&&q.move.price)??(b&&b.move)]]
+    .forEach(([id,v])=>{ const t=n2(v); if(t!=null) fill(id,t); });
+  ['svxy','uvxy','svix','uvix','tqqq','sqqq'].forEach(k=>{ const t=pr(q[k]&&q[k].price); if(t!=null) fill(k,t); });
+  { const t=pr(q.gspc&&q.gspc.price); if(t!=null) fill('spx',t); }
+  if(window.OHLC&&OHLC.length){ const t=pr(OHLC[OHLC.length-1][4]); if(t!=null) fill('svxy',t); }
+}
 // ── Live market strip (polls live_status.json) ─────────────────────────────
 async function loadLive(){
   const strip = document.getElementById('live-strip');
@@ -1700,10 +1720,10 @@ async function loadLive(){
     if(dot){ dot.style.background=phaseColor; dot.style.boxShadow = phaseActive ? '0 0 6px '+phaseColor : 'none'; }
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=phaseColor; }
-    if(note) note.textContent = live ? 'Updating every ~5 mins · dimmed quotes are last close until they move'
-                              : regular ? 'Awaiting next refresh · dimmed quotes haven’t moved yet today'
-                              : settle  ? 'After hours · ETF quotes & the EOD VIX curve brighten as they post; daily signal finalizes ~7pm ET'
-                              : premkt  ? 'Pre-market · quotes show last close (dimmed) and brighten once they move at the 9:30 open'
+    if(note) note.textContent = live ? 'Updating every ~5 mins'
+                              : regular ? 'Awaiting next refresh'
+                              : settle  ? 'Live-chart bar paused · daily signals finalizing, expected ~7pm ET'
+                              : premkt  ? 'Live-chart bar not live yet · daily signals warming up'
                               : _holiday ? 'Market holiday — showing last settled close'
                               : 'Showing last settled close';
     if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';   // delay note only when data moves
@@ -1711,6 +1731,7 @@ async function loadLive(){
         toEtClock(L.generated_utc)+' ET';
 
     LIVE=L;
+    try{ localStorage.setItem('lastLive', JSON.stringify(L)); }catch(_){}   // cache for offline fallback
     updateMarket();
     if(window._sigMonReady){ const pd=window._pinnedDate; if(pd&&window._barByDate&&window._barByDate[pd]) renderSignalMonitor(window._barByDate[pd]); else renderSignalMonitor(); }
     // Refresh candle history from svxy_ohlc.json (Action keeps it current incl. the forming day)
@@ -1750,6 +1771,7 @@ async function loadLive(){
     if(note) note.textContent='live feed unavailable';
     if(delay) delay.style.display='none';
     document.getElementById('lv-updated').textContent = '—';
+    _fallbackQuotes();   // show last settled close instead of blank dashes
   }
 }
 
@@ -1841,13 +1863,18 @@ function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMod
 function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length;
   // ~42 real bars with enough right-side whitespace that the latest bar lands ~70%
   // across — clear of the mini-monitor that floats over the chart's top-right.
-  const BARS=42, FUT=18; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} }
+  const BARS=42, FUT=18;
+  const set=()=>{ try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} };
+  // Freeze the candle<->daily sync while we set it (and re-assert after the daily
+  // chart's echo settles) so its clamped range can't pull the latest bar to the edge.
+  _syncUntil=Date.now()+500; set(); setTimeout(set,70); setTimeout(set,300); }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
 
 // ── Daily P&L chart (Lightweight-Charts) — mirrors the live chart: zoom/pan,
 //    crosshair, $/% tooltips, entry/exit markers, drawdown, "Latest" button. ──
 let dailyChart=null, dailySeries=null, _dailyDates=null, _dailyMap=null;
 let _chartSyncing=false;   // guard so paired charts don't ping-pong
+let _syncUntil=0;          // timestamp window: ignore the paired chart's echo until this
 let _suppressSync=false;   // hard-disable candle<->daily sync (e.g. across a toggle rebuild)
 let _dailyPendRange=null;  // daily view captured pre-toggle so the rebuild keeps it
 function dailyToEnd(){ if(!dailyChart||!_dailyDates) return; const N=_dailyDates.length,BARS=Math.min(N,90),FUT=6;
@@ -1919,8 +1946,8 @@ function buildDaily(){
   dailyChart.timeScale().subscribeVisibleLogicalRangeChange(()=>{ const btn=document.getElementById('daily-toend'); if(btn){
     try{const vr=dailyChart.timeScale().getVisibleLogicalRange(); btn.style.display=(vr&&vr.to<_dailyDates.length-1)?'block':'none';}catch(_){} } });
   // sync zoom/scroll with the live candle chart (by time, since datasets differ)
-  dailyChart.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(_chartSyncing||_suppressSync||!rng||!sumMain) return;
-    _chartSyncing=true; try{ sumMain.timeScale().setVisibleRange(rng); }catch(_){} requestAnimationFrame(()=>{_chartSyncing=false;}); });
+  dailyChart.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(Date.now()<_syncUntil||_suppressSync||!rng||!sumMain) return;
+    _syncUntil=Date.now()+150; try{ sumMain.timeScale().setVisibleRange(rng); }catch(_){} });
   if(_keepRange){ try{dailyChart.timeScale().setVisibleLogicalRange(_keepRange);}catch(_){ dailyChart.timeScale().fitContent(); } }
   else dailyChart.timeScale().fitContent();
 }
@@ -1975,7 +2002,7 @@ function renderSummary(){
     layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
     rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.14}},
-    timeScale:{borderColor:'#443714',rightOffset:12,minBarSpacing:0.4,maxBarSpacing:18},
+    timeScale:{borderColor:'#443714',rightOffset:24,minBarSpacing:0.4,maxBarSpacing:18},
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),
       vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},
       horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
@@ -2000,11 +2027,12 @@ function renderSummary(){
   let _sync=false;
   sumMain.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(r&&!_sync){_sync=true;try{sumPos.timeScale().setVisibleLogicalRange(r);}catch(_){} _sync=false;} _updateToEndBtn(); });
   // sync zoom/scroll to the Daily P&L chart (by time, datasets differ)
-  sumMain.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(_chartSyncing||_suppressSync||!rng||!dailyChart) return;
-    // Hold the lock until the NEXT frame so the daily chart's clamped echo (it has
-    // slightly fewer/extra bars and can't follow into the future void) doesn't snap
-    // this chart back — that echo was what blocked scrolling right into empty space.
-    _chartSyncing=true; try{ dailyChart.timeScale().setVisibleRange(rng); }catch(_){} requestAnimationFrame(()=>{_chartSyncing=false;}); });
+  sumMain.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(Date.now()<_syncUntil||_suppressSync||!rng||!dailyChart) return;
+    // Open a 150ms window in which the daily chart's echo is ignored. The daily has a
+    // different bar count and can't represent the candle's future whitespace, so its
+    // clamped echo would otherwise snap this chart back (breaking the default view and
+    // future-scroll). A time window absorbs that async echo robustly.
+    _syncUntil=Date.now()+150; try{ dailyChart.timeScale().setVisibleRange(rng); }catch(_){} });
   summaryToEnd();
 
   // Align the band's right gutter to the candle chart's price-scale width
