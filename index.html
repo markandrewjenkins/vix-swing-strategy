@@ -466,7 +466,7 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
   animation:cdlripple .4s ease-out forwards; }
 @keyframes cdlripple { 0% { transform:translate(-50%,-50%) scale(0.45); opacity:0.7 } 70% { opacity:0.18 } 100% { transform:translate(-50%,-50%) scale(1.55); opacity:0 } }
 /* Floating mini Live-Signal preview over the chart's blank right side. */
-.mini-mon { position:absolute; top:10px; right:14px; width:252px; max-width:54%; z-index:5; pointer-events:none;
+.mini-mon { position:absolute; top:10px; right:54px; width:252px; max-width:54%; z-index:5; pointer-events:none;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
 .mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; }
@@ -621,7 +621,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div id="replay-bar">
           <button id="replay-toggle" class="rp-btn rp-main" onclick="replayEnter()">&#9654; Bar Replay</button>
           <span id="replay-controls" style="display:none;flex-wrap:wrap;gap:7px;align-items:center">
-            <label class="rp-lab">From <input type="date" id="replay-date" class="rp-date"></label>
+            <label class="rp-lab">From <input type="date" id="replay-date" class="rp-date" onchange="if(window.Replay)Replay.start(this.value)"></label>
             <button class="rp-btn" title="Start / restart from date" onclick="Replay.start(document.getElementById('replay-date').value)">&#9198;&#65038; Start</button>
             <button class="rp-btn" title="Step back" onclick="Replay.step(-1)">&#9194;&#65038;</button>
             <button id="replay-play" class="rp-btn" title="Play / pause" onclick="Replay.toggle()">&#9654;&#65038;</button>
@@ -2062,9 +2062,10 @@ function renderSummary(){
     if(sd){ try{ sumMain.setCrosshairPosition((sd.high+sd.low)/2,t,candleSeries); }catch(_){} }
     renderInfo(t,sd); monitorHover(t); el.classList.add('cdl-pinned');
     if(_lock){ _lock.innerHTML='&#128274; Locked on <b>'+t+'</b> — right-click the chart to unlock'; _lock.style.display=''; }
-    // If the Bar Replay toolbar is open, populate its date field with the picked bar.
+    // If the Bar Replay toolbar is open, seek the replay to the picked bar so it's
+    // armed to play from there (also fills the date field via paint()).
     const _rc=document.getElementById('replay-controls'), _rd=document.getElementById('replay-date');
-    if(_rd && _rc && _rc.style.display!=='none') _rd.value=t;
+    if(_rd && _rc && _rc.style.display!=='none'){ _rd.value=t; if(window.Replay&&window.Replay.start) window.Replay.start(t); }
     if(el._ripple) el._ripple(); };
   sumMain.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
   sumPos.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
