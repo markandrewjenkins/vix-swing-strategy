@@ -456,9 +456,12 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .rp-date { background:#14110b; color:var(--cdbf,#cdbf95); border:1px solid var(--border2); border-radius:8px; padding:3px 6px; font-family:'Saira',sans-serif; font-size:0.7rem; color-scheme:dark; }
 #replay-status { color:var(--dim); font-variant-numeric:tabular-nums; }
 /* Full-screen Live Chart: the panel fills the screen and the chart grows to fit. */
-#live-panel:fullscreen { background:var(--bg,#0c0a07); padding:16px 18px; overflow:auto; }
-#live-panel:fullscreen #cdl-wrap { height:calc(100vh - 230px); }
-#live-panel:-webkit-full-screen #cdl-wrap { height:calc(100vh - 230px); }
+/* Full screen: panel fills the viewport as a flex column so the candle chart grows
+   to take all remaining height, with the position band kept visible just below it. */
+#live-panel:fullscreen, #live-panel:-webkit-full-screen { background:var(--bg,#0c0a07); padding:14px 18px; display:flex; flex-direction:column; height:100vh; }
+#live-panel:fullscreen > .pb, #live-panel:-webkit-full-screen > .pb { flex:1; display:flex; flex-direction:column; min-height:0; }
+#live-panel:fullscreen #cdl-wrap, #live-panel:-webkit-full-screen #cdl-wrap { flex:1; height:auto; min-height:0; }
+#live-panel:fullscreen #pos-band, #live-panel:-webkit-full-screen #pos-band { flex:none; }
 /* Hover: a very small, faint halo that follows the cursor. */
 .cdl-glow { position:absolute; width:110px; height:110px; transform:translate(-50%,-50%); border-radius:50%;
   pointer-events:none; opacity:0; transition:opacity .2s ease; z-index:5;
@@ -1657,16 +1660,17 @@ async function loadLive(){
     const numv = (v,dp=2) => v==null||isNaN(v)?'—':(+v).toFixed(dp);
     const price = (v) => v==null||isNaN(v)?'—':'$'+(+v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
     const clsOf = (v) => v>0?'up':v<0?'down':'';
-    // Per-quote "has it actually moved today?" — bright only once a value differs
-    // from the first one seen today (persisted per ET day so reloads remember it).
-    // EOD-only series (VIX1Y/MOVE/VIX9D/3M/6M) never move intraday → stay dulled.
-    const _dayET = new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(new Date());
-    const qMoved = (id,val) => { if(val==null||isNaN(val)) return false;
-      let r; try{ r=JSON.parse(localStorage.getItem('qf_'+id)||'null'); }catch(_){}
-      if(!r||r.day!==_dayET) r={day:_dayET,base:val,moved:false};
-      if(r.base!=null && Math.abs(val-r.base)>1e-9) r.moved=true;
-      try{ localStorage.setItem('qf_'+id, JSON.stringify(r)); }catch(_){}
-      return r.moved; };
+    // A quote is BRIGHT when it's backed by today's data, DULL when it's a stale
+    // prior-day value. We judge by the source's own date/time (an EOD curve _date,
+    // or an intraday quote time) vs today in ET — so a value like VIX1Y that has no
+    // intraday feed and only last Friday's close reads dull, while VIX9D/3M/etc. that
+    // have today's intraday quote read bright. (Avoids the "moved since you loaded"
+    // heuristic, which dulled values that were in fact up to date.)
+    const _today = new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(new Date());
+    const _etDate = ts => { if(ts==null) return null;
+      if(typeof ts==='string' && /^\d{4}-\d{2}-\d{2}$/.test(ts)) return ts.slice(0,10);
+      const d=new Date(ts); return isNaN(d.getTime())?null:new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(d); };
+    const _fresh = (...ts) => ts.some(t => _etDate(t)===_today);
 
     // ── Current position + open P&L (instrument-aware; see updateLivePosition) ──
     updateLivePosition(L);
@@ -1678,23 +1682,24 @@ async function loadLive(){
       ce.textContent = chg!=null&&!isNaN(chg) ? signed(chg*100,1,'%') : '';
       ce.className='live-chg '+clsOf(chg)+(dull?' dull':'');
     };
-    const vx = (id,val,chg) => { const dull=!qMoved(id,val); setVal('lv-'+id, numv(val,2), '', dull); setChg('lv-'+id+'-c', chg, dull); };
+    const vx = (id,val,chg,fresh) => { const dull=!fresh; setVal('lv-'+id, numv(val,2), '', dull); setChg('lv-'+id+'-c', chg, dull); };
     const vixq = q.vix||{};   // VIX1M shows the live spot, so use its intraday change
     // Prefer the live (Yahoo intraday) value + its % change vs prior close; fall
     // back to the CBOE EOD value/change only when the live quote is unavailable.
     const _lv=(used,qo,eod,eodChg)=>[ (used!=null?used:(qo&&qo.price!=null?qo.price:eod)),
                                       (qo&&qo.change_pct!=null?qo.change_pct:eodChg) ];
+    const _qt = qo => qo&&qo.time;   // an intraday quote's timestamp (today when live)
     let z;
-    z=_lv(m.vix9d_used, q.vix9d, cv.vix9d, cv.vix9d_chg); vx('vix9d', z[0], z[1]);
-    z=_lv(m.vix1m_used, vixq,    cv.vix1m, cv.vix1m_chg); vx('vix1m', z[0], z[1]);
-    z=_lv(m.vix3m_used, q.vix3m, cv.vix3m, cv.vix3m_chg); vx('vix3m', z[0], z[1]);
-    vx('vix1y', cv.vix1y, cv.vix1y_chg);
-    z=_lv(m.vvix_used,  q.vvix,  cv.vvix,  cv.vvix_chg);  vx('vvix',  z[0], z[1]);
-    const mq = q.move||{}; vx('move', mq.price, mq.change_pct);
+    z=_lv(m.vix9d_used, q.vix9d, cv.vix9d, cv.vix9d_chg); vx('vix9d', z[0], z[1], _fresh(_qt(q.vix9d), cv.vix9d_date));
+    z=_lv(m.vix1m_used, vixq,    cv.vix1m, cv.vix1m_chg); vx('vix1m', z[0], z[1], _fresh(_qt(vixq), cv.vix1m_date));
+    z=_lv(m.vix3m_used, q.vix3m, cv.vix3m, cv.vix3m_chg); vx('vix3m', z[0], z[1], _fresh(_qt(q.vix3m), cv.vix3m_date));
+    vx('vix1y', cv.vix1y, cv.vix1y_chg, _fresh(cv.vix1y_date));
+    z=_lv(m.vvix_used,  q.vvix,  cv.vvix,  cv.vvix_chg);  vx('vvix',  z[0], z[1], _fresh(_qt(q.vvix), cv.vvix_date));
+    const mq = q.move||{}; vx('move', mq.price, mq.change_pct, _fresh(_qt(mq)));
 
     // ── Tradeable tickers: price + % change ─────────────────────────────
     const tk = (id,key) => {
-      const x=q[key]||{}; const c=clsOf(x.change_pct); const dull=!qMoved(id, x.price);
+      const x=q[key]||{}; const c=clsOf(x.change_pct); const dull=!_fresh(x.time);
       setVal('lv-'+id, price(x.price), c, dull);
       const ce=document.getElementById('lv-'+id+'-c');
       if(ce){ ce.textContent = x.change_pct!=null ? signed(x.change_pct*100,1,'%') : ''; ce.className='live-chg '+c+(dull?' dull':''); }
@@ -1720,9 +1725,14 @@ async function loadLive(){
     if(dot){ dot.style.background=phaseColor; dot.style.boxShadow = phaseActive ? '0 0 6px '+phaseColor : 'none'; }
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=phaseColor; }
+    // After-hours: has the CBOE EOD term structure for TODAY posted yet?
+    const tsPosted = !!L.cboe_refreshed || _fresh(cv.vix9d_date);
+    const settleNote = tsPosted
+      ? 'Live updates paused as at regular hours close, plus VIX term structure (final at ~5:30 ET)'
+      : 'Live updates paused as at regular hours close, excluding VIX term structure (expected ~5:30 ET)';
     if(note) note.textContent = live ? 'Updating every ~5 mins'
                               : regular ? 'Awaiting next refresh'
-                              : settle  ? 'Live-chart bar paused · daily signals finalizing, expected ~7pm ET'
+                              : settle  ? settleNote
                               : premkt  ? 'Live-chart bar not live yet · daily signals warming up'
                               : _holiday ? 'Market holiday — showing last settled close'
                               : 'Showing last settled close';
