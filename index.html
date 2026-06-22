@@ -414,6 +414,15 @@ tr:hover td { background: #1f1a10 }
 .cdl-sw { width:9px; height:9px; border-radius:2px; display:inline-block; }
 /* Fixed layout so columns stay put when hovering between days (the Current cell
    gains/loses a clock icon, values change width — none of it should reflow). */
+/* Detailed per-signal statistics table (TradingView-style) */
+table.sig-stats { width:100%; border-collapse:collapse; font-size:0.82rem; }
+table.sig-stats th { text-align:right; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:8px 14px; border-bottom:1px solid var(--border2); white-space:nowrap; }
+table.sig-stats th:first-child { text-align:left; }
+table.sig-stats td { padding:7px 14px; border-bottom:1px solid var(--border); text-align:right; font-family:'Saira',sans-serif; white-space:nowrap; vertical-align:top; }
+table.sig-stats td:first-child { text-align:left; color:var(--dim); font-family:inherit; }
+table.sig-stats td .ss-sub { display:block; font-size:0.72rem; color:var(--dim); margin-top:1px; }
+table.sig-stats tr:hover td { background:rgba(255,255,255,0.02); }
+table.sig-stats .ss-all { color:var(--yellow); }
 table.sig-mon { width:100%; border-collapse:collapse; font-size:0.8rem; table-layout:fixed; }
 table.sig-mon th:nth-child(1),table.sig-mon td:nth-child(1){ width:14%; }
 table.sig-mon th:nth-child(2),table.sig-mon td:nth-child(2){ width:27%; }
@@ -457,7 +466,7 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
   animation:cdlripple .4s ease-out forwards; }
 @keyframes cdlripple { 0% { transform:translate(-50%,-50%) scale(0.45); opacity:0.7 } 70% { opacity:0.18 } 100% { transform:translate(-50%,-50%) scale(1.55); opacity:0 } }
 /* Floating mini Live-Signal preview over the chart's blank right side. */
-.mini-mon { position:absolute; top:10px; left:14px; width:252px; max-width:54%; z-index:5; pointer-events:none;
+.mini-mon { position:absolute; top:10px; right:14px; width:252px; max-width:54%; z-index:5; pointer-events:none;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
 .mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; }
@@ -605,8 +614,8 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div id="mkt-row">
           <span class="mkt-block"><span id="mkt-dot"></span><span id="mkt-label">Market closed</span><span id="mkt-countdown"></span></span>
           <span class="mkt-sessbar"><span class="seg c1"></span><span class="seg pre"></span><span class="seg reg"></span><span class="seg aft"></span><span class="seg c2"></span><span class="mkt-marker" id="mkt-marker"></span></span>
-          <button id="cdl-fs" class="rp-btn" title="Full screen" onclick="toggleChartFs()" style="margin-left:10px">&#9974; Full screen</button>
         </div>
+        <button id="cdl-fs" class="rp-btn" title="Full screen" onclick="toggleChartFs()" style="margin-left:auto">&#9974;&#65038; Full screen</button>
       </div>
       <div class="pb">
         <div id="replay-bar">
@@ -715,6 +724,12 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       <div class="panel" style="flex:1 1 300px"><div class="ph"><span>Per-signal performance</span></div><div class="pb" id="sig-perf"></div></div>
       <div class="panel" style="flex:1 1 220px"><div class="ph"><span>Signal distribution</span></div><div class="pb" style="position:relative;height:210px"><canvas id="sigDistChart"></canvas></div></div>
       <div class="panel" style="flex:1 1 180px"><div class="ph"><span>Exit reasons</span></div><div class="pb" id="exit-reasons"></div></div>
+    </div>
+
+    <!-- Detailed per-signal trade statistics (TradingView-style) -->
+    <div class="panel" style="margin-top:12px">
+      <div class="ph"><span>Per-signal statistics</span></div>
+      <div class="pb" style="overflow-x:auto"><table id="sig-stats" class="sig-stats"></table></div>
     </div>
   </div>
 
@@ -998,12 +1013,12 @@ function updateHdrMeta(){
 function render(){
   updateHdrMeta();
   renderAnalytics();
-  renderSigPerf();renderSigDist();renderExitReasons();renderTrades();
+  renderSigPerf();renderSigStats();renderSigDist();renderExitReasons();renderTrades();
   renderSummary();
 }
 // Re-render all instrument-dependent surfaces when the global toggle flips
 function rerenderActive(){
-  renderAnalytics();renderSigPerf();renderSigDist();renderExitReasons();renderTrades();
+  renderAnalytics();renderSigPerf();renderSigStats();renderSigDist();renderExitReasons();renderTrades();
   if(window._m){renderMonthly();}
   const pl=document.getElementById('pos-band-label');
   if(pl) pl.innerHTML='POSITION &nbsp;<span style="color:var(--teal)">&#9646; '+svN()+'</span> &nbsp;<span style="color:var(--coral)">&#9646; '+uvN()+'</span> &nbsp;<span style="color:var(--cashc)">&#9646; CASH</span>';
@@ -1256,6 +1271,71 @@ function renderSigPerf(){
       <div class="mc"><div class="mc-label">Avg win</div><div class="mc-value pos">${fmtPct(s.avg_win)}</div></div>
       <div class="mc"><div class="mc-label">Avg loss</div><div class="mc-value neg">${fmtPct(s.avg_loss)}</div></div>
     </div>`;
+}
+// Detailed TradingView-style per-signal statistics (All / SVXY / UVXY), toggle-aware.
+function renderSigStats(){
+  const el=document.getElementById('sig-stats'); if(!el||typeof aTrades!=='function') return;
+  const all=aTrades(), sv=all.filter(tIsSV), uv=all.filter(t=>!tIsSV(t));
+  // Detect a still-open position (entered but not in the closed-trade list).
+  const bh=DATA.bar_history||[]; let openSV=0,openUV=0;
+  if(bh.length){ const lastExit=all.length?all[all.length-1].exit_date:''; let os=null,oty=null;
+    for(let i=bh.length-1;i>=0;i--){ const p=bh[i].position; if(p&&p!=='CASH'){oty=p;os=bh[i].date;} else break; }
+    if(oty&&os&&os>lastExit){ if(oty==='LONG_VOL_SELLER') openSV=1; else openUV=1; } }
+  const sum=a=>a.reduce((x,y)=>x+y,0);
+  const usd=v=>(v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{maximumFractionDigits:0});
+  const pc=v=>(v>=0?'+':'')+(v*100).toFixed(2)+'%';
+  // Outliers defined ONCE on the full distribution (|return − mean| > 3σ), then split
+  // by membership so the per-signal columns add up to the All column.
+  const aRets=all.map(tRet), aMean=all.length?sum(aRets)/all.length:0,
+        aStd=all.length>1?Math.sqrt(sum(aRets.map(r=>(r-aMean)**2))/(all.length-1)):0;
+  const outSet=new Set(all.filter(t=>aStd>0&&Math.abs(tRet(t)-aMean)>3*aStd));
+  function stats(list,open){
+    const n=list.length, pnls=list.map(tPnl), rets=list.map(tRet);
+    const wins=list.filter(t=>tRet(t)>0), losses=list.filter(t=>tRet(t)<=0);
+    const gp=sum(wins.map(tPnl)), gl=sum(losses.map(tPnl));
+    const meanR=n?sum(rets)/n:0;
+    const out=list.filter(t=>outSet.has(t));
+    const lw=wins.length?wins.reduce((a,b)=>tPnl(b)>tPnl(a)?b:a):null;
+    const ll=losses.length?losses.reduce((a,b)=>tPnl(b)<tPnl(a)?b:a):null;
+    const awUsd=wins.length?gp/wins.length:0, alUsd=losses.length?gl/losses.length:0;
+    return { n, open, win:wins.length, loss:losses.length, pctProf:n?wins.length/n*100:0,
+      avgUsd:n?sum(pnls)/n:0, avgR:meanR,
+      awUsd, awR:wins.length?sum(wins.map(tRet))/wins.length:0,
+      alUsd, alR:losses.length?sum(losses.map(tRet))/losses.length:0,
+      plRatio:(alUsd!==0)?Math.abs(awUsd/alUsd):0,
+      lwUsd:lw?tPnl(lw):0, lwR:lw?tRet(lw):0, lwGross:(gp&&lw)?tPnl(lw)/gp*100:0,
+      llUsd:ll?tPnl(ll):0, llR:ll?tRet(ll):0, llGross:(gl&&ll)?tPnl(ll)/gl*100:0,
+      outN:out.length, outUsd:sum(out.map(tPnl)), outR:sum(out.map(tRet)) };
+  }
+  const G=[stats(all,openSV+openUV),stats(sv,openSV),stats(uv,openUV)];
+  // cell builders
+  const C=(txt,sub,cls)=>`<td><span class="${cls||''}">${txt}</span>${sub!=null?`<span class="ss-sub">${sub}</span>`:''}</td>`;
+  const colOf=v=>v>0?'pos':v<0?'neg':'';
+  const num=(g,f)=>C(f(g));
+  const money=(g,uf,rf)=>C(usd(uf(g)),pc(rf(g)),colOf(uf(g)));
+  const rows=[
+    ['Total trades', g=>g.n],
+    ['Total open trades', g=>g.open],
+    ['Total winners', g=>`<span class="pos">${g.win}</span>`],
+    ['Total losers', g=>`<span class="neg">${g.loss}</span>`],
+    ['Percent profitable', g=>g.pctProf.toFixed(2)+'%'],
+    ['__money', 'Average PnL', g=>g.avgUsd, g=>g.avgR],
+    ['__money', 'Average profit', g=>g.awUsd, g=>g.awR],
+    ['__money', 'Average loss', g=>g.alUsd, g=>g.alR],
+    ['Average profit / average loss', g=>g.plRatio.toFixed(2)],
+    ['__money', 'Largest profit', g=>g.lwUsd, g=>g.lwR],
+    ['Largest profit as % of gross profit', g=>g.lwGross.toFixed(2)+'%'],
+    ['__money', 'Largest loss', g=>g.llUsd, g=>g.llR],
+    ['Largest loss as % of gross loss', g=>g.llGross.toFixed(2)+'%'],
+    ['Outliers', g=>g.outN],
+    ['__money', 'Outliers P&L', g=>g.outUsd, g=>g.outR],
+  ];
+  const head=`<thead><tr><th>Statistic</th><th class="ss-all">All</th><th>${svN()}</th><th>${uvN()}</th></tr></thead>`;
+  const body='<tbody>'+rows.map(r=>{
+    if(r[0]==='__money'){ const [,lab,uf,rf]=r; return `<tr><td>${lab}</td>${G.map(g=>money(g,uf,rf)).join('')}</tr>`; }
+    const [lab,f]=r; return `<tr><td>${lab}</td>${G.map(g=>num(g,f)).join('')}</tr>`;
+  }).join('')+'</tbody>';
+  el.innerHTML=head+body;
 }
 function renderSigDist(){
   const sc=DATA.signal_counts;
@@ -1825,7 +1905,7 @@ function buildDaily(){
     try{const vr=dailyChart.timeScale().getVisibleLogicalRange(); btn.style.display=(vr&&vr.to<_dailyDates.length-1)?'block':'none';}catch(_){} } });
   // sync zoom/scroll with the live candle chart (by time, since datasets differ)
   dailyChart.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(_chartSyncing||_suppressSync||!rng||!sumMain) return;
-    _chartSyncing=true; try{ sumMain.timeScale().setVisibleRange(rng); }catch(_){} _chartSyncing=false; });
+    _chartSyncing=true; try{ sumMain.timeScale().setVisibleRange(rng); }catch(_){} requestAnimationFrame(()=>{_chartSyncing=false;}); });
   if(_keepRange){ try{dailyChart.timeScale().setVisibleLogicalRange(_keepRange);}catch(_){ dailyChart.timeScale().fitContent(); } }
   else dailyChart.timeScale().fitContent();
 }
@@ -1903,7 +1983,10 @@ function renderSummary(){
   sumMain.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(r&&!_sync){_sync=true;try{sumPos.timeScale().setVisibleLogicalRange(r);}catch(_){} _sync=false;} _updateToEndBtn(); });
   // sync zoom/scroll to the Daily P&L chart (by time, datasets differ)
   sumMain.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(_chartSyncing||_suppressSync||!rng||!dailyChart) return;
-    _chartSyncing=true; try{ dailyChart.timeScale().setVisibleRange(rng); }catch(_){} _chartSyncing=false; });
+    // Hold the lock until the NEXT frame so the daily chart's clamped echo (it has
+    // slightly fewer/extra bars and can't follow into the future void) doesn't snap
+    // this chart back — that echo was what blocked scrolling right into empty space.
+    _chartSyncing=true; try{ dailyChart.timeScale().setVisibleRange(rng); }catch(_){} requestAnimationFrame(()=>{_chartSyncing=false;}); });
   summaryToEnd();
 
   // Align the band's right gutter to the candle chart's price-scale width
@@ -2014,7 +2097,9 @@ function renderSummary(){
       // Let the user zoom during replay: adopt whatever window width they've set,
       // then re-anchor that same-width window so the playhead stays near the right.
       try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); if(vr&&vr.to>vr.from) W=Math.max(8,Math.round(vr.to-vr.from)); }catch(_){}
-      const cut=times[idx], pad=Math.max(2,Math.round(W*0.06));
+      // Sit the playhead ~62% across (big right pad) so the newest revealed candle
+      // stays clear of the mini-monitor that floats over the chart's right side.
+      const cut=times[idx], pad=Math.max(2,Math.round(W*0.36));
       candleSeries.setData(fullC.slice(0,idx+1));
       candleSeries.setMarkers(fullM.filter(m=>m.time<=cut));
       posSeries.setData(posData.slice(0,idx+1));
@@ -2339,7 +2424,11 @@ function renderSignalMonitor(histBar){
   }
   const carryTrig = inPos && isSV && contango!=null && contango<0;
   const moveTrig  = inPos && ((isSV && moveSig==='high') || (isUV && moveSig==='low'));
-  const ratioTrig = inPos && ((isSV && ratio13!=null && ratio13>=P.xr13) || (isUV && ratio13!=null && ratio13<P.br13));
+  // Engine's term-structure rollover: SVXY exits once the ratio rises OUT of the
+  // bullish zone (>= br13, not the bear xr13); UVXY exits once it drops out of the
+  // bearish zone (< xr13). (These were previously swapped, so the gauge marker could
+  // sit in the teal hold band while the row read Exit — e.g. 2026-06-10.)
+  const ratioTrig = inPos && ((isSV && ratio13!=null && ratio13>=P.br13) || (isUV && ratio13!=null && ratio13<P.xr13));
   const holdColor = isUV ? 'var(--coral)' : 'var(--teal)';   // Exit text colour = held side
   // Does each exit apply to the held side? (some are SVXY- or UVXY-only). The
   // two-sided ones (MOVE, Rollover) apply to BOTH sides — they just exit in a
@@ -2428,8 +2517,8 @@ function renderSignalMonitor(histBar){
       // Term-structure rollover — short-vol exits when ratio rises into backwardation
       // (≥xr13); long-vol exits when the curve re-steepens into contango (<br13).
       case 6:o=isUV
-        ? {lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.br13,'C'],[P.br13,dR.hi,'P']],v:ratio13,fmt:fN2,tip:`exits long-vol when <${P.br13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`}
-        : {lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.xr13,'P'],[P.xr13,dR.hi,'C']],v:ratio13,fmt:fN2,tip:`exits short-vol when ≥${P.xr13} · now ${ratio13!=null?ratio13.toFixed(3):'—'}`}; break;
+        ? {lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.xr13,'C'],[P.xr13,dR.hi,'P']],v:ratio13,fmt:fN2,tip:`exits long-vol when curve re-steepens (<${P.xr13}) · now ${ratio13!=null?ratio13.toFixed(3):'—'}`}
+        : {lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.br13,'P'],[P.br13,dR.hi,'C']],v:ratio13,fmt:fN2,tip:`exits short-vol when ratio leaves the bull zone (≥${P.br13}) · now ${ratio13!=null?ratio13.toFixed(3):'—'}`}; break;
     }
     return {...o, hatch:off, trig}; };
   const xspec=[0,1,2,3,4,5,6].map(exitSpec);
@@ -2492,20 +2581,20 @@ function renderSignalMonitor(histBar){
     if(_pk==='cash'){
       const exi=[0,1,2,3,4,5,6].find(i=>exState(i)==='exit');
       const exnm=exi!=null?exitRules[exi][0]:'an exit rule';
-      explain=`<b>Exiting ${isUV?'UVXY (long vol)':'SVXY (short vol)'}</b> in tonight's after-hours: <b>${exnm}</b> triggered. Once any of the seven exit rules fires the position is closed — entry signals no longer apply.`;
+      explain=`<b>Exiting ${isUV?'UVXY (long vol)':'SVXY (short vol)'}</b> tonight in after-hours because the <b>${exnm}</b> exit rule has triggered. The strategy runs seven independent exit checks every evening, and the moment any one fires the whole position is closed at the same-day after-hours print. While a position is open the entry indicators are shown only for context — they no longer affect the trade.`;
     } else {
-      explain=`<b>Holding ${isUV?'UVXY (long vol)':'SVXY (short vol)'}.</b> No exit rule has triggered, so the position is kept. Entry signals are ignored while in a position — they only decide a new trade from cash.`;
+      explain=`<b>Holding ${isUV?'UVXY (long vol)':'SVXY (short vol)'}.</b> None of the seven exit rules — take-profit, stop-loss, trailing stop, time stop, negative carry, MOVE/VIX stress or term-structure rollover — has triggered, so the position is carried into the next session. The entry indicators below are displayed for context but are ignored while in a trade; they only ever decide a brand-new position from cash.`;
     }
   } else if(spike && _pk==='sv'){
-    explain=`<b>Entering SVXY (short vol)</b> via the <b>spike-fade override</b>: VIX jumped ≥35% then faded intraday, so the strategy fades the spike (buys the vol dip). A standalone path — it skips the full term-structure alignment.`;
+    explain=`<b>Entering SVXY (short vol)</b> through the <b>spike-fade override</b>: VIX jumped at least 35% in a single day and then faded back into the close, so the strategy treats the panic as overdone and fades it by selling volatility (buying the dip). This is a standalone entry path — it fires on the spike-and-fade pattern alone and deliberately skips the usual full term-structure alignment that a normal short-vol entry needs.`;
   } else if(crush && _pk==='uv'){
-    explain=`<b>Entering UVXY (long vol)</b> via the <b>crush override</b>: VIX collapsed ≥35% in a day; the strategy buys the expected vol bounce. This override fires on its own.`;
+    explain=`<b>Entering UVXY (long vol)</b> through the <b>crush override</b>: VIX collapsed by 35% or more in a single day, an unusually sharp drop that historically tends to bounce, so the strategy buys volatility to position for the rebound. Like the spike-fade path this override fires on its own — it does not wait for the four-signal bear regime or any other confirmation.`;
   } else if(_pk==='sv'){
-    explain=`<b>Entering SVXY (short vol):</b> all six entry signals align bullish (${_svParts.join(', ')||'all six'}). Short-vol needs the full set — every one agrees here.`;
+    explain=`<b>Entering SVXY (short vol):</b> every one of the six entry conditions is aligned bullish (${_svParts.join(', ')||'all six'}). A short-vol entry is deliberately strict — it requires the <i>full</i> set of term-structure signals plus the BB-trend confirmation to agree at once, which filters out half-formed setups. All six line up here, so the strategy sells volatility into the contango.`;
   } else if(_pk==='uv'){
-    explain=`<b>Entering UVXY (long vol):</b> the full bear regime is in place — ${_uvParts.join(', ')||'all four bear signals'} bearish. Contango (${pct(contango,1)}) isn't part of the gate, so it doesn't block entry.`;
+    explain=`<b>Entering UVXY (long vol):</b> the complete bearish regime is in place — ${_uvParts.join(', ')||'all four bear signals'} are reading bearish together, signalling sustained near-term fear and an inverting curve. Note that contango currently reads ${pct(contango,1)}, but it is not part of the four-signal bear gate, so it neither confirms nor blocks this long-vol entry.`;
   } else {
-    explain=`<b>Staying in cash:</b> short-vol needs all six aligned (only ${svxy6}/6), long-vol needs the full four-signal bear regime (only ${uvxy4}/4). Partial agreement isn't enough — each side must hit its full set.`;
+    explain=`<b>Staying in cash:</b> a short-vol entry needs all six signals aligned (only ${svxy6}/6 agree right now) and a long-vol entry needs the full four-signal bear regime (only ${uvxy4}/4). The signals that do agree aren't enough on their own — each side must hit its complete set before a trade is taken, so the mixed, partly-contrary readings leave the strategy flat and waiting.`;
   }
   const decisionLogic =
       `<div class="sig-logic"><span class="lbl">How it combines</span>`
@@ -2642,14 +2731,15 @@ function renderSignalMonitor(histBar){
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5]), inPos));
     mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
-    mh+=mRow('BB-Trend', sBB, b.bb_buy?_ms('Up','var(--teal)'):_ms('Down','var(--coral)'), '', false);
-    mh+=mRow('Spike char.', sSpk, _spkDay?(b.vix_fade?_ms('Fade','var(--teal)'):_ms('Sust','var(--coral)')):_ms('N/A','var(--namut)'), '', false);
-    mh+=mRow('Vol-follow', sVF, b.neg_vol?_ms('Active','var(--coral)'):_ms('N/A','var(--namut)'), '', false);
-    mh+=mRow('UVXY gate', sGate, _gated?_ms('Block','var(--coral)'):_ms('Clear','var(--teal)'), '', false);
+    // Comp rows: white value (dimmed when in a position), N/A stays muted-yellow.
+    mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', '', inPos);
+    mh+=mRow('Spike char.', sSpk, _spkDay?(b.vix_fade?'Fade':'Sust'):_ms('N/A','var(--namut)'), '', inPos);
+    mh+=mRow('Vol-follow', sVF, b.neg_vol?'Active':_ms('N/A','var(--namut)'), '', inPos);
+    mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', '', inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
     mh+=`<div class="mini-sub">Position sizing ${help(zTip)}</div>`;
-    mh+=mRow('Sizing', sSize, b.high_vol_regime?_ms('High','var(--coral)'):_ms('Norm','var(--teal)'), '', false);
+    mh+=mRow('Sizing', sSize, b.high_vol_regime?'High':'Norm', '', inPos);
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
     document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh;
   }
