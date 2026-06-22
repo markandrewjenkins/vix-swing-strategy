@@ -431,7 +431,10 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 /* Bar Replay control bar (TradingView-style playback). */
 #replay-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:9px; font-size:0.72rem; }
 .rp-btn { background:rgba(20,17,11,0.88); color:var(--yellow); border:1px solid var(--border2); border-radius:11px;
-  padding:4px 11px; font-family:'Saira',sans-serif; font-size:0.72rem; letter-spacing:0.02em; cursor:pointer; transition:background .15s,border-color .15s; }
+  padding:4px 11px; font-family:'Saira',sans-serif; font-size:0.72rem; letter-spacing:0.02em; cursor:pointer; transition:background .15s,border-color .15s;
+  font-variant-emoji:text; }
+/* Force the playback glyphs to render as monochrome text so they inherit the yellow. */
+.rp-btn, .rp-btn * { -webkit-font-feature-settings:normal; }
 .rp-btn:hover { background:rgba(240,152,47,0.16); border-color:var(--yellow); }
 .rp-main { font-weight:600; }
 .rp-main.on { background:rgba(240,152,47,0.18); border-color:var(--yellow); }
@@ -449,7 +452,7 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
   animation:cdlripple .4s ease-out forwards; }
 @keyframes cdlripple { 0% { transform:translate(-50%,-50%) scale(0.45); opacity:0.7 } 70% { opacity:0.18 } 100% { transform:translate(-50%,-50%) scale(1.55); opacity:0 } }
 /* Floating mini Live-Signal preview over the chart's blank right side. */
-.mini-mon { position:absolute; top:10px; right:78px; width:252px; max-width:54%; z-index:5; pointer-events:none;
+.mini-mon { position:absolute; top:10px; left:14px; width:252px; max-width:54%; z-index:5; pointer-events:none;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
 .mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; }
@@ -1954,6 +1957,9 @@ function renderSummary(){
     if(sd){ try{ sumMain.setCrosshairPosition((sd.high+sd.low)/2,t,candleSeries); }catch(_){} }
     renderInfo(t,sd); monitorHover(t); el.classList.add('cdl-pinned');
     if(_lock){ _lock.innerHTML='&#128274; Locked on <b>'+t+'</b> — right-click the chart to unlock'; _lock.style.display=''; }
+    // If the Bar Replay toolbar is open, populate its date field with the picked bar.
+    const _rc=document.getElementById('replay-controls'), _rd=document.getElementById('replay-date');
+    if(_rd && _rc && _rc.style.display!=='none') _rd.value=t;
     if(el._ripple) el._ripple(); };
   sumMain.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
   sumPos.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
@@ -1983,12 +1989,16 @@ function renderSummary(){
     // of re-fitting/oscillating every tick. Sync to the daily chart is held off
     // for the duration so it doesn't jitter along.
     function paint(){
+      // Let the user zoom during replay: adopt whatever window width they've set,
+      // then re-anchor that same-width window so the playhead stays near the right.
+      try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); if(vr&&vr.to>vr.from) W=Math.max(8,Math.round(vr.to-vr.from)); }catch(_){}
       const cut=times[idx], pad=Math.max(2,Math.round(W*0.06));
       candleSeries.setData(fullC.slice(0,idx+1));
       candleSeries.setMarkers(fullM.filter(m=>m.time<=cut));
       posSeries.setData(posData.slice(0,idx+1));
       try{ sumMain.timeScale().setVisibleLogicalRange({from:idx+pad-W, to:idx+pad}); }catch(_){}
       window._pinnedDate=cut; el.classList.add('cdl-pinned');
+      const di=document.getElementById('replay-date'); if(di) di.value=cut;   // reflect playhead
       renderInfo(cut, OHLCBYTIME[cut]); monitorHover(cut);
       if(statusEl) statusEl.textContent=(idx+1)+' / '+times.length+'  ·  '+cut;
       if(playBtn) playBtn.innerHTML = playing ? '&#10073;&#10073;' : '&#9654;';
