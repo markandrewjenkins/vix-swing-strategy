@@ -366,6 +366,9 @@ tr:hover td { background: #1f1a10 }
 .live-item { display: inline-flex; align-items: baseline; gap: 6px; }
 .live-lbl { color: var(--dim, #909090); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.64rem; }
 .live-val { color: var(--text, #eee); font-weight: 700; }
+/* Dulled = the quote hasn't moved yet today (stale last-close, e.g. pre-market or an
+   EOD-only index like VIX1Y/MOVE/VIX9D). Brightens once it actually changes. */
+.live-val.dull, .live-chg.dull { opacity: 0.42; }
 .live-val.up { color: var(--teal, #00e5a0) } .live-val.down { color: var(--coral, #ff4560) }
 .live-val.pos-svxy { color: var(--teal, #00e5a0) } .live-val.pos-uvxy { color: var(--amber, #ffb86c) }
 .live-val.pos-cash { color: var(--dim, #909090) }
@@ -466,7 +469,7 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
   animation:cdlripple .4s ease-out forwards; }
 @keyframes cdlripple { 0% { transform:translate(-50%,-50%) scale(0.45); opacity:0.7 } 70% { opacity:0.18 } 100% { transform:translate(-50%,-50%) scale(1.55); opacity:0 } }
 /* Floating mini Live-Signal preview over the chart's blank right side. */
-.mini-mon { position:absolute; top:10px; right:54px; width:252px; max-width:54%; z-index:5; pointer-events:none;
+.mini-mon { position:absolute; top:10px; right:68px; width:252px; max-width:54%; z-index:5; pointer-events:none;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
 .mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; }
@@ -1068,8 +1071,9 @@ function renderAnalytics(){
     {l:'Win rate',     v:(s.win_rate*100).toFixed(1)+'%', sub:aTrades().filter(t=>tRet(t)>0).length+' wins / '+s.total_trades+' trades', c:s.win_rate>=0.5?'pos':'neg'},
     {l:'Profit factor',v:parseFloat(s.profit_factor).toFixed(2)+'×', sub:'Gross wins ÷ gross losses', c:s.profit_factor>=1.5?'pos':s.profit_factor>=1?'neu':'neg'},
     {l:'CAGR',         v:fmtPct(s.cagr,2), sub:'Annualised compound return', c:s.cagr>=0?'pos':'neg'},
-    {l:'Sharpe ratio', v:fmtNum(s.sharpe,2), sub:'Annualised risk-adjusted', c:s.sharpe>=1?'pos':s.sharpe>=0?'neu':'neg'},
-    {l:'Expected payoff',v:fmtK(s.expected_payoff), sub:'Average P&L per trade', c:s.expected_payoff>=0?'pos':'neg'},
+    {l:'Sharpe ratio', v:fmtNum(s.sharpe,2), sub:'Return per unit of total vol', c:s.sharpe>=1?'pos':s.sharpe>=0?'neu':'neg'},
+    {l:'Sortino ratio',v:fmtNum(s.sortino,2), sub:'Return per unit of downside vol', c:s.sortino>=1?'pos':s.sortino>=0?'neu':'neg'},
+    {l:'Calmar ratio', v:fmtNum(s.calmar,2), sub:'CAGR ÷ |max drawdown|', c:s.calmar>=1?'pos':s.calmar>=0.5?'neu':'neg'},
     {l:'Alpha vs SPY', v:fmtPct(s.total_return-s.spy_return,2), sub:'Strategy return minus SPY', c:s.total_return>=s.spy_return?'pos':'neg'},
   ];
   document.getElementById('kpi-strip').innerHTML=kpis.map(k=>
@@ -1327,8 +1331,6 @@ function renderSigStats(){
     ['Largest profit as % of gross profit', g=>g.lwGross.toFixed(2)+'%'],
     ['__money', 'Largest loss', g=>g.llUsd, g=>g.llR],
     ['Largest loss as % of gross loss', g=>g.llGross.toFixed(2)+'%'],
-    ['Outliers', g=>g.outN],
-    ['__money', 'Outliers P&L', g=>g.outUsd, g=>g.outR],
   ];
   const head=`<thead><tr><th>Statistic</th><th class="ss-all">All</th><th>${svN()}</th><th>${uvN()}</th></tr></thead>`;
   const body='<tbody>'+rows.map(r=>{
@@ -1629,24 +1631,34 @@ async function loadLive(){
     const setVal = (id,txt,cls) => {
       const el = document.getElementById(id); if(!el) return;
       el.textContent = txt;
-      el.className = 'live-val' + (cls?(' '+cls):'');
+      el.className = 'live-val' + (cls?(' '+cls):'') + (dull?' dull':'');
     };
     const signed = (v,dp,suf='') => v==null||isNaN(v)?'—':((v>=0?'+':'')+(v).toFixed(dp)+suf);
     const numv = (v,dp=2) => v==null||isNaN(v)?'—':(+v).toFixed(dp);
     const price = (v) => v==null||isNaN(v)?'—':'$'+(+v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
     const clsOf = (v) => v>0?'up':v<0?'down':'';
+    // Per-quote "has it actually moved today?" — bright only once a value differs
+    // from the first one seen today (persisted per ET day so reloads remember it).
+    // EOD-only series (VIX1Y/MOVE/VIX9D/3M/6M) never move intraday → stay dulled.
+    const _dayET = new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(new Date());
+    const qMoved = (id,val) => { if(val==null||isNaN(val)) return false;
+      let r; try{ r=JSON.parse(localStorage.getItem('qf_'+id)||'null'); }catch(_){}
+      if(!r||r.day!==_dayET) r={day:_dayET,base:val,moved:false};
+      if(r.base!=null && Math.abs(val-r.base)>1e-9) r.moved=true;
+      try{ localStorage.setItem('qf_'+id, JSON.stringify(r)); }catch(_){}
+      return r.moved; };
 
     // ── Current position + open P&L (instrument-aware; see updateLivePosition) ──
     updateLivePosition(L);
 
     // ── VIX term structure (CBOE EOD; VIX1M = live spot when available) ──
     const cv = m.curve||{};
-    const setChg = (id,chg) => {
+    const setChg = (id,chg,dull) => {
       const ce=document.getElementById(id); if(!ce) return;
       ce.textContent = chg!=null&&!isNaN(chg) ? signed(chg*100,1,'%') : '';
-      ce.className='live-chg '+clsOf(chg);
+      ce.className='live-chg '+clsOf(chg)+(dull?' dull':'');
     };
-    const vx = (id,val,chg) => { setVal('lv-'+id, numv(val,2)); setChg('lv-'+id+'-c', chg); };
+    const vx = (id,val,chg) => { const dull=!qMoved(id,val); setVal('lv-'+id, numv(val,2), '', dull); setChg('lv-'+id+'-c', chg, dull); };
     const vixq = q.vix||{};   // VIX1M shows the live spot, so use its intraday change
     // Prefer the live (Yahoo intraday) value + its % change vs prior close; fall
     // back to the CBOE EOD value/change only when the live quote is unavailable.
@@ -1662,10 +1674,10 @@ async function loadLive(){
 
     // ── Tradeable tickers: price + % change ─────────────────────────────
     const tk = (id,key) => {
-      const x=q[key]||{}; const c=clsOf(x.change_pct);
-      setVal('lv-'+id, price(x.price), c);
+      const x=q[key]||{}; const c=clsOf(x.change_pct); const dull=!qMoved(id, x.price);
+      setVal('lv-'+id, price(x.price), c, dull);
       const ce=document.getElementById('lv-'+id+'-c');
-      if(ce){ ce.textContent = x.change_pct!=null ? signed(x.change_pct*100,1,'%') : ''; ce.className='live-chg '+c; }
+      if(ce){ ce.textContent = x.change_pct!=null ? signed(x.change_pct*100,1,'%') : ''; ce.className='live-chg '+c+(dull?' dull':''); }
     };
     tk('svxy','svxy'); tk('uvxy','uvxy'); tk('svix','svix'); tk('uvix','uvix');
     tk('tqqq','tqqq'); tk('sqqq','sqqq'); tk('spx','gspc');
@@ -1688,10 +1700,10 @@ async function loadLive(){
     if(dot){ dot.style.background=phaseColor; dot.style.boxShadow = phaseActive ? '0 0 6px '+phaseColor : 'none'; }
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=phaseColor; }
-    if(note) note.textContent = live ? 'Updating every ~5 mins'
-                              : regular ? 'Awaiting next refresh'
-                              : settle  ? 'Live-chart bar paused · daily signals finalizing, expected ~7pm ET'
-                              : premkt  ? 'Live-chart bar not live yet · daily signals warming up'
+    if(note) note.textContent = live ? 'Updating every ~5 mins · dimmed quotes are last close until they move'
+                              : regular ? 'Awaiting next refresh · dimmed quotes haven’t moved yet today'
+                              : settle  ? 'After hours · ETF quotes & the EOD VIX curve brighten as they post; daily signal finalizes ~7pm ET'
+                              : premkt  ? 'Pre-market · quotes show last close (dimmed) and brighten once they move at the 9:30 open'
                               : _holiday ? 'Market holiday — showing last settled close'
                               : 'Showing last settled close';
     if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';   // delay note only when data moves
@@ -1826,7 +1838,10 @@ function applyChartMode(){
 function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
 // Default view: ~2 months (42 trading days) filling the left two-thirds, with the
 // right third left blank for upcoming dates. Holds across the ETF toggle too.
-function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length; const BARS=42, FUT=Math.round(BARS/4); try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} }
+function summaryToEnd(){ if(!sumMain||!CANDLES||!CANDLES.length) return; const N=CANDLES.length;
+  // ~42 real bars with enough right-side whitespace that the latest bar lands ~70%
+  // across — clear of the mini-monitor that floats over the chart's top-right.
+  const BARS=42, FUT=18; try{ sumMain.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} }
 function _updateToEndBtn(){ const btn=document.getElementById('cdl-toend'); if(!btn||!sumMain||!CANDLES) return; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); btn.style.display=(vr && vr.to < CANDLES.length-1)?'block':'none'; }catch(_){} }
 
 // ── Daily P&L chart (Lightweight-Charts) — mirrors the live chart: zoom/pan,
@@ -1909,7 +1924,10 @@ function buildDaily(){
   if(_keepRange){ try{dailyChart.timeScale().setVisibleLogicalRange(_keepRange);}catch(_){ dailyChart.timeScale().fitContent(); } }
   else dailyChart.timeScale().fitContent();
 }
-function replayEnter(){ if(window.Replay&&window.Replay.enter) window.Replay.enter(); }
+function replayEnter(){ if(!window.Replay) return;
+  const btn=document.getElementById('replay-toggle');
+  if(btn&&btn.classList.contains('on')) window.Replay.stop();   // click again → exit, like the X
+  else window.Replay.enter(); }
 // Full-screen the Live Chart panel; resize the LC charts to fill on enter/exit.
 function _resizeSumCharts(){ const el=document.getElementById('candle-chart'), pel=document.getElementById('pos-band');
   try{ if(sumMain&&el&&el.clientWidth) sumMain.applyOptions({width:el.clientWidth,height:el.clientHeight||el.parentElement.clientHeight}); }catch(_){}
@@ -2066,7 +2084,7 @@ function renderSummary(){
     // armed to play from there (also fills the date field via paint()).
     const _rc=document.getElementById('replay-controls'), _rd=document.getElementById('replay-date');
     if(_rd && _rc && _rc.style.display!=='none'){ _rd.value=t; if(window.Replay&&window.Replay.start) window.Replay.start(t); }
-    if(el._ripple) el._ripple(); };
+  };
   sumMain.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
   sumPos.subscribeClick(p=>{ if(p&&p.time) _pin(p.time); });
   if(!el._ctxBound){ el.addEventListener('contextmenu',e=>{ e.preventDefault(); window._pinnedDate=null; el.classList.remove('cdl-pinned'); if(_lock)_lock.style.display='none'; try{sumMain.clearCrosshairPosition();}catch(_){} }); el._ctxBound=true; }
@@ -2076,6 +2094,9 @@ function renderSummary(){
     el.addEventListener('mousemove',e=>{ const r=el.getBoundingClientRect(); el._cx=e.clientX-r.left; el._cy=e.clientY-r.top; glow.style.left=el._cx+'px'; glow.style.top=el._cy+'px'; glow.style.opacity='1'; });
     el.addEventListener('mouseleave',()=>{ glow.style.opacity='0'; });
     el._ripple=()=>{ if(el._cx==null) return; const rp=document.createElement('div'); rp.className='cdl-ripple'; rp.style.left=el._cx+'px'; rp.style.top=el._cy+'px'; el.appendChild(rp); rp.addEventListener('animationend',()=>rp.remove()); };
+    // Ripple on ANY click in the chart grid (including the empty space to the right),
+    // not just on a bar — update the cursor position from the click itself.
+    el.addEventListener('click',e=>{ const r=el.getBoundingClientRect(); el._cx=e.clientX-r.left; el._cy=e.clientY-r.top; if(el._ripple) el._ripple(); });
     el._glowBound=true; }
 
   // ── Bar Replay (TradingView-style) ───────────────────────────────────────
@@ -2094,38 +2115,46 @@ function renderSummary(){
     // captured once on entry and never changes, so the chart pans smoothly instead
     // of re-fitting/oscillating every tick. Sync to the daily chart is held off
     // for the duration so it doesn't jitter along.
-    function paint(){
-      // Let the user zoom during replay: adopt whatever window width they've set,
-      // then re-anchor that same-width window so the playhead stays near the right.
+    function paint(force){
+      // Adopt whatever window width the user has zoomed to (so manual zoom sticks).
       try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); if(vr&&vr.to>vr.from) W=Math.max(8,Math.round(vr.to-vr.from)); }catch(_){}
-      // Sit the playhead ~62% across (big right pad) so the newest revealed candle
-      // stays clear of the mini-monitor that floats over the chart's right side.
-      const cut=times[idx], pad=Math.max(2,Math.round(W*0.36));
+      // Reveal bars up to idx. Follow the playhead ONLY when it leaves a comfortable
+      // band (off the left, or past ~72% where the mini-monitor floats) or when forced
+      // (a seek). This keeps your current view on enter/unpause — no jarring reset.
+      const cut=times[idx];
       candleSeries.setData(fullC.slice(0,idx+1));
       candleSeries.setMarkers(fullM.filter(m=>m.time<=cut));
       posSeries.setData(posData.slice(0,idx+1));
-      try{ sumMain.timeScale().setVisibleLogicalRange({from:idx+pad-W, to:idx+pad}); }catch(_){}
+      try{ const vr=sumMain.timeScale().getVisibleLogicalRange();
+        if(vr){ const w=Math.max(8, vr.to-vr.from), frac=(idx-vr.from)/w;
+          if(force || idx<vr.from || frac>0.72){ const back=Math.round(w*0.55);
+            sumMain.timeScale().setVisibleLogicalRange({from:idx-back, to:idx+(w-back)}); } }
+        else { const back=Math.round(W*0.55); sumMain.timeScale().setVisibleLogicalRange({from:idx-back, to:idx+(W-back)}); }
+      }catch(_){}
       window._pinnedDate=cut; el.classList.add('cdl-pinned');
       const di=document.getElementById('replay-date'); if(di) di.value=cut;   // reflect playhead
       renderInfo(cut, OHLCBYTIME[cut]); monitorHover(cut);
       if(statusEl) statusEl.textContent=(idx+1)+' / '+times.length+'  ·  '+cut;
       if(playBtn) playBtn.innerHTML = playing ? '&#10073;&#10073;' : '&#9654;&#65038;';
     }
-    function tick(){ if(idx>=times.length-1){ pause(); return; } idx++; paint(); }
-    function play(){ if(!active) start(); if(playing) return; playing=true;
-      window._replayTimer=setInterval(tick, Math.max(80, 650/speed)); paint(); }
+    function tick(){ if(idx>=times.length-1){ pause(); return; } idx++; paint(false); }
+    function play(){ if(!active){ if(window.Replay) window.Replay.enter(); return; } if(playing) return; playing=true;
+      if(playBtn) playBtn.innerHTML='&#10073;&#10073;';
+      window._replayTimer=setInterval(tick, Math.max(80, 650/speed)); }   // no immediate paint → unpause keeps the view
     function pause(){ playing=false; if(window._replayTimer){ clearInterval(window._replayTimer); window._replayTimer=null; } if(playBtn) playBtn.innerHTML='&#9654;&#65038;'; }
     window.Replay={
       enter(){ active=true; _suppressSync=true;
-        try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); if(vr){ preRange={from:vr.from,to:vr.to}; if(vr.to>vr.from) W=Math.max(20,Math.round(vr.to-vr.from)); } }catch(_){}
+        let vr; try{ vr=sumMain.timeScale().getVisibleLogicalRange(); }catch(_){}
+        if(vr){ preRange={from:vr.from,to:vr.to}; W=Math.max(20,Math.round(vr.to-vr.from));
+                idx=Math.max(0,Math.min(times.length-1, Math.round(vr.from+0.55*(vr.to-vr.from)))); }
+        else idx=times.length-1;
         if(ctrls) ctrls.style.display='inline-flex'; if(toggleBtn) toggleBtn.classList.add('on');
-        const di=document.getElementById('replay-date');
-        if(di){ di.min=times[0]; di.max=times[times.length-1]; if(!di.value) di.value=times[Math.max(0,times.length-120)]; }
-        this.start(di?di.value:times[Math.max(0,times.length-120)]); },
-      start(d){ active=true; _suppressSync=true; pause(); idx=idxOf(d); paint(); },
+        const di=document.getElementById('replay-date'); if(di){ di.min=times[0]; di.max=times[times.length-1]; }
+        paint(false); },   // keep the current view, don't jump to a default date
+      start(d){ active=true; _suppressSync=true; pause(); idx=idxOf(d); paint(true); },   // seek → recentre
       toggle(){ if(playing) pause(); else play(); },
       play, pause,
-      step(n){ pause(); idx=Math.max(0,Math.min(times.length-1, idx+n)); paint(); },
+      step(n){ pause(); idx=Math.max(0,Math.min(times.length-1, idx+n)); paint(false); },
       setSpeed(s){ speed=s||1; if(playing){ pause(); play(); } },
       stop(){ pause(); active=false; window._pinnedDate=null; el.classList.remove('cdl-pinned');
         if(ctrls) ctrls.style.display='none'; if(toggleBtn) toggleBtn.classList.remove('on');
