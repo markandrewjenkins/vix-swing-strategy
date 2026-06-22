@@ -1648,7 +1648,7 @@ async function loadLive(){
     const m = L.market||{}, d = L.derived||{}, o = L.official||{};
     const q = m.quotes||{};
 
-    const setVal = (id,txt,cls) => {
+    const setVal = (id,txt,cls,dull) => {
       const el = document.getElementById(id); if(!el) return;
       el.textContent = txt;
       el.className = 'live-val' + (cls?(' '+cls):'') + (dull?' dull':'');
