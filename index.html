@@ -613,10 +613,10 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           <button id="replay-toggle" class="rp-btn rp-main" onclick="replayEnter()">&#9654; Bar Replay</button>
           <span id="replay-controls" style="display:none;flex-wrap:wrap;gap:7px;align-items:center">
             <label class="rp-lab">From <input type="date" id="replay-date" class="rp-date"></label>
-            <button class="rp-btn" title="Start / restart from date" onclick="Replay.start(document.getElementById('replay-date').value)">&#9198; Start</button>
-            <button class="rp-btn" title="Step back" onclick="Replay.step(-1)">&#9194;</button>
-            <button id="replay-play" class="rp-btn" title="Play / pause" onclick="Replay.toggle()">&#9654;</button>
-            <button class="rp-btn" title="Step forward" onclick="Replay.step(1)">&#9193;</button>
+            <button class="rp-btn" title="Start / restart from date" onclick="Replay.start(document.getElementById('replay-date').value)">&#9198;&#65038; Start</button>
+            <button class="rp-btn" title="Step back" onclick="Replay.step(-1)">&#9194;&#65038;</button>
+            <button id="replay-play" class="rp-btn" title="Play / pause" onclick="Replay.toggle()">&#9654;&#65038;</button>
+            <button class="rp-btn" title="Step forward" onclick="Replay.step(1)">&#9193;&#65038;</button>
             <label class="rp-lab">Speed
               <select id="replay-speed" class="rp-date" onchange="Replay.setSpeed(+this.value)">
                 <option value="0.5">0.5&times;</option><option value="1" selected>1&times;</option>
@@ -2023,12 +2023,12 @@ function renderSummary(){
       const di=document.getElementById('replay-date'); if(di) di.value=cut;   // reflect playhead
       renderInfo(cut, OHLCBYTIME[cut]); monitorHover(cut);
       if(statusEl) statusEl.textContent=(idx+1)+' / '+times.length+'  ·  '+cut;
-      if(playBtn) playBtn.innerHTML = playing ? '&#10073;&#10073;' : '&#9654;';
+      if(playBtn) playBtn.innerHTML = playing ? '&#10073;&#10073;' : '&#9654;&#65038;';
     }
     function tick(){ if(idx>=times.length-1){ pause(); return; } idx++; paint(); }
     function play(){ if(!active) start(); if(playing) return; playing=true;
       window._replayTimer=setInterval(tick, Math.max(80, 650/speed)); paint(); }
-    function pause(){ playing=false; if(window._replayTimer){ clearInterval(window._replayTimer); window._replayTimer=null; } if(playBtn) playBtn.innerHTML='&#9654;'; }
+    function pause(){ playing=false; if(window._replayTimer){ clearInterval(window._replayTimer); window._replayTimer=null; } if(playBtn) playBtn.innerHTML='&#9654;&#65038;'; }
     window.Replay={
       enter(){ active=true; _suppressSync=true;
         try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); if(vr){ preRange={from:vr.from,to:vr.to}; if(vr.to>vr.from) W=Math.max(20,Math.round(vr.to-vr.from)); } }catch(_){}
