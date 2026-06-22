@@ -1,8 +1,8 @@
 {
-  "generated_utc": "2026-06-22T09:15:27+00:00",
+  "generated_utc": "2026-06-22T09:20:28+00:00",
   "market": {
-    "vix_spot": 17.52,
-    "vix1m_used": 17.52,
+    "vix_spot": 17.46,
+    "vix1m_used": 17.46,
     "vix9d_used": 13.93,
     "vix3m_used": 19.57,
     "vvix_used": 88.43,
@@ -28,10 +28,10 @@
     },
     "quotes": {
       "vix": {
-        "price": 17.52,
+        "price": 17.46,
         "prev_close": 16.78,
-        "change_pct": 0.0441,
-        "time": "2026-06-22T09:00:16+00:00"
+        "change_pct": 0.040524,
+        "time": "2026-06-22T09:05:16+00:00"
       },
       "vix9d": {
         "price": 13.93,
@@ -108,11 +108,11 @@
     }
   },
   "derived": {
-    "contango": 0.117009,
+    "contango": 0.120848,
     "backend_slope": 0.123659,
-    "vdelta": 3.59,
-    "ratio_1m_3m": 0.8952,
-    "move_vix_ratio": 3.73,
+    "vdelta": 3.53,
+    "ratio_1m_3m": 0.8922,
+    "move_vix_ratio": 3.74,
     "regime": "contango"
   },
   "signal_timing": {
@@ -123,32 +123,32 @@
       "expected": "Live ^VIX9D (Yahoo), ~5-min refresh; falls back to CBOE EOD if unavailable. The 4pm close value feeds the ~7pm evaluation."
     },
     "vix1m": {
-      "value": 17.52,
-      "changed_utc": "2026-06-22T09:15:27+00:00",
+      "value": 17.46,
+      "changed_utc": "2026-06-22T09:20:28+00:00",
       "cadence": "live",
       "expected": "Live VIX spot, refreshes ~every 5 min. The 4pm close value is the one that feeds the ~7pm evaluation."
     },
     "contango": {
-      "value": 0.117,
-      "changed_utc": "2026-06-22T09:15:27+00:00",
+      "value": 0.1208,
+      "changed_utc": "2026-06-22T09:20:28+00:00",
       "cadence": "live",
       "expected": "Live VIX3M \u00f7 VIX1M (both Yahoo intraday); finalises for the ~7pm evaluation."
     },
     "vdelta": {
-      "value": 3.59,
-      "changed_utc": "2026-06-22T09:15:27+00:00",
+      "value": 3.53,
+      "changed_utc": "2026-06-22T09:20:28+00:00",
       "cadence": "live",
       "expected": "Live VIX1M \u2212 VIX9D (both Yahoo intraday)."
     },
     "ratio_1m_3m": {
-      "value": 0.8952,
-      "changed_utc": "2026-06-22T09:15:27+00:00",
+      "value": 0.8922,
+      "changed_utc": "2026-06-22T09:20:28+00:00",
       "cadence": "live",
       "expected": "Live VIX1M \u00f7 VIX3M (both Yahoo intraday)."
     },
     "move_vix_ratio": {
-      "value": 3.732,
-      "changed_utc": "2026-06-22T09:15:27+00:00",
+      "value": 3.7449,
+      "changed_utc": "2026-06-22T09:20:28+00:00",
       "cadence": "live",
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
