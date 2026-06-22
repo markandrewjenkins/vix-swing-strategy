@@ -1722,10 +1722,13 @@ function applyChartMode(){
   if(r) r.classList.toggle('active', CHART_MODE==='real');
   if(a) a.classList.toggle('active', CHART_MODE==='alt');
   if(!candleSeries||!sumMain) return;
+  // Preserve the candle chart's zoom/position across the toggle (don't snap to default).
+  let keep=null; try{ keep=sumMain.timeScale().getVisibleLogicalRange(); }catch(_){}
   CANDLES=displayCandles(); MARKERS=displayMarkers(); rebuildChartMaps();
   candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS);
   if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
-  summaryToEnd();   // reset to the default 2-month view so it holds across the toggle
+  if(keep){ try{ sumMain.timeScale().setVisibleLogicalRange(keep); }catch(_){ summaryToEnd(); } }
+  else summaryToEnd();
 }
 function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
 // Default view: ~2 months (42 trading days) filling the left two-thirds, with the
@@ -1765,16 +1768,19 @@ function buildDaily(){
     layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
     rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.10}},
-    leftPriceScale:{visible:true,borderColor:'#443714',scaleMargins:{top:0.06,bottom:0.06}},
-    timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.3},
+    leftPriceScale:{visible:true,invertScale:true,borderColor:'#443714',scaleMargins:{top:0.04,bottom:0.04}},
+    timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.3,maxBarSpacing:18},
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
   dailySeries=dailyChart.addAreaSeries({lineColor:YELLOW,topColor:'rgba(232,185,79,0.25)',bottomColor:'rgba(232,185,79,0.01)',lineWidth:2,priceScaleId:'right',
     priceLineVisible:true,priceLineColor:'#cdbf95',priceLineWidth:1,priceLineStyle:2,
     priceFormat:{type:'custom',formatter:v=>'$'+abbrev(v)}});
   dailySeries.setData(data); dailySeries.setMarkers(mk);
-  // drawdown histogram on its own left % axis — hangs down from 0% like the equity chart
-  const ddS=dailyChart.addHistogramSeries({priceScaleId:'left',color:'rgba(242,86,58,0.32)',base:0,priceLineVisible:false,lastValueVisible:false,
-    priceFormat:{type:'custom',formatter:v=>Math.round(v)+'%'}});
+  // drawdown histogram on its own left % axis — INVERTED scale: 0% sits at the
+  // bottom, -100% at the top, so red bars grow straight up from the bottom and a
+  // deeper drawdown = a taller bar. Axis fixed to [-100%, 0%] (never auto-scales).
+  const ddS=dailyChart.addHistogramSeries({priceScaleId:'left',color:'rgba(242,86,58,0.34)',base:0,priceLineVisible:false,lastValueVisible:false,
+    priceFormat:{type:'custom',formatter:v=>Math.round(v)+'%'},
+    autoscaleInfoProvider:()=>({priceRange:{minValue:-100,maxValue:0}})});
   ddS.setData(ec.map(b=>({time:b.date,value:+(b.drawdown||0).toFixed(2)})));
   const info=document.getElementById('daily-info');
   const fmt=d=>{const m=_dailyMap[d]; if(!m) return ''; const cc=m.cum>=0?'var(--teal)':'var(--coral)';
@@ -1846,7 +1852,7 @@ function renderSummary(){
     layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
     rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.14}},
-    timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.4},
+    timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.4,maxBarSpacing:18},
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),
       vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},
       horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
@@ -1967,16 +1973,21 @@ function renderSummary(){
   (function(){
     const fullC=CANDLES, fullM=markers, times=fullC.map(c=>c.time);
     const posData=fullC.map(c=>({time:c.time,value:1,color:posColorOf(posByDate[c.time]||'CASH')}));
-    let idx=times.length-1, active=false, playing=false, speed=1;
+    let idx=times.length-1, active=false, playing=false, speed=1, W=60, preRange=null;
     const statusEl=document.getElementById('replay-status'), playBtn=document.getElementById('replay-play'),
           ctrls=document.getElementById('replay-controls'), toggleBtn=document.getElementById('replay-toggle');
     const idxOf=d=>{ if(!d) return 0; let lo=0; for(let i=0;i<times.length;i++){ if(times[i]<=d) lo=i; else break; } return lo; };
+    // Reveal bars by truncating the data, then SHIFT a fixed-width window so the
+    // playhead sits near the right edge. The window width W (the zoom level) is
+    // captured once on entry and never changes, so the chart pans smoothly instead
+    // of re-fitting/oscillating every tick. Sync to the daily chart is held off
+    // for the duration so it doesn't jitter along.
     function paint(){
-      const cut=times[idx];
+      const cut=times[idx], pad=Math.max(2,Math.round(W*0.06));
       candleSeries.setData(fullC.slice(0,idx+1));
       candleSeries.setMarkers(fullM.filter(m=>m.time<=cut));
       posSeries.setData(posData.slice(0,idx+1));
-      try{ sumMain.timeScale().scrollToRealTime(); }catch(_){}
+      try{ sumMain.timeScale().setVisibleLogicalRange({from:idx+pad-W, to:idx+pad}); }catch(_){}
       window._pinnedDate=cut; el.classList.add('cdl-pinned');
       renderInfo(cut, OHLCBYTIME[cut]); monitorHover(cut);
       if(statusEl) statusEl.textContent=(idx+1)+' / '+times.length+'  ·  '+cut;
@@ -1987,11 +1998,13 @@ function renderSummary(){
       window._replayTimer=setInterval(tick, Math.max(80, 650/speed)); paint(); }
     function pause(){ playing=false; if(window._replayTimer){ clearInterval(window._replayTimer); window._replayTimer=null; } if(playBtn) playBtn.innerHTML='&#9654;'; }
     window.Replay={
-      enter(){ active=true; if(ctrls) ctrls.style.display='inline-flex'; if(toggleBtn) toggleBtn.classList.add('on');
+      enter(){ active=true; _suppressSync=true;
+        try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); if(vr){ preRange={from:vr.from,to:vr.to}; if(vr.to>vr.from) W=Math.max(20,Math.round(vr.to-vr.from)); } }catch(_){}
+        if(ctrls) ctrls.style.display='inline-flex'; if(toggleBtn) toggleBtn.classList.add('on');
         const di=document.getElementById('replay-date');
-        if(di && !di.value){ di.min=times[0]; di.max=times[times.length-1]; di.value=times[Math.max(0,times.length-120)]; }
+        if(di){ di.min=times[0]; di.max=times[times.length-1]; if(!di.value) di.value=times[Math.max(0,times.length-120)]; }
         this.start(di?di.value:times[Math.max(0,times.length-120)]); },
-      start(d){ active=true; pause(); idx=idxOf(d); paint(); },
+      start(d){ active=true; _suppressSync=true; pause(); idx=idxOf(d); paint(); },
       toggle(){ if(playing) pause(); else play(); },
       play, pause,
       step(n){ pause(); idx=Math.max(0,Math.min(times.length-1, idx+n)); paint(); },
@@ -1999,7 +2012,9 @@ function renderSummary(){
       stop(){ pause(); active=false; window._pinnedDate=null; el.classList.remove('cdl-pinned');
         if(ctrls) ctrls.style.display='none'; if(toggleBtn) toggleBtn.classList.remove('on');
         candleSeries.setData(fullC); candleSeries.setMarkers(fullM); posSeries.setData(posData);
-        try{ sumMain.clearCrosshairPosition(); }catch(_){} summaryToEnd();
+        try{ sumMain.clearCrosshairPosition(); }catch(_){}
+        if(preRange){ try{ sumMain.timeScale().setVisibleLogicalRange(preRange); }catch(_){ summaryToEnd(); } } else summaryToEnd();
+        _suppressSync=false;
         renderInfo(null); monitorHover(null); }
     };
   })();
