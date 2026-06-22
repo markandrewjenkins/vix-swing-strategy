@@ -294,9 +294,10 @@ tr:hover td { background: #1f1a10 }
 .info-badge:hover::after {
   content: attr(data-tip);
   position: absolute;
-  bottom: 120%;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 140%;
+  bottom: auto;
+  left: 0;
+  transform: none;
   white-space: pre-line;
   background: var(--panel2);
   border: 1px solid var(--border2);
@@ -414,15 +415,15 @@ tr:hover td { background: #1f1a10 }
 /* Fixed layout so columns stay put when hovering between days (the Current cell
    gains/loses a clock icon, values change width — none of it should reflow). */
 table.sig-mon { width:100%; border-collapse:collapse; font-size:0.8rem; table-layout:fixed; }
-table.sig-mon th:nth-child(1),table.sig-mon td:nth-child(1){ width:15%; }
-table.sig-mon th:nth-child(2),table.sig-mon td:nth-child(2){ width:22%; }
-table.sig-mon th:nth-child(3),table.sig-mon td:nth-child(3){ width:15%; }
-table.sig-mon th:nth-child(4),table.sig-mon td:nth-child(4){ width:15%; }
+table.sig-mon th:nth-child(1),table.sig-mon td:nth-child(1){ width:14%; }
+table.sig-mon th:nth-child(2),table.sig-mon td:nth-child(2){ width:27%; }
+table.sig-mon th:nth-child(3),table.sig-mon td:nth-child(3){ width:13%; }
+table.sig-mon th:nth-child(4),table.sig-mon td:nth-child(4){ width:13%; }
 table.sig-mon th:nth-child(5),table.sig-mon td:nth-child(5){ width:24%; }
 table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .sig-gauge { display:inline-block; vertical-align:middle; }
 .cur-cell { display:flex; align-items:center; gap:7px; }
-.cur-cell .cur-val { min-width:62px; text-align:right; flex:none; white-space:nowrap; font-size:0.86rem; }
+.cur-cell .cur-val { width:64px; text-align:right; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:0.82rem; }
 .cur-hd { display:inline-block; width:62px; text-align:right; }
 .cur-cell .cur-clk { width:15px; flex:none; text-align:center; }
 .cur-cell .cur-bar { flex:none; }
@@ -442,6 +443,10 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .rp-lab { color:var(--dim); display:inline-flex; align-items:center; gap:5px; }
 .rp-date { background:#14110b; color:var(--cdbf,#cdbf95); border:1px solid var(--border2); border-radius:8px; padding:3px 6px; font-family:'Saira',sans-serif; font-size:0.7rem; color-scheme:dark; }
 #replay-status { color:var(--dim); font-variant-numeric:tabular-nums; }
+/* Full-screen Live Chart: the panel fills the screen and the chart grows to fit. */
+#live-panel:fullscreen { background:var(--bg,#0c0a07); padding:16px 18px; overflow:auto; }
+#live-panel:fullscreen #cdl-wrap { height:calc(100vh - 230px); }
+#live-panel:-webkit-full-screen #cdl-wrap { height:calc(100vh - 230px); }
 /* Hover: a very small, faint halo that follows the cursor. */
 .cdl-glow { position:absolute; width:110px; height:110px; transform:translate(-50%,-50%); border-radius:50%;
   pointer-events:none; opacity:0; transition:opacity .2s ease; z-index:5;
@@ -483,7 +488,8 @@ table.sig-mon td.sig-desc { color:var(--dim); font-size:0.75rem; }
 .sig-explain { font-size:0.82rem; color:var(--text); line-height:1.5; margin:5px 0 1px; padding:7px 10px; background:rgba(232,185,79,0.06); border-left:2px solid var(--yellow); border-radius:3px; }
 .sig-explain b { color:var(--white); }
 .mini-combo { font-size:0.55rem; color:var(--dim); letter-spacing:0.5px; margin:3px 0 1px; white-space:nowrap; }
-.mini-why { font-size:0.55rem; color:var(--dim); line-height:1.4; margin:1px 0 2px; white-space:normal; }
+.mini-why { font-size:0.55rem; color:var(--dim); line-height:1.4; margin:1px 0 2px; white-space:normal;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; height:5.6em; }
 .mini-why b { color:var(--white); font-weight:600; }
 .sig-proj-row1 { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 11px; font-size:0.95rem; margin-bottom:3px; }
 .sig-proj-row2 { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 30px; font-size:0.8rem; margin-bottom:4px; }
@@ -594,11 +600,12 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
   <!-- ══ P&L SUMMARY TAB ══════════════════════════════════════════════ -->
   <div id="tab-summary">
-    <div class="panel">
+    <div class="panel" id="live-panel">
       <div class="ph ph-live"><span>Live Chart</span>
         <div id="mkt-row">
           <span class="mkt-block"><span id="mkt-dot"></span><span id="mkt-label">Market closed</span><span id="mkt-countdown"></span></span>
           <span class="mkt-sessbar"><span class="seg c1"></span><span class="seg pre"></span><span class="seg reg"></span><span class="seg aft"></span><span class="seg c2"></span><span class="mkt-marker" id="mkt-marker"></span></span>
+          <button id="cdl-fs" class="rp-btn" title="Full screen" onclick="toggleChartFs()" style="margin-left:10px">&#9974; Full screen</button>
         </div>
       </div>
       <div class="pb">
@@ -621,7 +628,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           </span>
         </div>
         <div id="cdl-info" class="cdl-info">Hover the chart for details</div>
-        <div style="position:relative;width:100%;height:620px">
+        <div id="cdl-wrap" style="position:relative;width:100%;height:620px">
           <div id="candle-chart" style="width:100%;height:100%"></div>
           <div id="mini-monitor" class="mini-mon"></div>
           <button id="cdl-toend" title="Jump to latest" onclick="summaryToEnd()" style="position:absolute;bottom:46px;right:78px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
@@ -1145,11 +1152,14 @@ function renderAnalytics(){
 
   // Risk metrics
   const s2=aStats();
-  const calmarTip="Calmar Ratio = CAGR ÷ |Max Drawdown|\nMeasures return earned per unit of drawdown risk.\nCurrent: "+fmtNum(s2.calmar,2)+" = "+fmtPct(s2.cagr,1)+" CAGR ÷ "+Math.abs((s2.max_drawdown*100).toFixed(1))+"%\nHigher is better. Target: >1.0";
+  const sharpeTip="Sharpe Ratio = (annualised return − risk-free) ÷ annualised volatility (of daily returns).\nReturn earned per unit of total volatility — higher is better.\nCurrent: "+fmtNum(s2.sharpe,2)+"\nRule of thumb: >1 good · >2 very good.";
+  const sortinoTip="Sortino Ratio = like Sharpe but divides by DOWNSIDE volatility only (ignores upside swings).\nReturn earned per unit of harmful (downside) risk — higher is better.\nCurrent: "+fmtNum(s2.sortino,2)+"\nUsually read alongside Sharpe; >1 good.";
+  const calmarTip="Calmar Ratio = CAGR ÷ |Max Drawdown|\nReturn earned per unit of worst-case drawdown risk.\nCurrent: "+fmtNum(s2.calmar,2)+" = "+fmtPct(s2.cagr,1)+" CAGR ÷ "+Math.abs((s2.max_drawdown*100).toFixed(1))+"%\nHigher is better. Target: >1.0";
+  const _tipFor={'Sharpe ratio':sharpeTip,'Sortino ratio':sortinoTip,'Calmar ratio':calmarTip};
   document.getElementById('risk-metrics').innerHTML=[
-    ['Sharpe ratio',fmtNum(s2.sharpe,3),s2.sharpe>=1?'pos':'neg'],
-    ['Sortino ratio',fmtNum(s2.sortino,3),s2.sortino>=1?'pos':'neg'],
-    ['Calmar ratio',fmtNum(s2.calmar,3),s2.calmar>=0.5?'pos':'neg','calmar'],
+    ['Sharpe ratio',fmtNum(s2.sharpe,3),s2.sharpe>=1?'pos':'neg','tip'],
+    ['Sortino ratio',fmtNum(s2.sortino,3),s2.sortino>=1?'pos':'neg','tip'],
+    ['Calmar ratio',fmtNum(s2.calmar,3),s2.calmar>=0.5?'pos':'neg','tip'],
     ['Max drawdown',fmtPct(s2.max_drawdown,2),'neg'],
     ['Avg win',fmtPct(s2.avg_win,2),'pos'],
     ['Avg loss',fmtPct(s2.avg_loss,2),'neg'],
@@ -1157,11 +1167,11 @@ function renderAnalytics(){
     ['Largest loss',fmtPct(s2.largest_loss,2),'neg'],
     ['Max consec. wins',s2.max_consec_wins,'pos'],
     ['Max consec. losses',s2.max_consec_losses,'neg'],
-    ['Avg hold (days)',s2.avg_hold_days,'neu'],
-    ['Max hold (days)',s2.max_hold_days,'neu'],
+    ['Avg hold (days)',s2.avg_hold_days,'yel'],
+    ['Max hold (days)',s2.max_hold_days,'yel'],
   ].map(([k,v,c,tag])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
-    <span style="font-size:0.82rem;color:var(--dim)">${k}${tag==='calmar'?`<span class="info-badge" data-tip="${calmarTip}">?</span>`:''}</span>
-    <span style="font-family:'Saira', sans-serif;font-size:0.88rem" class="${c}">${v}</span>
+    <span style="font-size:0.82rem;color:var(--dim)">${k}${tag==='tip'?`<span class="info-badge" data-tip="${_tipFor[k]}">?</span>`:''}</span>
+    <span style="font-family:'Saira', sans-serif;font-size:0.88rem${c==='yel'?';color:var(--yellow)':''}" class="${c!=='yel'?c:''}">${v}</span>
   </div>`).join('');
 
   // Run-up / drawdown
@@ -1820,6 +1830,18 @@ function buildDaily(){
   else dailyChart.timeScale().fitContent();
 }
 function replayEnter(){ if(window.Replay&&window.Replay.enter) window.Replay.enter(); }
+// Full-screen the Live Chart panel; resize the LC charts to fill on enter/exit.
+function _resizeSumCharts(){ const el=document.getElementById('candle-chart'), pel=document.getElementById('pos-band');
+  try{ if(sumMain&&el&&el.clientWidth) sumMain.applyOptions({width:el.clientWidth,height:el.clientHeight||el.parentElement.clientHeight}); }catch(_){}
+  try{ if(sumPos&&pel&&pel.clientWidth) sumPos.applyOptions({width:pel.clientWidth}); }catch(_){} }
+function toggleChartFs(){ const p=document.getElementById('live-panel'); if(!p) return;
+  const fsEl=document.fullscreenElement||document.webkitFullscreenElement;
+  if(fsEl){ (document.exitFullscreen||document.webkitExitFullscreen).call(document); }
+  else { (p.requestFullscreen||p.webkitRequestFullscreen).call(p); } }
+if(!window._fsBound){ const _onFs=()=>{ const on=!!(document.fullscreenElement||document.webkitFullscreenElement);
+    const btn=document.getElementById('cdl-fs'); if(btn) btn.innerHTML = on ? '&#10005; Exit full screen' : '&#9974; Full screen';
+    setTimeout(_resizeSumCharts,60); setTimeout(_resizeSumCharts,250); };
+  document.addEventListener('fullscreenchange',_onFs); document.addEventListener('webkitfullscreenchange',_onFs); window._fsBound=true; }
 function posColorOf(p){ return p==='LONG_VOL_SELLER'?TEAL : p==='LONG_VOL'?CORAL : CASHC; }
 function posNameOf(p){ return p==='LONG_VOL_SELLER'?'SVXY' : p==='LONG_VOL'?'UVXY' : 'CASH'; }
 
@@ -1855,7 +1877,7 @@ function renderSummary(){
     layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
     rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.14}},
-    timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.4,maxBarSpacing:18},
+    timeScale:{borderColor:'#443714',rightOffset:12,minBarSpacing:0.4,maxBarSpacing:18},
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),
       vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},
       horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
@@ -2116,7 +2138,11 @@ function renderSignalMonitor(histBar){
     return `<svg width="${W}" height="${H}" style="vertical-align:middle"><clipPath id="${id}"><rect x="1" y="${by}" width="${W-2}" height="${bh}" rx="2.5"/></clipPath>`
       + `<rect x="1" y="${by}" width="${W-2}" height="${bh}" rx="2.5" fill="#15110a"/><g clip-path="url(#${id})">${lines}</g></svg>`; };
   const gaugeHtml=(lo,hi,zones,val,tip,fmt,opts)=>{ opts=opts||{}; tip=_titleCase(tip);
-    const W=176,H=24,by=2,bh=5,pad=1;
+    const W=176,H=24,bh=5,pad=1;
+    // No labels underneath (hatch/N-A or nolab) → vertically centre the bar so it
+    // doesn't sit top-heavy and look askew next to the labelled rows.
+    const noLabels = opts.hatch || opts.nolab;
+    const by = noLabels ? Math.round((H-bh)/2) : 2;
     if(opts.hatch) return `<span class="sig-gauge" title="${tip||''}">${_hatchSvg(W,H,by,bh)}</span>`;
     if(val==null||isNaN(val)||hi<=lo) return '';
     fmt = fmt || (v=>(+v).toFixed(1));
@@ -2130,7 +2156,7 @@ function renderSignalMonitor(histBar){
       return `<text x="${x.toFixed(1)}" y="${H-1}" font-size="7.5" fill="var(--dim)" text-anchor="${anc}">${fmt(v)}</text>`;}).join('');
     const mx=sx(val).toFixed(1);
     return `<span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${rects}${labels}`
-      + `<line x1="${mx}" y1="0.5" x2="${mx}" y2="${by+bh+0.5}" stroke="var(--white)" stroke-width="2"/></svg></span>`; };
+      + `<line x1="${mx}" y1="${(by-1.5).toFixed(1)}" x2="${mx}" y2="${(by+bh+1.5).toFixed(1)}" stroke="var(--white)" stroke-width="2"/></svg></span>`; };
 
   // Compact pill gauge for the floating mini monitor (no labels, white marker).
   const gaugeMini=(g)=>{ if(!g) return '';
@@ -2468,18 +2494,18 @@ function renderSignalMonitor(histBar){
       const exnm=exi!=null?exitRules[exi][0]:'an exit rule';
       explain=`<b>Exiting ${isUV?'UVXY (long vol)':'SVXY (short vol)'}</b> in tonight's after-hours: <b>${exnm}</b> triggered. Once any of the seven exit rules fires the position is closed — entry signals no longer apply.`;
     } else {
-      explain=`<b>Holding ${isUV?'UVXY (long vol)':'SVXY (short vol)'}.</b> None of the seven exit rules has triggered, so the position is kept. The entry indicators are shown for context but are ignored while a position is open — they only decide a <i>new</i> trade from cash.`;
+      explain=`<b>Holding ${isUV?'UVXY (long vol)':'SVXY (short vol)'}.</b> No exit rule has triggered, so the position is kept. Entry signals are ignored while in a position — they only decide a new trade from cash.`;
     }
   } else if(spike && _pk==='sv'){
-    explain=`<b>Entering SVXY (short vol)</b> via the <b>spike-fade override</b>: VIX jumped ≥35% in a day then faded back intraday, so the strategy fades the spike (buys the vol dip). This is a standalone entry path${_contrarySV.length?` — ${_contrarySV.join(', ')} read otherwise, but they're overridden because spike-fade doesn't need the full term-structure alignment`:''}.`;
+    explain=`<b>Entering SVXY (short vol)</b> via the <b>spike-fade override</b>: VIX jumped ≥35% then faded intraday, so the strategy fades the spike (buys the vol dip). A standalone path — it skips the full term-structure alignment.`;
   } else if(crush && _pk==='uv'){
-    explain=`<b>Entering UVXY (long vol)</b> via the <b>crush override</b>: VIX collapsed ≥35% in a day; the strategy buys the expected bounce in volatility. This override fires on its own regardless of the other signals.`;
+    explain=`<b>Entering UVXY (long vol)</b> via the <b>crush override</b>: VIX collapsed ≥35% in a day; the strategy buys the expected vol bounce. This override fires on its own.`;
   } else if(_pk==='sv'){
-    explain=`<b>Entering SVXY (short vol):</b> all six entry signals align bullish (${_svParts.join(', ')||'all six'}). A short-vol entry requires the <i>full</i> set and every one agrees here.`;
+    explain=`<b>Entering SVXY (short vol):</b> all six entry signals align bullish (${_svParts.join(', ')||'all six'}). Short-vol needs the full set — every one agrees here.`;
   } else if(_pk==='uv'){
-    explain=`<b>Entering UVXY (long vol):</b> the full bearish regime is in place — ${_uvParts.join(', ')||'all four bear signals'} are bearish. Contango reads ${pct(contango,1)} but it isn't part of the bear-regime gate, so it doesn't block the entry.`;
+    explain=`<b>Entering UVXY (long vol):</b> the full bear regime is in place — ${_uvParts.join(', ')||'all four bear signals'} bearish. Contango (${pct(contango,1)}) isn't part of the gate, so it doesn't block entry.`;
   } else {
-    explain=`<b>Staying in cash:</b> a short-vol entry needs all six signals aligned (only ${svxy6}/6${_svParts.length?`: ${_svParts.join(', ')}`:''}), and a long-vol entry needs the full four-signal bear regime (only ${uvxy4}/4). The signals that <i>do</i> agree aren't enough on their own — each side must hit its full set, so the mixed/contrary readings keep it flat.`;
+    explain=`<b>Staying in cash:</b> short-vol needs all six aligned (only ${svxy6}/6), long-vol needs the full four-signal bear regime (only ${uvxy4}/4). Partial agreement isn't enough — each side must hit its full set.`;
   }
   const decisionLogic =
       `<div class="sig-logic"><span class="lbl">How it combines</span>`
@@ -2542,24 +2568,29 @@ function renderSignalMonitor(histBar){
   const sSize={lo:_dMA.lo,hi:_dMA.hi,z:[[_dMA.lo,REG,'t'],[REG,_dMA.hi,'r']],v:b.vix1m_ma30,fmt:fN0,tip:`high-vol regime when 30-day VIX avg > ${REG} → SVXY size ×0.48 (UVXY always ×0.43) · now ${b.vix1m_ma30!=null?b.vix1m_ma30.toFixed(1):'—'}`};
   const sSpk =_spkDay?{lo:0,hi:1,z:[[0,0.5,'r'],[0.5,1,'t']],v:b.vix_fade?0.75:0.25,nolab:true,tip:'on a ≥35% 1-day VIX spike — Sustained: spiked ≥8% above open AND closed near the high; Faded: spiked ≥8% but closed back near/below open'}:{lo:0,hi:1,z:[[0,1,'n']],v:0.5,hatch:true,tip:'only relevant on a spike day (≥35% 1-day VIX move)'};
   const sVF  =b.neg_vol?{lo:0,hi:1,z:[[0,1,'r']],v:0.5,nolab:true,tip:'negative vol carry: OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end → long-vol'}:{lo:0,hi:1,z:[[0,1,'n']],v:0.5,hatch:true,tip:'relevant only when carry is negative (OBV divergence)'};
+  // Comp rows: Current value rendered WHITE (dimmed when a position is open, like
+  // the term-structure entry rows); Signal column shows SVXY/UVXY/Cash/N/A via tag().
+  // These are all derived from the EOD term structure → an amber (EOD) refresh clock,
+  // so every row carries one and the gauge bars line up vertically.
+  const _compClk = hist ? '' : `<span class="sig-info" style="color:var(--amber)" title="Data as at: after the CBOE close (~5:30pm ET)&#10;Expected update: after the CBOE close (~5:30pm ET)&#10;(Decision finalises ~7pm ET)">&#9201;</span>`;
   const compHtml=(arr)=>arr.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
-    +`<td><div class="cur-cell"><span class="cur-val">${r[4]}</span><span class="cur-bar">${r[5]||''}</span></div></td>`
-    +`<td><span style="color:var(--dim);font-size:0.72rem">${r[6]}</span></td></tr>`).join('');
+    +`<td><div class="cur-cell"><span class="cur-val" style="color:${inPos?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${_compClk}</span><span class="cur-bar">${r[5]||''}</span></div></td>`
+    +`<td>${tag(r[6])}</td></tr>`).join('');
   const _gated=(b.mv_lo||(b.vix1m!=null&&b.vix1m>=CAP));
   const compEntry=[
     ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — short-vol regime confirmation; needs trend ≥ 0 (not falling through zero)','Trend ≥ 0 confirms SVXY','Trend < 0 blocks SVXY',
-      b.bb_buy?'<span style="color:var(--teal)">Uptrend</span>':'<span style="color:var(--coral)">Downtrend</span>', gFull(sBB),'Entry'],
+      b.bb_buy?'Uptrend':'Downtrend', gFull(sBB), b.bb_buy?'SVXY':'NA'],
     ['Spike character','On a ≥35% 1-day VIX spike, whether it faded or held into the close: Sustained = spiked ≥8% above open & closed near high; Faded = spiked ≥8% but closed back','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
-      _spkDay?(b.vix_fade?'<span style="color:var(--teal)">Faded</span>':'<span style="color:var(--coral)">Sustained</span>'):_na, gFull(sSpk),'Entry'],
-    ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end — an independent long-vol entry path','—','Active → UVXY entry path',
-      b.neg_vol?'<span style="color:var(--coral)">Active</span>':_na, gFull(sVF),'Entry'],
-    ['UVXY entry gates','Long-vol entry is blocked when MOVE/VIX ≤ 2 or VIX1M ≥ 45.9 (the spike-chase cap), unless the spike held intraday','—','Clear → UVXY entry allowed',
-      _gated?'<span style="color:var(--coral)">Blocked</span>':'<span style="color:var(--teal)">Clear</span>', gFull(sGate),'Gate'],
+      _spkDay?(b.vix_fade?'Faded':'Sustained'):_na, gFull(sSpk), _spkDay?(b.vix_fade?'SVXY':'UVXY'):'NA'],
+    ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end — an independent long-vol entry path','','Active → UVXY entry path',
+      b.neg_vol?'Active':_na, gFull(sVF), b.neg_vol?'UVXY':'NA'],
+    ['UVXY entry gates','Long-vol entry is blocked when MOVE/VIX ≤ 2 or VIX1M ≥ 45.9 (the spike-chase cap), unless the spike held intraday','','Clear → UVXY entry allowed',
+      _gated?'Blocked':'Clear', gFull(sGate), 'NA'],
   ];
   const compSize=[
     ['Position sizing','Short-vol size is cut to ×0.48 in a high-vol regime (30-day VIX average > 31.3); long-vol is always sized ×0.43','Normal → full SVXY size','High-vol → SVXY ×0.48',
-      b.high_vol_regime?'<span style="color:var(--coral)">High-vol</span>':'<span style="color:var(--teal)">Normal</span>', gFull(sSize),'Sizing'],
+      b.high_vol_regime?'High-vol':'Normal', gFull(sSize), 'NA'],
   ];
   const sizeDivider='<tr class="sig-divider"><td colspan="6">Position Sizing - scales the trade rather than triggering it</td></tr>';
   const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
