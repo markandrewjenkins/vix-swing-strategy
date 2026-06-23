@@ -127,8 +127,14 @@ def cboe_last(symbol: str) -> tuple[float | None, float | None, str | None]:
 
 
 # ── Yahoo v8 live quote ───────────────────────────────────────────────────────
-def yahoo_quote(symbol: str) -> dict:
-    """Return {price, prev_close, change_pct, time} from the freshest Yahoo quote."""
+def yahoo_quote(symbol: str, prepost: bool = False) -> dict:
+    """Return {price, prev_close, change_pct, time} from the freshest Yahoo quote.
+
+    prepost=True (ETFs) pulls extended-hours bars and uses the LATEST traded price
+    across pre-market / regular / after-hours, so the quote moves from ~4am through
+    after-hours. Indices (VIX*) leave it False — they aren't disseminated pre/post.
+    change_pct is computed here against the prior regular close (reliable for ETFs;
+    VIX indices get re-based against the authoritative CBOE close in main())."""
     try:
         # Grab a cookie first (Yahoo gates the v8 endpoint behind one).
         try:
@@ -140,13 +146,24 @@ def yahoo_quote(symbol: str) -> dict:
         except Exception:
             cookie = ""
         url = (f"https://query1.finance.yahoo.com/v8/finance/chart/"
-               f"{urllib.parse.quote(symbol)}?range=1d&interval=5m")
+               f"{urllib.parse.quote(symbol)}?range=1d&interval=5m"
+               + ("&includePrePost=true" if prepost else ""))
         data = json.loads(_get(url, extra={"Cookie": cookie} if cookie else None))
-        meta = data["chart"]["result"][0]["meta"]
-        price = meta.get("regularMarketPrice")
+        res   = data["chart"]["result"][0]
+        meta  = res["meta"]
         prev  = meta.get("chartPreviousClose") or meta.get("previousClose")
-        chg   = ((price / prev - 1.0) if (price and prev) else None)
+        price = meta.get("regularMarketPrice")
         t     = meta.get("regularMarketTime")
+        if prepost:
+            # Latest non-null close across pre/regular/post bars = current price.
+            ts = res.get("timestamp") or []
+            cl = (((res.get("indicators") or {}).get("quote") or [{}])[0].get("close")) or []
+            for i in range(len(cl) - 1, -1, -1):
+                if cl[i] is not None:
+                    price = cl[i]
+                    t = ts[i] if i < len(ts) else t
+                    break
+        chg = ((price / prev - 1.0) if (price and prev) else None)
         return {
             "price": round(price, 4) if price is not None else None,
             "prev_close": round(prev, 4) if prev is not None else None,
@@ -232,6 +249,7 @@ def main() -> None:
     have_cached = any(prev_curve.get(k) is not None for k in ("vix9d", "vix3m"))
     refresh_cboe = (not have_cached) or after_eod_post
 
+    today_iso = et.date().isoformat()
     curve = {}
     if refresh_cboe:
         # Term structure (CBOE EOD). vix1m proxy = VIX index, matching backtest.
@@ -241,6 +259,10 @@ def main() -> None:
             curve[key] = val
             curve[key + "_date"] = dt
             curve[key + "_chg"] = round(val / pv - 1.0, 6) if (val and pv) else None
+            # Prior-day official close = the authoritative reference for TODAY's
+            # intraday %change. If the CSV already shows today's close, that's `pv`;
+            # otherwise the latest close (yesterday's) is itself the reference.
+            curve[key + "_ref"] = pv if (dt == today_iso) else val
             print(f"  cboe  {sym:6s} {val}")
     else:
         curve = dict(prev_curve)
@@ -248,12 +270,32 @@ def main() -> None:
               f"(date={curve.get('vix9d_date')}, ET={et.strftime('%H:%M')}) "
               f"— not yet past the ~5:30pm post window")
 
-    # Live spot / ETF quotes (Yahoo intraday) — always refreshed. Yahoo also
-    # carries the term-structure indices intraday (^VIX9D, ^VIX3M), so we pull
-    # those live and only fall back to the CBOE end-of-day value if Yahoo fails.
-    quotes = {sym.lower().lstrip("^"): yahoo_quote(sym)
-              for sym in ["^VIX", "^VIX9D", "^VIX3M", "^VVIX", "SVXY", "UVXY", "SVIX", "UVIX",
-                          "TQQQ", "SQQQ", "SPY", "^GSPC", "^MOVE"]}
+    # Ensure every index has a prior-day reference close for today's intraday %change
+    # (older cached curves predate the _ref field). When the cached close is from a
+    # prior day it IS the reference; if it's already today's, derive the prior close.
+    for key in ("vix9d", "vix1m", "vix3m", "vix6m", "vix1y", "vvix"):
+        if curve.get(key) is not None and curve.get(key + "_ref") is None:
+            dt, chg = curve.get(key + "_date"), curve.get(key + "_chg")
+            if dt != today_iso:
+                curve[key + "_ref"] = curve[key]
+            elif chg not in (None, -1):
+                curve[key + "_ref"] = round(curve[key] / (1.0 + chg), 4)
+
+    # Live quotes (Yahoo intraday). Indices (VIX*) are regular-session only, so no
+    # pre/post. ETFs use includePrePost so they update from ~4am through after-hours.
+    quotes = {}
+    for sym in ["^VIX", "^VIX9D", "^VIX3M", "^VVIX", "^VIX1Y", "^MOVE", "^GSPC"]:
+        quotes[sym.lower().lstrip("^")] = yahoo_quote(sym, prepost=False)
+    for sym in ["SVXY", "UVXY", "SVIX", "UVIX", "TQQQ", "SQQQ", "SPY"]:
+        quotes[sym.lower().lstrip("^")] = yahoo_quote(sym, prepost=True)
+    # Re-base VIX-index %change on the authoritative CBOE prior close (Yahoo's
+    # chartPreviousClose is unreliable for VIX), keeping value & %ch self-consistent.
+    for qkey, ckey in [("vix", "vix1m"), ("vix9d", "vix9d"), ("vix3m", "vix3m"),
+                       ("vvix", "vvix"), ("vix1y", "vix1y")]:
+        q = quotes.get(qkey); ref = curve.get(ckey + "_ref")
+        if q and q.get("price") and ref:
+            q["change_pct"] = round(q["price"] / ref - 1.0, 6)
+            q["prev_close"] = round(ref, 4)
 
     # Live values override the EOD term structure for the freshest reading.
     vix_spot = quotes["vix"]["price"]
