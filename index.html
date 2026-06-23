@@ -436,6 +436,9 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .sig-gauge { display:inline-block; vertical-align:middle; }
 .cur-cell { display:flex; align-items:center; gap:7px; }
 .cur-cell .cur-val { width:64px; text-align:right; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:0.82rem; }
+/* Preliminary: a relevant signal value still based on intraday data, before today's
+   EOD term structure finalises (~5:30pm) — italic flags it isn't final yet. */
+.cur-cell .cur-val.prelim, .live-chg.prelim { font-style:italic; }
 .cur-hd { display:inline-block; width:62px; text-align:right; }
 .cur-cell .cur-clk { width:15px; flex:none; text-align:center; }
 .cur-cell .cur-bar { flex:none; }
@@ -1071,8 +1074,10 @@ function updateLivePosition(src){
   }
   const pnlEl=document.getElementById('lv-pospnl');
   if(pnlEl){
+    // Italic when the open P&L isn't from a live quote as of today (e.g. pre-market).
+    const _prelimPnl = !(o.open_pnl_live===true);
     pnlEl.textContent = (raw==='CASH' || pnl==null) ? '' : ((pnl>=0?'+':'')+(pnl*100).toFixed(2)+'%');
-    pnlEl.className = 'live-chg ' + (pnl>0?'up':pnl<0?'down':'');
+    pnlEl.className = 'live-chg ' + (pnl>0?'up':pnl<0?'down':'') + (_prelimPnl?' prelim':'');
   }
 }
 
@@ -2238,6 +2243,10 @@ function renderSignalMonitor(histBar){
   // histBar set → show that hovered chart bar's readings; otherwise live/today.
   const hist = !!histBar;
   const b = histBar || DATA.bar_history[DATA.bar_history.length-1];
+  // Preliminary = live, but today's EOD term structure hasn't posted yet, so the
+  // relevant signal readings are still intraday-provisional (shown italic).
+  const _todayET = new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(new Date());
+  const _prelim = !hist && !!LIVE && !((LIVE.cboe_refreshed) || ((((LIVE.market||{}).curve||{}).vix9d_date)===_todayET));
   const L = hist ? null : LIVE;
   const contango = (L&&L.derived&&L.derived.contango!=null)?L.derived.contango:b.contango;
   const vdelta   = (L&&L.derived&&L.derived.vdelta!=null)?L.derived.vdelta:b.vdelta;
@@ -2725,7 +2734,7 @@ function renderSignalMonitor(histBar){
   // Current cell: value (right-aligned) · clock · gauge bar (left), vertically aligned.
   // The white reading dulls when its section is inactive: entry values dim once a
   // position is open; exit values dim while flat (exits disabled in cash).
-  const curCell=(r,dull)=>`<td><div class="cur-cell"><span class="cur-val" style="color:${dull?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${r[6]||''}</span><span class="cur-bar">${r[7]||''}</span></div></td>`;
+  const curCell=(r,dull)=>`<td><div class="cur-cell"><span class="cur-val${(_prelim&&!dull)?' prelim':''}" style="color:${dull?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${r[6]||''}</span><span class="cur-bar">${r[7]||''}</span></div></td>`;
   const rowHtml=(r,cls='',dull=inPos)=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +curCell(r,dull)+`<td>${tag(r[5])}</td></tr>`;
@@ -2754,7 +2763,7 @@ function renderSignalMonitor(histBar){
   const _compClk = hist ? '' : `<span class="sig-info" style="color:var(--amber)" title="Data as at: after the CBOE close (~5:30pm ET)&#10;Expected update: after the CBOE close (~5:30pm ET)&#10;(Decision finalises ~7pm ET)">&#9201;</span>`;
   const compHtml=(arr)=>arr.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
-    +`<td><div class="cur-cell"><span class="cur-val" style="color:${inPos?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${_compClk}</span><span class="cur-bar">${r[5]||''}</span></div></td>`
+    +`<td><div class="cur-cell"><span class="cur-val${(_prelim&&!inPos)?' prelim':''}" style="color:${inPos?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${_compClk}</span><span class="cur-bar">${r[5]||''}</span></div></td>`
     +`<td>${tag(r[6])}</td></tr>`).join('');
   const _gated=(b.mv_lo||(b.vix1m!=null&&b.vix1m>=CAP));
   const compEntry=[
