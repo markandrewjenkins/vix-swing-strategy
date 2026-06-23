@@ -1724,16 +1724,24 @@ async function loadLive(){
     const dot=document.querySelector('#live-strip .live-dot');
     if(dot){ dot.style.background=phaseColor; dot.style.boxShadow = phaseActive ? '0 0 6px '+phaseColor : 'none'; }
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
-    if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=phaseColor; }
-    // After-hours: has the CBOE EOD term structure for TODAY posted yet?
+    // Badge colour: LIVE teal, DELAYED/PRE-MARKET amber, AFTER HOURS cyan, else grey.
+    const feedColor = live ? TEAL : (regular||premkt) ? AMBER : settle ? CYAN : GRAY;
+    if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=feedColor; }
+    // After-hours: has the CBOE EOD term structure for TODAY posted yet? If so, show
+    // the ACTUAL ET time it came through (recorded once per day) — that's the last
+    // data that feeds the day's signals, so it's when everything is final.
     const tsPosted = !!L.cboe_refreshed || _fresh(cv.vix9d_date);
+    const _clk12 = iso => { try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:true,hour:'numeric',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return null; } };
+    let _tsTime=null; const _tsKey='tsAt_'+_today;
+    try{ _tsTime=localStorage.getItem(_tsKey); }catch(_){}
+    if(!_tsTime && L.cboe_refreshed && L.generated_utc){ _tsTime=_clk12(L.generated_utc); try{ if(_tsTime) localStorage.setItem(_tsKey,_tsTime); }catch(_){} }
     const settleNote = tsPosted
-      ? 'Live updates paused excl VIX TS (final at ~5:30 PM ET)'
+      ? `Live updates paused, all signals final at ${_tsTime || '~5:30 PM'} ET`
       : 'Live updates paused excl VIX TS (expected ~5:30 PM ET)';
     if(note) note.textContent = live ? 'Updating every ~5 mins'
                               : regular ? 'Awaiting next refresh'
                               : settle  ? settleNote
-                              : premkt  ? 'Live-chart bar not live yet · daily signals warming up'
+                              : premkt  ? 'Awaiting market open — showing last settled close'
                               : _holiday ? 'Market holiday — showing last settled close'
                               : 'Showing last settled close';
     if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';   // delay note only when data moves
@@ -1778,7 +1786,7 @@ async function loadLive(){
     strip.classList.add('stale');
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed) feed.textContent='OFFLINE';
-    if(note) note.textContent='live feed unavailable';
+    if(note) note.textContent='Live feed error — showing last settled close';
     if(delay) delay.style.display='none';
     document.getElementById('lv-updated').textContent = '—';
     _fallbackQuotes();   // show last settled close instead of blank dashes
