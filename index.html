@@ -1740,14 +1740,15 @@ async function loadLive(){
     // Badge colour: LIVE teal, DELAYED/PRE-MARKET amber, AFTER HOURS cyan, else grey.
     const feedColor = live ? TEAL : (regular||premkt) ? AMBER : settle ? CYAN : GRAY;
     if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=feedColor; }
-    // After-hours: has the CBOE EOD term structure for TODAY posted yet? If so, show
-    // the ACTUAL ET time it came through (recorded once per day) — that's the last
-    // data that feeds the day's signals, so it's when everything is final.
-    const tsPosted = !!L.cboe_refreshed || _fresh(cv.vix9d_date);
+    // After-hours: has the CBOE EOD term structure for TODAY actually posted (curve
+    // dated today, not merely a 5:30 refresh attempt)? If so, record + show the ACTUAL
+    // ET time the today-dated curve first arrived — that's the last data feeding the
+    // day's signals, so it's when everything is final.
+    const tsPosted = _fresh(cv.vix9d_date);
     const _clk12 = iso => { try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:true,hour:'numeric',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return null; } };
     let _tsTime=null; const _tsKey='tsAt_'+_today;
     try{ _tsTime=localStorage.getItem(_tsKey); }catch(_){}
-    if(!_tsTime && L.cboe_refreshed && L.generated_utc){ _tsTime=_clk12(L.generated_utc); try{ if(_tsTime) localStorage.setItem(_tsKey,_tsTime); }catch(_){} }
+    if(!_tsTime && tsPosted && L.generated_utc){ _tsTime=_clk12(L.generated_utc); try{ if(_tsTime) localStorage.setItem(_tsKey,_tsTime); }catch(_){} }
     const settleNote = tsPosted
       ? `Live updates paused, all signals final at ${_tsTime || '~5:30 PM'} ET`
       : 'Live updates paused excl VIX TS (expected ~5:30 PM ET)';
