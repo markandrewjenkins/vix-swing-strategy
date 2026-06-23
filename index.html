@@ -546,6 +546,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       <span class="cdl-toggle-group instr-inline" title="Switch the dashboard between the SVXY/UVXY pair and the SVIX/UVIX pair">
         <button id="instr-real" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
         <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
+        <button id="instr-blend" class="cdl-seg" onclick="setInstr('blend')" title="SVIX at half size + UVIX at full size — the recommended blend (≈ SVXY short leg + levered UVIX long leg): far lower drawdown than SVIX/UVIX with most of the long-vol upside">SVIX&#189; / UVIX</button>
       </span>
       <span class="hdr-disc"><strong>NOTE:</strong> SVIX/UVIX only launched in 2022, so prior results are simulated based on SVXY/UVXY trade returns, then leverage-scaled</span>
     </div>
@@ -773,6 +774,7 @@ const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
+let BLEND_TRADES=null, BLEND_EQ=null, BLEND_STATS=null;   // SVIX ×0.5 + UVIX ×1.0
 let OHLC=null, CANDLES=null, candleSeries=null, posSeries=null, sumMain=null, sumPos=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null, TQQQ_OHLC=null;
 let OHLCBYTIME={}, _altSvMap=null, _altUvMap=null, _altMapRef=null;
 function rebuildChartMaps(){ OHLCBYTIME={}; (CANDLES||[]).forEach(c=>{OHLCBYTIME[c.time]=c;}); }
@@ -801,18 +803,20 @@ function altLeverage(){
 }
 function altTradePct(t){
   const {svF,uvF}=altLeverage();
-  return Math.max((t.pnl_pct||0)*(t.type==='LONG_VOL_SELLER'?svF:uvF), -0.95);
+  const sv = CHART_MODE==='blend' ? svF*0.5 : svF;   // blend halves the short (SVIX) leg
+  return Math.max((t.pnl_pct||0)*(t.type==='LONG_VOL_SELLER'?sv:uvF), -0.95);
 }
 // Illustrative full-history SVIX/UVIX equity curve: compound each trade's
 // leverage-scaled return (full size) from the same start capital across ALL trades.
 let _altTradeMap=null, _altTradeRef=null;
 function altTrades(){
-  if(_altTradeRef===ALT_SVIX && _altTradeMap) return _altTradeMap;
+  const ref=ALT_SVIX+'|'+CHART_MODE;
+  if(_altTradeRef===ref && _altTradeMap) return _altTradeMap;
   const start=(DATA&&DATA.meta)?DATA.meta.start_capital:100000;
   const m=new Map(); let eq=start;
   (DATA?DATA.trades:[]).forEach(t=>{ const pct=altTradePct(t); const dollar=eq*pct; eq+=dollar;
     m.set(t,{pct, dollar, cumP:eq/start-1, cumD:eq-start}); });
-  _altTradeMap=m; _altTradeRef=ALT_SVIX; return m;
+  _altTradeMap=m; _altTradeRef=ref; return m;
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────
@@ -892,30 +896,35 @@ async function load(){
 // ── SVIX / UVIX simulation (full mirror of DATA.summary so every P&L surface
 //    can switch to the alt instruments via the global toggle) ──────────────
 function computeAltSim(){
-  const start=DATA.meta.start_capital;
   const {svF,uvF}=altLeverage();                 // calibrated SVIX/SVXY, UVIX/UVXY factors
+  const a=_buildSim(svF, uvF);                    // SVIX + UVIX (full size)
+  ALT_TRADES=a.trades; ALT_EQ=a.eq; ALT_STATS=a.stats;
+  const b=_buildSim(svF*0.5, uvF);                // SVIX ×0.5 + UVIX ×1.0 (rec. blend)
+  BLEND_TRADES=b.trades; BLEND_EQ=b.eq; BLEND_STATS=b.stats;
+}
+// Build a full P&L mirror with per-leg return multipliers (svM short, uvM long).
+function _buildSim(svM, uvM){
+  const start=DATA.meta.start_capital;
   const isSV=t=>t.type==='LONG_VOL_SELLER';
   // ── per-trade scaled returns + equity ──
   let eq=start; const trades=[];
   for(const t of DATA.trades){
-    const m=isSV(t)?svF:uvF;
+    const m=isSV(t)?svM:uvM;
     const r=Math.max(-0.95,(t.pnl_pct||0)*m);
     const pd=eq*r; eq+=pd;
     trades.push({...t, ret:r, pnl:pd, equity_after:eq});
   }
-  ALT_TRADES=trades;
-  // ── alt equity curve (scale each bar's in-trade move, mark drawdown) ──
+  // ── equity curve (scale each bar's in-trade move, mark drawdown) ──
   let altEq=start; const eMap={},xMap={};
-  ALT_TRADES.forEach(t=>{eMap[t.entry_date]=t;xMap[t.exit_date]=t;});
+  trades.forEach(t=>{eMap[t.entry_date]=t;xMap[t.exit_date]=t;});
   let inAlt=null,entryO=null,entryA=null; const curve=[];
   for(const b of (DATA.equity_curve||[])){
     if(eMap[b.date]){inAlt=eMap[b.date];entryO=b.equity;entryA=altEq;}
-    if(inAlt&&entryO>0){const or=(b.equity-entryO)/entryO;const m=isSV(inAlt)?svF:uvF;altEq=entryA*(1+Math.max(-0.95,or*m));}
+    if(inAlt&&entryO>0){const or=(b.equity-entryO)/entryO;const m=isSV(inAlt)?svM:uvM;altEq=entryA*(1+Math.max(-0.95,or*m));}
     if(xMap[b.date]){altEq=xMap[b.date].equity_after;inAlt=null;}
     curve.push({date:b.date,equity:altEq});
   }
   let pk=start; for(const b of curve){if(b.equity>pk)pk=b.equity;b.drawdown=pk>0?(b.equity-pk)/pk*100:0;}
-  ALT_EQ=curve;
   // ── daily returns → Sharpe / Sortino ──
   const dr=[]; for(let i=1;i<curve.length;i++){const p=curve[i-1].equity;if(p>0)dr.push(curve[i].equity/p-1);}
   const mean=dr.length?dr.reduce((a,b)=>a+b,0)/dr.length:0;
@@ -933,7 +942,7 @@ function computeAltSim(){
   const sv=trades.filter(isSV), uv=trades.filter(t=>!isSV(t));
   const agg=(arr,key)=>arr.length?arr.reduce((s,t)=>s+t[key],0)/arr.length:0;
   const D=DATA.summary;
-  ALT_STATS={
+  const stats={
     total_return:(fe-start)/start, final_equity:fe, cagr, max_drawdown:mdd,
     win_rate:trades.length?wins.length/trades.length:0, profit_factor:gL>0?gP/gL:0,
     sharpe, sortino, calmar:mdd<0?cagr/Math.abs(mdd):0,
@@ -952,12 +961,15 @@ function computeAltSim(){
     svxy_total_pnl:sv.reduce((s,t)=>s+t.pnl,0), uvxy_total_pnl:uv.reduce((s,t)=>s+t.pnl,0),
     gross_profit:gP, gross_loss:-gL,
   };
+  return {trades, eq:curve, stats};
 }
 // ── Active-instrument accessors (driven by the global toggle / CHART_MODE) ──
-function aMode(){ return CHART_MODE==='alt'; }
-function aStats(){ return aMode()&&ALT_STATS?ALT_STATS:DATA.summary; }
-function aTrades(){ return aMode()&&ALT_TRADES?ALT_TRADES:DATA.trades; }
-function aEq(){ return aMode()&&ALT_EQ?ALT_EQ:DATA.equity_curve; }
+// aMode = any leveraged (SVIX/UVIX) view — 'alt' (full size) or 'blend' (SVIX ×0.5).
+function aMode(){ return CHART_MODE==='alt' || CHART_MODE==='blend'; }
+function _blend(){ return CHART_MODE==='blend'; }
+function aStats(){ return _blend()&&BLEND_STATS?BLEND_STATS : (CHART_MODE==='alt'&&ALT_STATS?ALT_STATS:DATA.summary); }
+function aTrades(){ return _blend()&&BLEND_TRADES?BLEND_TRADES : (CHART_MODE==='alt'&&ALT_TRADES?ALT_TRADES:DATA.trades); }
+function aEq(){ return _blend()&&BLEND_EQ?BLEND_EQ : (CHART_MODE==='alt'&&ALT_EQ?ALT_EQ:DATA.equity_curve); }
 function svN(){ return aMode()?'SVIX':'SVXY'; }
 function uvN(){ return aMode()?'UVIX':'UVXY'; }
 function tIsSV(t){ return t.type==='LONG_VOL_SELLER'; }
@@ -990,9 +1002,10 @@ function switchTab(n){
 function setInstr(m){
   if(m===CHART_MODE) return;
   CHART_MODE=m;
-  const r=document.getElementById('instr-real'), a=document.getElementById('instr-alt');
+  const r=document.getElementById('instr-real'), a=document.getElementById('instr-alt'), bl=document.getElementById('instr-blend');
   if(r) r.classList.toggle('active', m==='real');
   if(a) a.classList.toggle('active', m==='alt');
+  if(bl) bl.classList.toggle('active', m==='blend');
   // Preserve the Daily P&L zoom across the toggle: applyChartMode's summaryToEnd
   // pushes the candle chart's default view onto the daily chart via the sync, so
   // grab the daily range NOW and let buildDaily restore it after the rebuild.
@@ -1824,7 +1837,7 @@ function updateMarket(){
 }
 let CHART_MODE='real';
 function displayCandles(){
-  const src = CHART_MODE==='alt' ? ALT_SVIX : OHLC;
+  const src = aMode() ? ALT_SVIX : OHLC;
   if(!src) return [];
   const out = src.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
   // Drop a degenerate forming bar (zero range = just-opened placeholder before
@@ -1833,7 +1846,7 @@ function displayCandles(){
   return out;
 }
 function displayMarkers(){
-  const alt=CHART_MODE==='alt'; const markers=[];
+  const alt=aMode(); const markers=[];
   let svC={}, uvC={};
   if(alt){ (ALT_SVIX||[]).forEach(a=>svC[a[0]]=a[4]); (ALT_UVIX||[]).forEach(a=>uvC[a[0]]=a[4]); }
   const ENTRY='#fff3c8';   // luminous pale gold — pops against the deeper gold candles without looking stark white
@@ -2072,7 +2085,7 @@ function renderSummary(){
   function renderInfo(time, sd){
     sd = sd || (time?OHLCBYTIME[time]:null);
     if(!time || !sd){ info.innerHTML='Hover the chart for details'; return; }
-    const alt = CHART_MODE==='alt';
+    const alt = aMode();
     const d=time, pos=posByDate[d]||'CASH', pnReal=posNameOf(pos);
     const pn = alt ? (pnReal==='SVXY'?'SVIX':pnReal==='UVXY'?'UVIX':pnReal) : pnReal;
     const pcls=pnReal==='SVXY'?'sig-svxy':pnReal==='UVXY'?'sig-uvxy':'sig-cash';
