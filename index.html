@@ -1728,8 +1728,8 @@ async function loadLive(){
     // After-hours: has the CBOE EOD term structure for TODAY posted yet?
     const tsPosted = !!L.cboe_refreshed || _fresh(cv.vix9d_date);
     const settleNote = tsPosted
-      ? 'Live updates paused as at regular hours close, plus VIX term structure (final at ~5:30 ET)'
-      : 'Live updates paused as at regular hours close, excluding VIX term structure (expected ~5:30 ET)';
+      ? 'Live updates paused excl VIX TS (final at ~5:30 PM ET)'
+      : 'Live updates paused excl VIX TS (expected ~5:30 PM ET)';
     if(note) note.textContent = live ? 'Updating every ~5 mins'
                               : regular ? 'Awaiting next refresh'
                               : settle  ? settleNote
