@@ -2821,14 +2821,16 @@ function renderSignalMonitor(histBar){
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5]), inPos));
     mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
     // Comp rows: white value (dimmed when in a position), N/A stays muted-yellow.
-    mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', '', inPos);
-    mh+=mRow('Spike char.', sSpk, _spkDay?(b.vix_fade?'Fade':'Sust'):_ms('N/A','var(--namut)'), '', inPos);
-    mh+=mRow('Vol-follow', sVF, b.neg_vol?'Active':_ms('N/A','var(--namut)'), '', inPos);
-    mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', '', inPos);
+    // Signal column mirrors the full monitor: SVXY/UVXY where the indicator points,
+    // else N/A (dull yellow). UVXY gate is a blocker, not a direction → always N/A.
+    mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', mSig(b.bb_buy?'SVXY':'NA'), inPos);
+    mh+=mRow('Spike char.', sSpk, _spkDay?(b.vix_fade?'Fade':'Sust'):_ms('N/A','var(--namut)'), mSig(_spkDay?(b.vix_fade?'SVXY':'UVXY'):'NA'), inPos);
+    mh+=mRow('Vol-follow', sVF, b.neg_vol?'Active':_ms('N/A','var(--namut)'), mSig(b.neg_vol?'UVXY':'NA'), inPos);
+    mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
     mh+=`<div class="mini-sub">Position sizing ${help(zTip)}</div>`;
-    mh+=mRow('Sizing', sSize, b.high_vol_regime?'High':'Norm', '', inPos);
+    mh+=mRow('Sizing', sSize, b.high_vol_regime?'High':'Norm', mSig('NA'), inPos);
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
     document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh;
   }
