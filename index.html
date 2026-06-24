@@ -478,7 +478,10 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .mini-mon { position:absolute; top:10px; right:68px; width:252px; max-width:54%; z-index:5; pointer-events:none;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
-.mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; }
+.mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; display:flex; align-items:center; }
+.mini-mon .mini-ctl { pointer-events:auto; margin-left:auto; display:inline-flex; gap:2px; }
+.mini-mon .mini-ctl button { background:rgba(20,17,11,0.7); color:var(--yellow); border:1px solid var(--border2); border-radius:4px; font-size:0.66rem; line-height:1.2; padding:0 4px; cursor:pointer; font-family:'Saira',sans-serif; }
+.mini-mon .mini-ctl button:hover { background:rgba(240,152,47,0.18); }
 .mini-mon .mini-pos { text-align:left; font-weight:400; font-size:0.68rem; margin-bottom:3px; white-space:nowrap; }
 .mini-mon .mini-sub { color:var(--dim); text-transform:uppercase; letter-spacing:0.06em; font-size:0.54rem; margin:8px 0 1px; border-top:1px solid var(--border); padding-top:6px; }
 .mini-mon .mini-help { pointer-events:auto; cursor:help; color:var(--dim); margin-left:3px; }
@@ -2008,6 +2011,13 @@ function buildDaily(){
   if(_keepRange){ try{dailyChart.timeScale().setVisibleLogicalRange(_keepRange);}catch(_){ dailyChart.timeScale().fitContent(); } }
   else dailyChart.timeScale().fitContent();
 }
+// Resize the floating mini-monitor (scales text + visuals). null = re-apply persisted
+// scale after a re-render; 0 = reset; a number = nudge. Anchored to its top-right.
+function miniScale(d){ const mm=document.getElementById('mini-monitor'); if(!mm) return;
+  let s=1; try{ s=parseFloat(localStorage.getItem('miniScale'))||1; }catch(_){}
+  if(d===0) s=1; else if(typeof d==='number') s=Math.max(0.7, Math.min(2.4, s+d));
+  try{ localStorage.setItem('miniScale', s); }catch(_){}
+  mm.style.transformOrigin='top right'; mm.style.transform = s===1?'':'scale('+s+')'; }
 function replayEnter(){ if(!window.Replay) return;
   const btn=document.getElementById('replay-toggle');
   if(btn&&btn.classList.contains('on')) window.Replay.stop();   // click again → exit, like the X
@@ -2854,11 +2864,13 @@ function renderSignalMonitor(histBar){
     const zTip=compSize.map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
     const help=t=>`<span class="mini-help" title="${(''+t).replace(/"/g,'&quot;')}">&#9432;</span>`;
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj,'var(--white)')}</div>`;
-    // compact combination readout: short-vol needs 6/6, long-vol 4/4, or an override
-    const _cwhy = inPos ? (kindOf(proj)==='cash'?_ms('exit','var(--cashc)'):_ms('hold','var(--dim)'))
-      : (kindOf(proj)==='sv'?_ms('&rarr;SV','var(--teal)'):kindOf(proj)==='uv'?_ms('&rarr;LV','var(--coral)'):_ms('&rarr;cash','var(--cashc)'));
+    // Combination readout: when flat show entry alignment (SV 6/6, LV 4/4); when in a
+    // position show the exit tally (how many of the 7 exit rules say hold vs exit).
     const _cmboTip=stripTags(explain);   // plain-language explanation of THIS decision (hover)
-    mh+=`<div class="mini-combo">${help(_cmboTip)} SV ${_pips(svxy6,6,'var(--teal)')} ${svxy6}/6 &nbsp; LV ${_pips(uvxy4,4,'var(--coral)')} ${uvxy4}/4 &nbsp; ${_cwhy}</div>`;
+    const _cmbo = inPos
+      ? `Hold ${_pips(exHold,nExit,holdColor)} ${exHold}/${nExit} &nbsp; Exit ${_pips(exExit,nExit,'var(--cashc)')} ${exExit}/${nExit}`
+      : `SV ${_pips(svxy6,6,'var(--teal)')} ${svxy6}/6 &nbsp; LV ${_pips(uvxy4,4,'var(--coral)')} ${uvxy4}/4`;
+    mh+=`<div class="mini-combo">${help(_cmboTip)} ${_cmbo}</div>`;
     mh+=`<div class="mini-why">${explain}</div>`;   // plain-language methodology for this trade
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5]), inPos));
@@ -2875,7 +2887,12 @@ function renderSignalMonitor(histBar){
     mh+=`<div class="mini-sub">Position sizing ${help(zTip)}</div>`;
     mh+=mRow('Sizing', sSize, b.high_vol_regime?'High':'Norm', mSig('NA'), inPos);
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
-    document.getElementById('mini-monitor').innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh;
+    const _mm=document.getElementById('mini-monitor');
+    _mm.innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')
+      +'<span class="mini-ctl"><button onclick="miniScale(-0.15)" title="Smaller">&#8722;</button>'
+      +'<button onclick="miniScale(0)" title="Reset size">&#9211;</button>'
+      +'<button onclick="miniScale(0.15)" title="Larger">&#43;</button></span></div>'+mh;
+    miniScale(null);   // re-apply the persisted scale after each render
   }
   window._sigMonReady=true;
 }
