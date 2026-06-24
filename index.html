@@ -573,6 +573,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <button class="tab" onclick="switchTab('analytics')">P&amp;L Summary</button>
     <button class="tab" onclick="switchTab('trades')">Trades Detail</button>
     <button class="tab" onclick="switchTab('risk')">Risk Analysis</button>
+    <button class="tab" onclick="switchTab('markets')">Markets &amp; Regime</button>
     <button class="tab" onclick="switchTab('howto')">How It Works</button>
   </div>
 </div>
@@ -806,6 +807,29 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div class="pb" style="position:relative;height:280px"><canvas id="rollChart"></canvas></div></div>
       <div class="panel" style="flex:1 1 320px"><div class="ph"><span>Trade return distribution</span></div>
         <div class="pb" style="position:relative;height:280px"><canvas id="distChart"></canvas></div></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="panel" style="flex:1 1 380px"><div class="ph"><span>MAE — adverse excursion vs outcome</span>
+        <span style="font-size:0.7rem;color:var(--dim)">how far each trade went underwater</span></div>
+        <div class="pb" style="position:relative;height:300px"><canvas id="maeChart"></canvas></div></div>
+      <div class="panel" style="flex:1 1 380px"><div class="ph"><span>MFE — favourable excursion vs outcome</span>
+        <span style="font-size:0.7rem;color:var(--dim)">peak open profit vs what was kept</span></div>
+        <div class="pb" style="position:relative;height:300px"><canvas id="mfeChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- ══ MARKETS & REGIME TAB ═════════════════════════════════════════ -->
+  <div id="tab-markets" style="display:none">
+    <div class="panel">
+      <div class="ph"><span>Strategy vs buy-&amp;-hold — risk / return</span>
+        <span style="font-size:0.7rem;color:var(--dim)">CAGR vs max drawdown (up-and-left is better)</span></div>
+      <div class="pb" style="position:relative;height:340px"><canvas id="benchChart"></canvas></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="panel" style="flex:1 1 360px"><div class="ph"><span>Performance by curve regime (at entry)</span></div>
+        <div class="pb" id="regime-curve"></div></div>
+      <div class="panel" style="flex:1 1 360px"><div class="ph"><span>Performance by VIX1M level (at entry)</span></div>
+        <div class="pb" id="regime-vix"></div></div>
     </div>
   </div>
 
@@ -1072,13 +1096,14 @@ function buildPositionState(){
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
-const TABS=['summary','analytics','trades','risk','howto'];
+const TABS=['summary','analytics','trades','risk','markets','howto'];
 function switchTab(n){
   TABS.forEach(t=>{const el=document.getElementById('tab-'+t); if(el) el.style.display=t===n?'':'none';});
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABS[i]===n));
   // Charts need a non-zero container width, so (re)build when the tab becomes visible.
   if(n==='analytics' && typeof buildDaily==='function') setTimeout(()=>{try{buildDaily();}catch(_){}},40);
   if(n==='risk' && typeof renderRisk==='function') setTimeout(()=>{try{renderRisk();}catch(_){}},40);
+  if(n==='markets' && typeof renderMarkets==='function') setTimeout(()=>{try{renderMarkets();}catch(_){}},40);
 }
 // Global instrument toggle — switches the whole dashboard SVXY/UVXY <-> SVIX/UVIX
 function setInstr(m){
@@ -1128,6 +1153,7 @@ function rerenderActive(){
   updateLivePosition();   // header position follows the toggled instrument
   if(window._sigMonReady && typeof renderSignalMonitor==='function') renderSignalMonitor();  // monitor chips follow toggle
   const rt=document.getElementById('tab-risk'); if(rt && rt.style.display!=='none' && typeof renderRisk==='function') renderRisk();
+  const mt=document.getElementById('tab-markets'); if(mt && mt.style.display!=='none' && typeof renderMarkets==='function') renderMarkets();
 }
 
 // Header "CURRENT POSITION" + live open P&L, following the SVXY/UVXY↔SVIX/UVIX toggle.
@@ -1573,6 +1599,61 @@ function renderRisk(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:c=>'~'+c[0].label+' return',label:c=>' '+c.parsed.y+' trades'}}},
       scales:{x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:11,family:FONT}},grid:{display:false}},
         y:{ticks:{color:TICK,font:{size:12,family:FONT}},grid:{color:GRID},title:{display:true,text:'# trades',color:TICK}}}} });
+  // ── MAE / MFE: per-trade adverse & favourable excursion vs final return ──
+  if(!window._opMap){ window._opMap={}; (DATA.bar_history||[]).forEach(x=>{ if(x.open_pnl_pct!=null) window._opMap[x.date]=x.open_pnl_pct; }); }
+  const _bdates=window._barDates||(window._barDates=(DATA.bar_history||[]).map(x=>x.date));
+  const legF=t=>{ if(!aMode()) return 1; const {svF,uvF}=altLeverage(); const f=tIsSV(t)?svF:uvF; return (CHART_MODE==='blend'&&tIsSV(t))?f*0.5:f; };
+  const mae=[], mfe=[];
+  aTrades().forEach(t=>{ const f=legF(t); let lo=0,hi=0;
+    for(const dt of _bdates){ if(dt<t.entry_date) continue; if(dt>t.exit_date) break; const op=window._opMap[dt]; if(op!=null){ lo=Math.min(lo,op); hi=Math.max(hi,op); } }
+    const ret=tRet(t)*100, win=ret>0;
+    mae.push({x:+Math.max(-95,lo*f*100).toFixed(1), y:+ret.toFixed(1), win}); mfe.push({x:+(hi*f*100).toFixed(1), y:+ret.toFixed(1), win}); });
+  const _col=arr=>arr.map(p=>p.win?'rgba(82,230,189,0.7)':'rgba(242,86,58,0.7)');
+  const scatterOpts=(xt,yt)=>({responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:c=>xt+' '+c.parsed.x+'% · return '+(c.parsed.y>=0?'+':'')+c.parsed.y+'%'}}},
+    scales:{x:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:xt+' (%)',color:TICK}},
+      y:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'Final return (%)',color:TICK}}}});
+  mkChart('maeChart',{type:'scatter',data:{datasets:[{data:mae,backgroundColor:_col(mae),pointRadius:4,pointHoverRadius:6}]},options:scatterOpts('MAE')});
+  mkChart('mfeChart',{type:'scatter',data:{datasets:[{data:mfe,backgroundColor:_col(mfe),pointRadius:4,pointHoverRadius:6}]},options:scatterOpts('MFE')});
+}
+
+// ══ MARKETS & REGIME ════════════════════════════════════════════════════════
+function renderMarkets(){
+  if(!DATA||typeof Chart==='undefined') return;
+  const start=DATA.meta.start_capital;
+  // Risk/return of a daily equity series → {cagr, mdd}
+  const rr=(curve)=>{ const c=curve.filter(b=>b&&b.equity>0); if(c.length<2) return null;
+    let pk=c[0].equity, mdd=0; for(const b of c){ pk=Math.max(pk,b.equity); mdd=Math.min(mdd,b.equity/pk-1); }
+    const yrs=(new Date(c[c.length-1].date)-new Date(c[0].date))/(365.25*86400000)||1;
+    return {cagr:Math.pow(c[c.length-1].equity/c[0].equity,1/yrs)-1, mdd}; };
+  // Buy-&-hold curve from an OHLC array [date,o,h,l,c], normalised to start capital.
+  const bh=(ohlc)=>{ if(!ohlc||!ohlc.length) return null; const base=ohlc[0][4]; if(!base) return null;
+    return ohlc.map(r=>({date:r[0],equity:start*r[4]/base})); };
+  const pts=[]; const add=(name,curve,color)=>{ const m=curve&&rr(curve); if(m) pts.push({name,x:+(m.mdd*100).toFixed(1),y:+(m.cagr*100).toFixed(1),color}); };
+  const s=aStats();
+  pts.push({name:'Strategy ('+(aMode()?(CHART_MODE==='blend'?'SVIX½/UVIX':'SVIX/UVIX'):'SVXY/UVXY')+')', x:+(s.max_drawdown*100).toFixed(1), y:+(s.cagr*100).toFixed(1), color:YELLOW, big:true});
+  add('SPY buy & hold', DATA.spy_curve, CYAN);
+  add('SVXY buy & hold', bh(typeof OHLC!=='undefined'?OHLC:null), TEAL);
+  add('TQQQ buy & hold', bh(typeof TQQQ_OHLC!=='undefined'?TQQQ_OHLC:null), PURPLE);
+  mkChart('benchChart',{type:'scatter',data:{datasets:pts.map(p=>({label:p.name,data:[{x:p.x,y:p.y}],backgroundColor:p.color,pointRadius:p.big?9:6,pointHoverRadius:p.big?12:9,pointStyle:p.big?'star':'circle'}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:TICK,font:{size:12,family:FONT},usePointStyle:true}},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': CAGR '+c.parsed.y+'%, MaxDD '+c.parsed.x+'%'}}},
+      scales:{x:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'Max drawdown (%)',color:TICK}},
+        y:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'CAGR (%)',color:TICK}}}} });
+  // ── Regime breakdown: aggregate trades by entry-day curve regime & VIX1M bucket ──
+  const _bd=window._tbd||(()=>{const m={};(DATA.bar_history||[]).forEach(r=>m[r.date]=r);window._tbd=m;return m;})();
+  const _before=(d)=>{ const ds=window._tbdDates||(window._tbdDates=(DATA.bar_history||[]).map(r=>r.date).sort()); let lo=0,hi=ds.length-1,res=null; while(lo<=hi){const mid=(lo+hi)>>1; if(ds[mid]<d){res=ds[mid];lo=mid+1;}else hi=mid-1;} return res?_bd[res]:_bd[d]; };
+  const agg=(keyFn,order)=>{ const g={}; aTrades().forEach(t=>{ const b=_before(t.entry_date)||{}; const k=keyFn(b); if(k==null) return; (g[k]=g[k]||[]).push(t); });
+    const rows=(order||Object.keys(g)).filter(k=>g[k]&&g[k].length).map(k=>{ const arr=g[k]; const wins=arr.filter(t=>tRet(t)>0).length;
+      const avg=arr.reduce((a,t)=>a+tRet(t),0)/arr.length; const tot=arr.reduce((a,t)=>a+tPnl(t),0);
+      return {k,n:arr.length,wr:wins/arr.length,avg,tot}; });
+    return rows; };
+  const tbl=(rows)=>`<table class="sig-stats"><thead><tr><th>Regime</th><th>Trades</th><th>Win %</th><th>Avg return</th><th>Total P&amp;L</th></tr></thead><tbody>`
+    + rows.map(r=>`<tr><td>${r.k}</td><td>${r.n}</td><td class="${r.wr>=0.5?'pos':'neg'}">${(r.wr*100).toFixed(0)}%</td>`
+      + `<td class="${r.avg>=0?'pos':'neg'}">${fmtPct(r.avg)}</td><td class="${r.tot>=0?'pos':'neg'}">${fmtK(r.tot)}</td></tr>`).join('')+'</tbody></table>';
+  const cv=document.getElementById('regime-curve'); if(cv) cv.innerHTML=tbl(agg(b=>b.contango==null?null:(b.contango>0?'Contango':'Backwardation'),['Contango','Backwardation']));
+  const vb=b=>{ const v=b.vix1m; if(v==null) return null; return v<15?'VIX < 15':v<25?'VIX 15-25':v<40?'VIX 25-40':'VIX > 40'; };
+  const vv=document.getElementById('regime-vix'); if(vv) vv.innerHTML=tbl(agg(vb,['VIX < 15','VIX 15-25','VIX 25-40','VIX > 40']));
 }
 // ══ MONTHLY ═══════════════════════════════════════════════════════════════
 function activeMonthly(){
