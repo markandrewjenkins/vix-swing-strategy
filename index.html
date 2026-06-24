@@ -2498,8 +2498,10 @@ function renderSignalMonitor(histBar){
     const m = ST[key] || {};
     const cad = m.cadence || cadFallback;
     const changed = m.changed_utc ? (toEtClock(m.changed_utc)+' ET') : _fallbackChanged(name,valKey);
-    const upd = cad==='eod' ? 'after the CBOE close (~5:30pm ET)' : 'every ~5 min during market hours';
-    const tip = `Data as at: ${changed}\nExpected update: ${upd}\n(Decision finalises ~7pm ET)`;
+    // Match the status-bar tooltip convention. If an indicator blends an EOD input
+    // with intraday ones, the binding (later) update is the EOD term structure.
+    const upd = cad==='eod' ? 'after the CBOE close (~5:30 PM ET)' : 'every ~5 min (9:30 AM-4:00 PM ET)';
+    const tip = `Data as of ${changed} - Update expected ${upd}`;
     const col = cad==='eod' ? 'var(--amber)' : 'var(--teal)';
     return `<span class="sig-info" style="color:${col}" title="${tip}">&#9201;</span>`;
   };
@@ -2803,7 +2805,7 @@ function renderSignalMonitor(histBar){
   // the term-structure entry rows); Signal column shows SVXY/UVXY/Cash/N/A via tag().
   // These are all derived from the EOD term structure → an amber (EOD) refresh clock,
   // so every row carries one and the gauge bars line up vertically.
-  const _compClk = hist ? '' : `<span class="sig-info" style="color:var(--amber)" title="Data as at: after the CBOE close (~5:30pm ET)&#10;Expected update: after the CBOE close (~5:30pm ET)&#10;(Decision finalises ~7pm ET)">&#9201;</span>`;
+  const _compClk = hist ? '' : `<span class="sig-info" style="color:var(--amber)" title="Data as of the prior CBOE close - Update expected after the CBOE close (~5:30 PM ET)">&#9201;</span>`;
   const compHtml=(arr)=>arr.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
     +`<td><div class="cur-cell"><span class="cur-val${(_prelim&&!inPos)?' prelim':''}" style="color:${inPos?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${_compClk}</span><span class="cur-bar">${r[5]||''}</span></div></td>`
