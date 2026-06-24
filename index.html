@@ -759,7 +759,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       <div style="overflow-x:auto">
         <table><thead><tr>
           <th>#</th><th>Instr.</th><th>Entry date</th><th>Exit date</th><th style="text-align:right">Days</th>
-          <th style="text-align:right">Entry $</th><th style="text-align:right">Exit $</th><th style="text-align:right">Return</th><th style="text-align:right">P&amp;L $</th><th>Exit reason</th><th style="text-align:right">Equity after</th>
+          <th style="text-align:right">Entry $</th><th style="text-align:right">Exit $</th><th style="text-align:right">Return</th><th style="text-align:right">P&amp;L $</th><th>Exit reason</th><th>vs threshold</th><th style="text-align:right">Equity after</th>
         </tr></thead><tbody id="trade-tbody"></tbody></table>
       </div>
     </div>
@@ -1398,16 +1398,21 @@ function renderTrades(){
   if(filt==='WIN') tr=tr.filter(t=>tRet(t)>0);
   if(filt==='LOSS')tr=tr.filter(t=>tRet(t)<=0);
   const pill=t=>tIsSV(t)?`<span class="pill pill-svxy">${svN()}</span>`:`<span class="pill pill-uvxy">${uvN()}</span>`;
-  document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>{const r=tRet(t),p=tPnl(t);return `<tr>
+  // In SVIX/UVIX (alt/blend) views show the actual SVIX/UVIX close at entry/exit, not
+  // the SVXY/UVXY price (blank only pre-2022 when SVIX/UVIX didn't exist).
+  const [svM,uvM] = alt ? altCloseMaps() : [null,null];
+  const aPx=(t,date)=>{ const m=tIsSV(t)?svM:uvM; const v=m&&m[date]; return v!=null?fmtPrice(v):'—'; };
+  document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>{const r=tRet(t),p=tPnl(t);const m=exitReasonMeta(t);return `<tr>
     <td style="color:var(--dim)">${tr.length-i}</td>
     <td>${pill(t)}</td>
     <td>${t.entry_date}</td><td>${t.exit_date}</td>
     <td style="text-align:right">${t.days}d</td>
-    <td style="text-align:right">${alt?'—':fmtPrice(t.entry_price)}</td>
-    <td style="text-align:right">${alt?'—':fmtPrice(t.exit_price)}</td>
+    <td style="text-align:right">${alt?aPx(t,t.entry_date):fmtPrice(t.entry_price)}</td>
+    <td style="text-align:right">${alt?aPx(t,t.exit_date):fmtPrice(t.exit_price)}</td>
     <td style="text-align:right;color:${r>0?TEAL:CORAL};font-weight:600">${fmtPct(r)}</td>
     <td style="text-align:right;color:${p>0?TEAL:CORAL}">${p>0?'+':''}${fmtK(Math.abs(p)*Math.sign(p))}</td>
-    <td>${(()=>{const m=exitReasonMeta(t);return `<div class="exr-cell" title="${m.desc.replace(/"/g,'&quot;')}"><div class="exr-name"><span class="eb ${ebClass(t.exit_reason)}">${m.name}</span></div><div class="exr-desc">${m.desc}</div>${m.bar}</div>`;})()}</td>
+    <td><span class="eb ${ebClass(t.exit_reason)}" title="${m.desc.replace(/"/g,'&quot;')}">${m.name}</span></td>
+    <td>${m.bar}</td>
     <td style="text-align:right">${fmtK(t.equity_after)}</td>
   </tr>`}).join('');
 }
