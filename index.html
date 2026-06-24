@@ -2045,15 +2045,25 @@ async function loadLive(){
         }
       }catch(_){}
     }
-    // Refine the forming candle's close with the latest live quote whenever the
-    // quote is fresh and belongs to the last candle's date (intraday + after-hours).
-    if(CHART_MODE==='real' && candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes && L.market.quotes.svxy){
-      const q=L.market.quotes.svxy, px=q.price, today=(L.generated_utc||'').slice(0,10), last=CANDLES[CANDLES.length-1];
-      const qFresh = q.time ? (Date.now()-new Date(q.time).getTime())/60000 < 30 : false;  // ignore stale quotes
-      if(px!=null && last && today===last.time && qFresh){
-        const hi=Math.max(last.high,last.open,px), lo=Math.min(last.low,last.open,px);  // keep the candle sane
-        const nc={time:last.time,open:last.open,high:hi,low:lo,close:px};
-        CANDLES[CANDLES.length-1]=nc; candleSeries.update(nc);
+    // Live-update the forming candle from the latest quote of the DISPLAYED short-leg
+    // instrument (SVXY in real mode, SVIX in the SVIX/UVIX & blend views). With the new
+    // pre/post ETF quotes this now moves the chart pre-market and after-hours too — it
+    // refines today's bar, or appends a fresh forming bar when a new (pre-market) day
+    // has started before the official daily candle exists.
+    if(candleSeries && CANDLES && CANDLES.length && L.market && L.market.quotes){
+      const inst = CHART_MODE==='real' ? 'svxy' : 'svix';
+      const q = L.market.quotes[inst], px=q&&q.price, last=CANDLES[CANDLES.length-1];
+      const qFresh = (q&&q.time) ? (Date.now()-new Date(q.time).getTime())/60000 < 30 : false;
+      const qDay = (q&&q.time) ? new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(new Date(q.time)) : (L.generated_utc||'').slice(0,10);
+      if(px!=null && last && qFresh){
+        if(qDay===last.time){
+          const hi=Math.max(last.high,last.open,px), lo=Math.min(last.low,last.open,px);
+          const nc={time:last.time,open:last.open,high:hi,low:lo,close:px};
+          CANDLES[CANDLES.length-1]=nc; candleSeries.update(nc);
+        } else if(qDay>last.time){   // new day before the official candle exists → forming bar
+          const nc={time:qDay,open:px,high:px,low:px,close:px};
+          CANDLES.push(nc); candleSeries.update(nc);
+        }
       }
     }
   }catch(e){
