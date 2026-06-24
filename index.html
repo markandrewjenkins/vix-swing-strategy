@@ -545,11 +545,11 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <div class="hdr-title">VIX SWING STRATEGY</div>
     <div class="hdr-metarow">
       <span class="hdr-meta" id="hdr-meta">Loading...</span>
-      <span class="hdr-meta">Toggle Vol ETFs:</span>
-      <span class="cdl-toggle-group instr-inline" title="Switch the dashboard between the SVXY/UVXY pair and the SVIX/UVIX pair">
+      <span class="hdr-meta" title="Switch the dashboard between the SVXY/UVXY pair, SVIX/UVIX pair, or SVIX1/2 / UVIX pair. Note: The final pair is the recommended blend based on backtests (= SVXY short vol leg + levered UVIX long vol leg).">Toggle Vol ETFs:</span>
+      <span class="cdl-toggle-group instr-inline" title="Switch the dashboard between the SVXY/UVXY pair, SVIX/UVIX pair, or SVIX1/2 / UVIX pair. Note: The final pair is the recommended blend based on backtests (= SVXY short vol leg + levered UVIX long vol leg).">
         <button id="instr-real" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
         <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
-        <button id="instr-blend" class="cdl-seg" onclick="setInstr('blend')" title="SVIX at half size + UVIX at full size — the recommended blend (≈ SVXY short leg + levered UVIX long leg): far lower drawdown than SVIX/UVIX with most of the long-vol upside">SVIX&#189; / UVIX</button>
+        <button id="instr-blend" class="cdl-seg" onclick="setInstr('blend')">SVIX&#189; / UVIX</button>
       </span>
       <span class="hdr-disc"><strong>NOTE:</strong> SVIX/UVIX only launched in 2022, so prior results are simulated based on SVXY/UVXY trade returns, then leverage-scaled</span>
     </div>
@@ -562,7 +562,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 </div>
 
 <!-- ══ LIVE MARKET STRIP ═══════════════════════════════════════════════════ -->
-<div id="live-strip" title="Live market readings. Signals finalize ~7pm ET each day (once the daily data is in); trades execute the same day in after-hours (~7-8pm ET). Intraday values are indicative only.">
+<div id="live-strip" title="Live market readings. Most of these quotes feed into indicators which together generate position entry / exit signals. Signals finalize at ~5:30 PM ET (once the daily VIX term structure posts); trades execute the same day at ~7-8 PM ET (during after hours). Intraday values (including pre-market and after hours) are available for most tickers but are indicative only.">
   <div class="live-main">
     <div class="live-pos-block">
       <span class="live-pos-lbl">Current Position</span>
@@ -625,7 +625,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           <span class="mkt-block"><span id="mkt-dot"></span><span id="mkt-label">Market closed</span><span id="mkt-countdown"></span></span>
           <span class="mkt-sessbar"><span class="seg c1"></span><span class="seg pre"></span><span class="seg reg"></span><span class="seg aft"></span><span class="seg c2"></span><span class="mkt-marker" id="mkt-marker"></span></span>
         </div>
-        <button id="cdl-fs" class="rp-btn" title="Full screen" onclick="toggleChartFs()" style="margin-left:auto">&#9974;&#65038; Full screen</button>
+        <button id="cdl-fs" class="rp-btn" title="Full screen" onclick="toggleChartFs()" style="margin-left:auto;color:var(--yellow);font-variant-emoji:text">&#9974;&#65038; Full screen</button>
       </div>
       <div class="pb">
         <div id="replay-bar">
@@ -1690,11 +1690,20 @@ async function loadLive(){
       const d=new Date(ts); return isNaN(d.getTime())?null:new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(d); };
     const _fresh = (...ts) => ts.some(t => _etDate(t)===_today);
     const _clk12 = iso => { try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:true,hour:'numeric',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return null; } };
-    // Per-quote hover string: the data's own time (intraday quote) or EOD close date.
+    // Per-quote tooltip: "Data as of <date> <time> ET [prior day] - Update expected …".
     const _asOf = (...ts) => { for(const t of ts){ if(!t) continue;
       if(typeof t==='string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return 'Data as of '+t+' close (EOD)';
-      const c=_clk12(t); if(c){ const dstr=_etDate(t); return 'Data as of '+(dstr&&dstr!==_today?dstr+' ':'')+c+' ET'+(dstr&&dstr!==_today?' (prior day)':''); } } return ''; };
-    const _setTitle=(id,s)=>{ const e=document.getElementById('lv-'+id); if(e&&s) e.title=s; };
+      const c=_clk12(t); if(c){ const dstr=_etDate(t); return 'Data as of '+(dstr||'')+' '+c+' ET'+(dstr&&dstr!==_today?' [prior day]':''); } } return ''; };
+    const _UPDWIN={vix:'9:30 AM-4:00 PM ET', etf:'~4:00 AM-8:00 PM ET'};
+    const _UPDSTART={vix:'9:30 AM', etf:'4:00 AM'};
+    const _updExp=(grp,fresh)=> grp==='move' ? 'Update expected after the close (~end of day ET)'
+      : grp==='eod' ? 'Update expected after the CBOE close (~5:30 PM ET)'
+      : fresh ? ('Update expected every ~5 min ('+_UPDWIN[grp]+')')
+      : ('Update expected at ~'+_UPDSTART[grp]+' ET');
+    const _tip=(grp,fresh,...ts)=>{ const a=_asOf(...ts), u=_updExp(grp,fresh); return a? (a+' - '+u) : u; };
+    // Apply the tooltip to the WHOLE ticker component (symbol + value + %ch) so the
+    // cursor stays uniform and the tooltip is static wherever you hover within it.
+    const _setTip=(id,s)=>{ const e=document.getElementById('lv-'+id); const it=e&&e.closest('.live-item'); if(it&&s){ it.title=s; it.style.cursor='help'; } };
 
     // ── Current position + open P&L (instrument-aware; see updateLivePosition) ──
     updateLivePosition(L);
@@ -1706,7 +1715,7 @@ async function loadLive(){
       ce.textContent = chg!=null&&!isNaN(chg) ? signed(chg*100,1,'%') : '';
       ce.className='live-chg '+clsOf(chg)+(dull?' dull':'');
     };
-    const vx = (id,val,chg,fresh,t) => { const dull=!fresh; setVal('lv-'+id, numv(val,2), '', dull); setChg('lv-'+id+'-c', chg, dull); _setTitle(id, _asOf(t)); };
+    const vx = (id,val,chg,fresh,t,grp) => { const dull=!fresh; setVal('lv-'+id, numv(val,2), '', dull); setChg('lv-'+id+'-c', chg, dull); _setTip(id, _tip(grp||'vix', fresh, t)); };
     const vixq = q.vix||{};   // VIX1M shows the live spot, so use its intraday change
     // Prefer the live (Yahoo intraday) value + its % change vs prior close; fall
     // back to the CBOE EOD value/change only when the live quote is unavailable.
@@ -1719,15 +1728,15 @@ async function loadLive(){
     z=_lv(m.vix3m_used, q.vix3m, cv.vix3m, cv.vix3m_chg); vx('vix3m', z[0], z[1], _fresh(_qt(q.vix3m), cv.vix3m_date), _qt(q.vix3m)||cv.vix3m_date);
     z=_lv(null, q.vix1y, cv.vix1y, cv.vix1y_chg); vx('vix1y', z[0], z[1], _fresh(_qt(q.vix1y), cv.vix1y_date), _qt(q.vix1y)||cv.vix1y_date);
     z=_lv(m.vvix_used,  q.vvix,  cv.vvix,  cv.vvix_chg);  vx('vvix',  z[0], z[1], _fresh(_qt(q.vvix), cv.vvix_date), _qt(q.vvix)||cv.vvix_date);
-    const mq = q.move||{}; vx('move', mq.price, mq.change_pct, _fresh(_qt(mq)), _qt(mq));
+    const mq = q.move||{}; vx('move', mq.price, mq.change_pct, _fresh(_qt(mq)), _qt(mq), 'move');
 
     // ── Tradeable tickers: price + % change ─────────────────────────────
     const tk = (id,key) => {
-      const x=q[key]||{}; const c=clsOf(x.change_pct); const dull=!_fresh(x.time);
+      const x=q[key]||{}; const c=clsOf(x.change_pct); const fr=_fresh(x.time); const dull=!fr;
       setVal('lv-'+id, price(x.price), c, dull);
       const ce=document.getElementById('lv-'+id+'-c');
       if(ce){ ce.textContent = x.change_pct!=null ? signed(x.change_pct*100,1,'%') : ''; ce.className='live-chg '+c+(dull?' dull':''); }
-      _setTitle(id, _asOf(x.time));
+      _setTip(id, _tip('etf', fr, x.time));
     };
     tk('svxy','svxy'); tk('uvxy','uvxy'); tk('svix','svix'); tk('uvix','uvix');
     tk('tqqq','tqqq'); tk('sqqq','sqqq'); tk('spx','gspc');
@@ -1758,12 +1767,11 @@ async function loadLive(){
     // day's signals, so it's when everything is final.
     const tsPosted = _fresh(cv.vix9d_date);   // today's CBOE term structure has posted
     if(note) note.textContent = live ? 'Quotes refresh every 5 min, up to 15 min delay'
-                              : regular ? 'Last refresh >20 min ago'
-                              : settle  ? (tsPosted ? 'Quotes refresh every 5 mins, VIX TS final'
-                                                    : 'Quotes refresh every 5 mins, awaiting VIX TS')
-                              : premkt  ? 'Quotes refresh every 5 mins, VIX TS after market open'
-                              : _holiday ? 'Market holiday — showing last settled close'
-                              : 'Showing last settled close';
+                              : regular ? 'Live feed delay - showing last received quotes'
+                              : settle  ? (tsPosted ? 'Quotes refresh every 5 min, VIX TS now final'
+                                                    : 'Quotes refresh every 5 min, awaiting final VIX TS')
+                              : premkt  ? 'Quotes refresh every 5 min where available'
+                              : 'Market closed - showing last close';
     if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';   // delay note only when data moves
     // "Data as of" = the freshest live-quote timestamp we hold (the data's own time,
     // not the run time, which lags). Falls back to the generated time / EOD.
@@ -1809,7 +1817,7 @@ async function loadLive(){
     strip.classList.add('stale');
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
     if(feed) feed.textContent='OFFLINE';
-    if(note) note.textContent='Live feed error — showing last settled close';
+    if(note) note.textContent='Live feed error - showing last received quotes';
     if(delay) delay.style.display='none';
     document.getElementById('lv-updated').textContent = '—';
     _fallbackQuotes();   // show last settled close instead of blank dashes
