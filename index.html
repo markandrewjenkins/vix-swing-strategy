@@ -597,8 +597,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <span class="live-item live-status" style="margin-left:auto;gap:14px">
           <span class="live-badge"><span class="live-dot"></span><span id="lv-feed">LIVE</span></span>
           <span class="live-lbl" id="lv-feed-note">Updating every ~5 mins</span>
-          <span class="live-lbl" id="lv-delay">Quotes are delayed ~15 mins</span>
-          <span class="live-lbl" title="Timestamp of the freshest live quote we hold (the data's own time, ~15 min delayed — not the run time). Hover any quote for its individual data time.">Data as of:&nbsp;<span class="live-val" id="lv-updated">—</span></span>
+          <span class="live-lbl" title="Timestamp of the freshest live quote we hold (the data's own time, not the run time). Hover any quote for its individual data time and expected refresh.">Data as of:&nbsp;<span class="live-val" id="lv-updated">—</span></span>
         </span>
       </div>
       <div class="live-row">
@@ -822,7 +821,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
   <div id="tab-markets" style="display:none">
     <div class="panel">
       <div class="ph"><span>Strategy vs buy-&amp;-hold — risk / return</span>
-        <span style="font-size:0.7rem;color:var(--dim)">CAGR vs max drawdown (up-and-left is better)</span></div>
+        <span style="font-size:0.7rem;color:var(--dim)">CAGR (up) vs max drawdown (right = smaller) — top-right is better; ★ = this strategy</span></div>
       <div class="pb" style="position:relative;height:340px"><canvas id="benchChart"></canvas></div>
     </div>
     <div class="row" style="margin-top:12px">
@@ -1638,7 +1637,7 @@ function renderMarkets(){
   mkChart('benchChart',{type:'scatter',data:{datasets:pts.map(p=>({label:p.name,data:[{x:p.x,y:p.y}],backgroundColor:p.color,pointRadius:p.big?9:6,pointHoverRadius:p.big?12:9,pointStyle:p.big?'star':'circle'}))},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:TICK,font:{size:12,family:FONT},usePointStyle:true}},
       tooltip:{callbacks:{label:c=>c.dataset.label+': CAGR '+c.parsed.y+'%, MaxDD '+c.parsed.x+'%'}}},
-      scales:{x:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'Max drawdown (%)',color:TICK}},
+      scales:{x:{suggestedMax:2,ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'Max drawdown (% — right is smaller)',color:TICK}},
         y:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'CAGR (%)',color:TICK}}}} });
   // ── Regime breakdown: aggregate trades by entry-day curve regime & VIX1M bucket ──
   const _bd=window._tbd||(()=>{const m={};(DATA.bar_history||[]).forEach(r=>m[r.date]=r);window._tbd=m;return m;})();
@@ -1937,11 +1936,12 @@ async function loadLive(){
     const _asOf = (...ts) => { for(const t of ts){ if(!t) continue;
       if(typeof t==='string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return 'Data as of '+t+' close (EOD)';
       const c=_clk12(t); if(c){ const dstr=_etDate(t); return 'Data as of '+(dstr||'')+' '+c+' ET'+(dstr&&dstr!==_today?' [prior day]':''); } } return ''; };
-    const _UPDWIN={vix:'9:30 AM-4:00 PM ET', etf:'~4:00 AM-8:00 PM ET'};
+    const _UPDFRESH={vix:'Update expected every ~5 min with ~15 min delay (9:30 AM-4:00 PM ET)',
+                     etf:'Update expected every ~5 min with ~5 min delay (~4:00 AM-8:00 PM ET)'};
     const _UPDSTART={vix:'9:30 AM', etf:'4:00 AM'};
     const _updExp=(grp,fresh)=> grp==='move' ? 'Update expected after the close (~end of day ET)'
       : grp==='eod' ? 'Update expected after the CBOE close (~5:30 PM ET)'
-      : fresh ? ('Update expected every ~5 min ('+_UPDWIN[grp]+')')
+      : fresh ? _UPDFRESH[grp]
       : ('Update expected at ~'+_UPDSTART[grp]+' ET');
     const _tip=(grp,fresh,...ts)=>{ const a=_asOf(...ts), u=_updExp(grp,fresh); return a? (a+' - '+u) : u; };
     // Apply the tooltip to the WHOLE ticker component (symbol + value + %ch) so the
@@ -2807,7 +2807,15 @@ function renderSignalMonitor(histBar){
   // bullish zone (>= br13, not the bear xr13); UVXY exits once it drops out of the
   // bearish zone (< xr13). (These were previously swapped, so the gauge marker could
   // sit in the teal hold band while the row read Exit — e.g. 2026-06-10.)
-  const ratioTrig = inPos && ((isSV && ratio13!=null && ratio13>=P.br13) || (isUV && ratio13!=null && ratio13<P.xr13));
+  // Engine's term-structure rollover ALSO requires the VIX levels to still sit in the
+  // calm/bull zone (SVXY) or the elevated/bear zone (UVXY) — a curve that inverts while
+  // levels are already elevated is NOT a rollover exit. (Earlier we only checked the
+  // ratio, so SVXY looked like it "should" exit in e.g. March 2026 when VIX was high.)
+  const _bull1m = vix1m!=null && vix1m>=P.b1lo && vix1m<P.b1hi;
+  const _bull9d = vix9d!=null && vix9d>=P.b9lo && vix9d<P.b9hi;
+  const ratioTrig = inPos && (
+       (isSV && ratio13!=null && ratio13>=P.br13 && _bull1m && _bull9d)
+    || (isUV && ratio13!=null && ratio13<P.xr13 && !_bull1m && !_bull9d));
   const holdColor = isUV ? 'var(--coral)' : 'var(--teal)';   // Exit text colour = held side
   // Does each exit apply to the held side? (some are SVXY- or UVXY-only). The
   // two-sided ones (MOVE, Rollover) apply to BOTH sides — they just exit in a
@@ -3033,12 +3041,16 @@ function renderSignalMonitor(histBar){
   const _na=`<span style="color:var(--namut)">N/A</span>`;
   const _dBB=_domain('bb_trend',[0]), CAP=45.93, _dV=_domain('vix1m',[CAP]), REG=31.31, _dMA=_domain('vix1m_ma30',[REG]);
   const _spkDay=b.spike_9d||b.spike_1m;
-  const gFull=(s)=>gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt||(v=>''),{nolab:s.nolab,hatch:s.hatch});
+  const gFull=(s)=>gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt||(v=>''),{nolab:s.nolab,hatch:s.hatch,dull:s.dull});
   const sBB ={lo:_dBB.lo,hi:_dBB.hi,z:[[_dBB.lo,0,'r'],[0,_dBB.hi,'t']],v:b.bb_trend,fmt:v=>v.toFixed(2),tip:`BB-trend on log-SVXY · threshold 0 (short-vol regime needs trend ≥ 0, not falling) · now ${b.bb_trend!=null?b.bb_trend.toFixed(2):'—'}`};
   const sGate={lo:_dV.lo,hi:_dV.hi,z:[[_dV.lo,CAP,'t'],[CAP,_dV.hi,'r']],v:b.vix1m,fmt:fN0,tip:`long-vol entry blocked if VIX1M ≥ ${CAP} (spike-chase cap) or MOVE/VIX ≤ 2 · now ${b.vix1m!=null?b.vix1m.toFixed(1):'—'}`};
   const sSize={lo:_dMA.lo,hi:_dMA.hi,z:[[_dMA.lo,REG,'t'],[REG,_dMA.hi,'r']],v:b.vix1m_ma30,fmt:fN0,tip:`high-vol regime when 30-day VIX avg > ${REG} → SVXY size ×0.48 (UVXY always ×0.43) · now ${b.vix1m_ma30!=null?b.vix1m_ma30.toFixed(1):'—'}`};
-  const sSpk =_spkDay?{lo:0,hi:1,z:[[0,0.5,'r'],[0.5,1,'t']],v:b.vix_fade?0.75:0.25,nolab:true,tip:'on a ≥35% 1-day VIX spike — Sustained: spiked ≥8% above open AND closed near the high; Faded: spiked ≥8% but closed back near/below open'}:{lo:0,hi:1,z:[[0,1,'n']],v:0.5,hatch:true,tip:'only relevant on a spike day (≥35% 1-day VIX move)'};
-  const sVF  =b.neg_vol?{lo:0,hi:1,z:[[0,1,'r']],v:0.5,nolab:true,tip:'negative vol carry: OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end → long-vol'}:{lo:0,hi:1,z:[[0,1,'n']],v:0.5,hatch:true,tip:'relevant only when carry is negative (OBV divergence)'};
+  // Binary on/off indicators: Off | On zones, marker on the current state, dulled when
+  // not active (resembling the other bars) with a "now …" tooltip.
+  const sSpk ={lo:0,hi:1,z:[[0,0.5,'t'],[0.5,1,'r']],v:_spkDay?(b.vix_fade?0.25:0.75):0.25,nolab:true,dull:!_spkDay,
+    tip:`On a ≥35% 1-day VIX spike: Faded (spiked ≥8% above open then closed back → buy the dip, SVXY) vs Sustained (closed near the high → blocks SVXY / confirms UVXY) · now ${_spkDay?(b.vix_fade?'Faded':'Sustained'):'no spike'}`};
+  const sVF  ={lo:0,hi:1,z:[[0,0.5,'n'],[0.5,1,'r']],v:b.neg_vol?0.75:0.25,nolab:true,dull:!b.neg_vol,
+    tip:`Negative vol carry: OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end → an independent long-vol path · now ${b.neg_vol?'Active':'Off'}`};
   // Comp rows: Current value rendered WHITE (dimmed when a position is open, like
   // the term-structure entry rows); Signal column shows SVXY/UVXY/Cash/N/A via tag().
   // These are all derived from the EOD term structure → an amber (EOD) refresh clock,
@@ -3050,10 +3062,10 @@ function renderSignalMonitor(histBar){
     +`<td>${tag(r[6])}</td></tr>`).join('');
   const _gated=(b.mv_lo||(b.vix1m!=null&&b.vix1m>=CAP));
   const compEntry=[
+    ['Spike Type','On a ≥35% 1-day VIX spike, whether it faded or held into the close: Sustained = spiked ≥8% above open & closed near high; Faded = spiked ≥8% but closed back','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
+      _spkDay?(b.vix_fade?'Faded':'Sustained'):_na, gFull(sSpk), _spkDay?(b.vix_fade?'SVXY':'UVXY'):'NA'],
     ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — short-vol regime confirmation; needs trend ≥ 0 (not falling through zero)','Trend ≥ 0 confirms SVXY','Trend < 0 blocks SVXY',
       b.bb_buy?'Uptrend':'Downtrend', gFull(sBB), b.bb_buy?'SVXY':'NA'],
-    ['Spike character','On a ≥35% 1-day VIX spike, whether it faded or held into the close: Sustained = spiked ≥8% above open & closed near high; Faded = spiked ≥8% but closed back','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
-      _spkDay?(b.vix_fade?'Faded':'Sustained'):_na, gFull(sSpk), _spkDay?(b.vix_fade?'SVXY':'UVXY'):'NA'],
     ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end — an independent long-vol entry path','','Active → UVXY entry path',
       b.neg_vol?'Active':_na, gFull(sVF), b.neg_vol?'UVXY':'NA'],
     ['UVXY entry gates','Long-vol entry is blocked when MOVE/VIX ≤ 2 or VIX1M ≥ 45.9 (the spike-chase cap), unless the spike held intraday','','Clear → UVXY entry allowed',
@@ -3118,8 +3130,8 @@ function renderSignalMonitor(histBar){
     // Comp rows: white value (dimmed when in a position), N/A stays muted-yellow.
     // Signal column mirrors the full monitor: SVXY/UVXY where the indicator points,
     // else N/A (dull yellow). UVXY gate is a blocker, not a direction → always N/A.
+    mh+=mRow('Spike Type', sSpk, _spkDay?(b.vix_fade?'Fade':'Sust'):_ms('N/A','var(--namut)'), mSig(_spkDay?(b.vix_fade?'SVXY':'UVXY'):'NA'), inPos);
     mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', mSig(b.bb_buy?'SVXY':'NA'), inPos);
-    mh+=mRow('Spike char.', sSpk, _spkDay?(b.vix_fade?'Fade':'Sust'):_ms('N/A','var(--namut)'), mSig(_spkDay?(b.vix_fade?'SVXY':'UVXY'):'NA'), inPos);
     mh+=mRow('Vol-follow', sVF, b.neg_vol?'Active':_ms('N/A','var(--namut)'), mSig(b.neg_vol?'UVXY':'NA'), inPos);
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
