@@ -417,6 +417,17 @@ tr:hover td { background: #1f1a10 }
 .cdl-sw { width:9px; height:9px; border-radius:2px; display:inline-block; }
 /* Fixed layout so columns stay put when hovering between days (the Current cell
    gains/loses a clock icon, values change width — none of it should reflow). */
+/* How-it-works explainer */
+.howto { font-size:0.9rem; line-height:1.6; color:var(--text); max-width:880px; }
+.howto h3 { color:var(--yellow); font-size:0.95rem; margin:16px 0 4px; font-weight:600; }
+.howto h3:first-child { margin-top:0; }
+.howto p { margin:0 0 6px; }
+.howto b { color:#fdf4d6; }
+.howto .howto-note { color:var(--dim); font-size:0.8rem; margin-top:14px; border-top:1px solid var(--border); padding-top:10px; }
+/* Exit-reason legend under the trades table */
+.exit-legend { display:flex; flex-wrap:wrap; gap:6px 18px; padding:12px 4px 2px; font-size:0.72rem; color:var(--dim); border-top:1px solid var(--border); margin-top:10px; }
+.exit-legend .el-title { color:var(--yellow); font-weight:600; }
+.exit-legend b { color:var(--text); font-weight:600; }
 /* Detailed per-signal statistics table (TradingView-style) */
 table.sig-stats { width:100%; border-collapse:collapse; font-size:0.82rem; }
 table.sig-stats th { text-align:right; color:var(--dim); font-weight:600; text-transform:uppercase; font-size:0.64rem; letter-spacing:0.04em; padding:8px 14px; border-bottom:1px solid var(--border2); white-space:nowrap; }
@@ -560,12 +571,14 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
   <div class="tabs">
     <button class="tab active" onclick="switchTab('summary')">Live Chart w/ Signals</button>
     <button class="tab" onclick="switchTab('analytics')">P&amp;L Summary</button>
-    <button class="tab" onclick="switchTab('trades')">Trades</button>
+    <button class="tab" onclick="switchTab('trades')">Trades Detail</button>
+    <button class="tab" onclick="switchTab('risk')">Risk Analysis</button>
+    <button class="tab" onclick="switchTab('howto')">How It Works</button>
   </div>
 </div>
 
 <!-- ══ LIVE MARKET STRIP ═══════════════════════════════════════════════════ -->
-<div id="live-strip" title="Live market readings. Most of these quotes feed into indicators which together generate position entry / exit signals. Signals finalize at ~5:30 PM ET (once the daily VIX term structure posts); trades execute the same day at ~7-8 PM ET (during after hours). Intraday values (including pre-market and after hours) are available for most tickers but are indicative only.">
+<div id="live-strip" title="Live market readings that feed the entry/exit signals. Signals finalize ~5:30 PM ET (when the VIX term structure posts); trades execute the same day ~7-8 PM ET (after hours). Intraday values (incl. pre/post-market) are available for most tickers but are indicative only.">
   <div class="live-main">
     <div class="live-pos-block">
       <span class="live-pos-lbl">Current Position</span>
@@ -757,6 +770,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
             <option value="ALL">All</option><option value="SV">SVXY</option>
             <option value="UV">UVXY</option><option value="WIN">Wins</option><option value="LOSS">Losses</option>
           </select>
+          <button class="rp-btn" onclick="exportTradesCsv()" title="Download the trade list (current instrument view) as CSV">&#11015; CSV</button>
         </div>
       </div>
       <div style="overflow-x:auto">
@@ -764,6 +778,68 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           <th>#</th><th>Instr.</th><th>Entry date</th><th>Exit date</th><th style="text-align:right">Days</th>
           <th style="text-align:right">Entry $</th><th style="text-align:right">Exit $</th><th style="text-align:right">Return</th><th style="text-align:right">P&amp;L $</th><th>Exit reason</th><th>vs threshold</th><th style="text-align:right">Equity after</th>
         </tr></thead><tbody id="trade-tbody"></tbody></table>
+      </div>
+      <div class="exit-legend">
+        <span class="el-title">Exit reasons:</span>
+        <span><b>Take Profit</b> — unrealized gain hit the profit target</span>
+        <span><b>Stop Loss</b> — loss hit the hard stop (long-vol)</span>
+        <span><b>Trailing Stop</b> — gave back a set amount from the running peak (short-vol)</span>
+        <span><b>Time Stop</b> — held to the max horizon without enough profit</span>
+        <span><b>Negative Vol Carry</b> — roll yield turned unfavourable; carry no longer pays (short-vol)</span>
+        <span><b>MOVE / VIX</b> — cross-asset (bond-vs-equity) vol-stress overlay</span>
+        <span><b>Term-Structure Rollover</b> — the near curve flipped against the position</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RISK ANALYSIS TAB ════════════════════════════════════════════ -->
+  <div id="tab-risk" style="display:none">
+    <div class="kpi-grid" id="risk-kpis"></div>
+    <div class="panel" style="margin-top:12px">
+      <div class="ph"><span>Monte Carlo — 2,000 bootstrapped trade orderings</span>
+        <span style="font-size:0.7rem;color:var(--dim)">5th–95th &amp; 25th–75th percentile equity cones + median</span></div>
+      <div class="pb" style="position:relative;height:340px"><canvas id="mcChart"></canvas></div>
+      <div class="pb" id="mc-note" style="padding-top:0;font-size:0.78rem;color:var(--dim)"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="panel" style="flex:1 1 420px"><div class="ph"><span>Rolling 12-month performance</span></div>
+        <div class="pb" style="position:relative;height:280px"><canvas id="rollChart"></canvas></div></div>
+      <div class="panel" style="flex:1 1 320px"><div class="ph"><span>Trade return distribution</span></div>
+        <div class="pb" style="position:relative;height:280px"><canvas id="distChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- ══ HOW IT WORKS TAB ═════════════════════════════════════════════ -->
+  <div id="tab-howto" style="display:none">
+    <div class="panel"><div class="ph"><span>How the strategy works</span></div>
+      <div class="pb howto">
+        <h3>The idea</h3>
+        <p>This is a VIX <b>term-structure</b> swing strategy. It trades two volatility ETFs: <b>SVXY</b>
+          (short volatility, ~&minus;0.5&times; VIX) and <b>UVXY</b> (long volatility, ~1.5&times; VIX). The toggle at
+          the top also shows the leverage-scaled <b>SVIX/UVIX</b> pair and a recommended <b>SVIX&frac12; / UVIX</b> blend.</p>
+        <h3>When it goes short vol (buys SVXY)</h3>
+        <p>When the VIX curve is in <b>contango</b> (longer-dated VIX above near-dated) and the term-structure
+          signals align bullish — contango, VDelta, the VIX9D/VIX1M calm zones and the 1M/3M ratio — plus a
+          BB-trend confirmation. Contango means short vol is paid to hold (positive roll yield).</p>
+        <h3>When it goes long vol (buys UVXY)</h3>
+        <p>When the curve inverts into <b>backwardation</b> and the full four-signal bear regime is in place, or
+          on a <b>crush</b> override (a &ge;35% one-day VIX collapse that tends to bounce). A guard blocks fresh
+          long-vol entries while VIX9D sits in the <b>41&ndash;46 &ldquo;exhaustion zone&rdquo;</b> — the level where
+          an initial spike historically mean-reverts and a fresh long gets crushed.</p>
+        <h3>How it exits</h3>
+        <p>Seven independent exit rules are checked each evening — take-profit, stop-loss, trailing stop, time
+          stop, negative carry, MOVE/VIX cross-asset stress, and term-structure rollover. The moment any fires,
+          the position is closed.</p>
+        <h3>Timing &amp; execution</h3>
+        <p>Signals use the day&rsquo;s close plus the CBOE end-of-day term structure (posts ~5:30&nbsp;PM&nbsp;ET);
+          the decision is final then and the trade executes the <b>same day in after-hours</b> (~7&ndash;8&nbsp;PM&nbsp;ET).
+          No intraday repaint &mdash; everything is decided on confirmed daily data.</p>
+        <h3>Position sizing</h3>
+        <p>Short-vol is full size (cut to ~&times;0.48 in a high-vol regime); long-vol is sized ~&times;0.43. The
+          headline drawdown is driven by the short-vol &ldquo;grind&rdquo;, not the long-vol trades.</p>
+        <p class="howto-note">All figures are from a backtest on real SVXY/UVXY prices, no repainting and
+          walk-forward-checked where rules were added. Past performance is not indicative of future results;
+          this is not investment advice.</p>
       </div>
     </div>
   </div>
@@ -996,13 +1072,13 @@ function buildPositionState(){
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
-const TABS=['summary','analytics','trades'];
+const TABS=['summary','analytics','trades','risk','howto'];
 function switchTab(n){
   TABS.forEach(t=>{const el=document.getElementById('tab-'+t); if(el) el.style.display=t===n?'':'none';});
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABS[i]===n));
-  // The daily LC chart needs a non-zero container width, so (re)build it when the
-  // analytics tab actually becomes visible.
+  // Charts need a non-zero container width, so (re)build when the tab becomes visible.
   if(n==='analytics' && typeof buildDaily==='function') setTimeout(()=>{try{buildDaily();}catch(_){}},40);
+  if(n==='risk' && typeof renderRisk==='function') setTimeout(()=>{try{renderRisk();}catch(_){}},40);
 }
 // Global instrument toggle — switches the whole dashboard SVXY/UVXY <-> SVIX/UVIX
 function setInstr(m){
@@ -1051,6 +1127,7 @@ function rerenderActive(){
   if(tf){ tf.options[1].text=svN(); tf.options[2].text=uvN(); }
   updateLivePosition();   // header position follows the toggled instrument
   if(window._sigMonReady && typeof renderSignalMonitor==='function') renderSignalMonitor();  // monitor chips follow toggle
+  const rt=document.getElementById('tab-risk'); if(rt && rt.style.display!=='none' && typeof renderRisk==='function') renderRisk();
 }
 
 // Header "CURRENT POSITION" + live open P&L, following the SVXY/UVXY↔SVIX/UVIX toggle.
@@ -1420,6 +1497,83 @@ function renderTrades(){
   </tr>`}).join('');
 }
 
+// Download the current (instrument-aware) trade list as CSV.
+function exportTradesCsv(){
+  const alt=aMode(); const [svM,uvM]=alt?altCloseMaps():[null,null];
+  const px=(t,d)=>{ if(!alt) return d; const m=tIsSV(t)?svM:uvM; const v=m&&m[d]; return v!=null?v.toFixed(2):''; };
+  const rows=[['instrument','entry_date','exit_date','days','entry_price','exit_price','return_pct','pnl_usd','exit_reason','equity_after']];
+  aTrades().forEach(t=>rows.push([ tInstr(t), t.entry_date, t.exit_date, t.days,
+    alt?px(t,t.entry_date):(t.entry_price??''), alt?px(t,t.exit_date):(t.exit_price??''),
+    (tRet(t)*100).toFixed(2)+'%', Math.round(tPnl(t)), t.exit_reason, Math.round(t.equity_after) ]));
+  const csv=rows.map(r=>r.map(x=>{const s=String(x); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='vix_strategy_trades_'+(alt?(CHART_MODE==='blend'?'svix-half-uvix':'svix-uvix'):'svxy-uvxy')+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+// ══ RISK ANALYSIS ═══════════════════════════════════════════════════════════
+// Monte Carlo (bootstrap the trade-return sequence), rolling 12-mo performance,
+// and the trade-return distribution. All instrument-aware via aTrades()/aEq().
+function renderRisk(){
+  if(!DATA||typeof Chart==='undefined') return;
+  const start=DATA.meta.start_capital;
+  const tr=aTrades(); const rets=tr.map(tRet).filter(r=>r!=null&&!isNaN(r)); const n=rets.length;
+  if(!n) return;
+  // ── Monte Carlo: 2000 bootstrapped orderings of the realised trade returns ──
+  const SIMS=2000; const paths=[]; const finals=[]; const dds=[];
+  for(let s=0;s<SIMS;s++){ let eq=start,peak=start,mdd=0; const path=[start];
+    for(let i=0;i<n;i++){ const r=rets[(Math.random()*n)|0]; eq=Math.max(eq*(1+r),1); path.push(eq); peak=Math.max(peak,eq); mdd=Math.min(mdd,eq/peak-1); }
+    paths.push(path); finals.push(eq); dds.push(mdd); }
+  const pctl=(arr,p)=>{ const a=arr.slice().sort((x,y)=>x-y); return a[Math.min(a.length-1,Math.floor(p*a.length))]; };
+  const band=p=>{ const out=[]; for(let i=0;i<=n;i++){ out.push(+pctl(paths.map(pp=>pp[i]),p).toFixed(2)); } return out; };
+  const p5=band(0.05),p25=band(0.25),p50=band(0.5),p75=band(0.75),p95=band(0.95);
+  const labels=Array.from({length:n+1},(_,i)=>i);
+  const step=Math.max(1,Math.floor((n+1)/120));
+  const thin=a=>a.filter((_,i)=>i%step===0);
+  mkChart('mcChart',{ type:'line', data:{ labels:thin(labels), datasets:[
+      {data:thin(p5),  borderColor:'rgba(0,0,0,0)', pointRadius:0, fill:false},
+      {data:thin(p95), borderColor:'rgba(0,0,0,0)', pointRadius:0, backgroundColor:'rgba(84,210,239,0.10)', fill:'-1'},
+      {data:thin(p25), borderColor:'rgba(0,0,0,0)', pointRadius:0, fill:false},
+      {data:thin(p75), borderColor:'rgba(0,0,0,0)', pointRadius:0, backgroundColor:'rgba(82,230,189,0.18)', fill:'-1'},
+      {data:thin(p50), borderColor:YELLOW, borderWidth:2, pointRadius:0, fill:false},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{title:c=>'After '+c[0].label+' trades',label:c=>' $'+abbrev(c.parsed.y)}}},
+      scales:{ x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:12,family:FONT}},grid:{color:GRID},title:{display:true,text:'Trade #',color:TICK}},
+        y:{type:'logarithmic',ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>'$'+abbrev(v)},grid:{color:GRID}} } } });
+  const fmtR=v=>((v/start-1)>=0?'+':'')+((v/start-1)*100).toLocaleString('en-US',{maximumFractionDigits:0})+'%';
+  const probDD=th=>Math.round(100*dds.filter(d=>d<=th).length/SIMS);
+  const note=document.getElementById('mc-note');
+  if(note) note.textContent='Resamples the actual '+n+' trade returns (with replacement) into 2,000 alternate orderings — a sense of the luck-of-sequencing range, not a forecast. Median ending ≈ '+fmtR(pctl(finals,0.5))+'; 5th–95th percentile '+fmtR(pctl(finals,0.05))+' to '+fmtR(pctl(finals,0.95))+'.';
+  // ── Risk KPIs ──
+  const kp=[
+    {l:'Median outcome', v:fmtR(pctl(finals,0.5)), sub:'MC median total return', c:'neu'},
+    {l:'5th percentile', v:fmtR(pctl(finals,0.05)), sub:'Unlucky-sequence return', c:'neg'},
+    {l:'Worst-case drawdown', v:(pctl(dds,0.05)*100).toFixed(0)+'%', sub:'5th-pct MC max drawdown', c:'neg'},
+    {l:'P(drawdown > 40%)', v:probDD(-0.40)+'%', sub:'Across 2,000 simulations', c:'neu'},
+    {l:'P(drawdown > 50%)', v:probDD(-0.50)+'%', sub:'Across 2,000 simulations', c:'neu'},
+  ];
+  const rk=document.getElementById('risk-kpis');
+  if(rk) rk.innerHTML=kp.map(k=>`<div class="kpi"><div class="kpi-label">${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+  // ── Rolling 12-month return (252 trading days) from the equity curve ──
+  const ec=aEq(); const W=252; const rl=[], rlab=[];
+  for(let i=W;i<ec.length;i++){ const a=ec[i-W].equity, b=ec[i].equity; if(a>0){ rl.push(+((b/a-1)*100).toFixed(1)); rlab.push(ec[i].date); } }
+  const rstep=Math.max(1,Math.floor(rl.length/150));
+  mkChart('rollChart',{ type:'line', data:{ labels:rlab.filter((_,i)=>i%rstep===0),
+    datasets:[{label:'Rolling 12-mo return',data:rl.filter((_,i)=>i%rstep===0),borderColor:TEAL,borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(82,230,189,0.08)'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(c.parsed.y>=0?'+':'')+c.parsed.y+'%'}}},
+      scales:{x:{ticks:{color:TICK,maxTicksLimit:10,font:{size:12,family:FONT}},grid:{color:GRID}},
+        y:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID}}}} });
+  // ── Trade-return distribution histogram ──
+  const lo=Math.min(...rets), hi=Math.max(...rets); const NB=24; const w=(hi-lo)/NB||1;
+  const bins=Array(NB).fill(0); rets.forEach(r=>{ let k=Math.min(NB-1,Math.floor((r-lo)/w)); bins[k]++; });
+  const blab=bins.map((_,i)=>((lo+(i+0.5)*w)*100).toFixed(0)+'%');
+  const bcol=bins.map((_,i)=>(lo+(i+0.5)*w)>=0?'rgba(82,230,189,0.7)':'rgba(242,86,58,0.7)');
+  mkChart('distChart',{ type:'bar', data:{ labels:blab, datasets:[{data:bins,backgroundColor:bcol,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:c=>'~'+c[0].label+' return',label:c=>' '+c.parsed.y+' trades'}}},
+      scales:{x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:11,family:FONT}},grid:{display:false}},
+        y:{ticks:{color:TICK,font:{size:12,family:FONT}},grid:{color:GRID},title:{display:true,text:'# trades',color:TICK}}}} });
+}
 // ══ MONTHLY ═══════════════════════════════════════════════════════════════
 function activeMonthly(){
   if(!aMode()) return DATA.monthly;
@@ -1907,14 +2061,17 @@ function applyChartMode(){
   if(a) a.classList.toggle('active', CHART_MODE==='alt');
   if(!candleSeries||!sumMain) return;
   // Preserve the candle chart's zoom/position across the toggle (don't snap to default).
-  // Preserve the viewer's zoom across the toggle by TIME range, not logical range:
-  // the three pairings use different candle sets (SVXY = full history, SVIX/UVIX =
-  // 2022+), so logical indices don't line up — a time range does (clamped to data).
-  let keepT=null; try{ keepT=sumMain.timeScale().getVisibleRange(); }catch(_){}
+  // Preserve the viewer's zoom AND the right-edge gap across the toggle by capturing
+  // the visible window RELATIVE TO THE LAST BAR, then re-applying it to the new candle
+  // set. Both sets end on the same latest date and share their recent bars, so the
+  // latest bar keeps its ~75% anchor (incl. the future whitespace) and recent zoom/
+  // location carry over. (Time-range preservation lost the right-edge gap.)
+  let keepRel=null; try{ const vr=sumMain.timeScale().getVisibleLogicalRange(); const N0=(CANDLES&&CANDLES.length)||0;
+    if(vr&&N0) keepRel={left:N0-vr.from, right:vr.to-(N0-1)}; }catch(_){}
   CANDLES=displayCandles(); MARKERS=displayMarkers(); rebuildChartMaps();
   candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS);
   if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
-  if(keepT){ try{ sumMain.timeScale().setVisibleRange(keepT); }catch(_){ summaryToEnd(); } }
+  if(keepRel){ const N=CANDLES.length; try{ sumMain.timeScale().setVisibleLogicalRange({from:N-keepRel.left, to:N-1+keepRel.right}); }catch(_){ summaryToEnd(); } }
   else summaryToEnd();
 }
 function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
