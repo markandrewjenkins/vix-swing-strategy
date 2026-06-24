@@ -1891,11 +1891,14 @@ function applyChartMode(){
   if(a) a.classList.toggle('active', CHART_MODE==='alt');
   if(!candleSeries||!sumMain) return;
   // Preserve the candle chart's zoom/position across the toggle (don't snap to default).
-  let keep=null; try{ keep=sumMain.timeScale().getVisibleLogicalRange(); }catch(_){}
+  // Preserve the viewer's zoom across the toggle by TIME range, not logical range:
+  // the three pairings use different candle sets (SVXY = full history, SVIX/UVIX =
+  // 2022+), so logical indices don't line up — a time range does (clamped to data).
+  let keepT=null; try{ keepT=sumMain.timeScale().getVisibleRange(); }catch(_){}
   CANDLES=displayCandles(); MARKERS=displayMarkers(); rebuildChartMaps();
   candleSeries.setData(CANDLES); candleSeries.setMarkers(MARKERS);
   if(posSeries) posSeries.setData(CANDLES.map(c=>({time:c.time,value:1,color:posColorOf((POSBYDATE&&POSBYDATE[c.time])||'CASH')})));
-  if(keep){ try{ sumMain.timeScale().setVisibleLogicalRange(keep); }catch(_){ summaryToEnd(); } }
+  if(keepT){ try{ sumMain.timeScale().setVisibleRange(keepT); }catch(_){ summaryToEnd(); } }
   else summaryToEnd();
 }
 function setChartMode(m){ if(m===CHART_MODE) return; CHART_MODE=m; applyChartMode(); }
@@ -2247,10 +2250,15 @@ function renderSignalMonitor(histBar){
   // histBar set → show that hovered chart bar's readings; otherwise live/today.
   const hist = !!histBar;
   const b = histBar || DATA.bar_history[DATA.bar_history.length-1];
-  // Preliminary = live, but today's EOD term structure hasn't posted yet, so the
-  // relevant signal readings are still intraday-provisional (shown italic).
+  // Preliminary (italic) = live, but today's intraday inputs haven't started flowing
+  // yet (e.g. pre-market, before VIX quotes go live at the open). Once the intraday
+  // VIX data is today's, the relevant readings are live and no longer italic — even
+  // though the EOD term structure only finalises them at ~5:30pm.
   const _todayET = new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(new Date());
-  const _prelim = !hist && !!LIVE && !((LIVE.cboe_refreshed) || ((((LIVE.market||{}).curve||{}).vix9d_date)===_todayET));
+  const _qToday = qq => { const t=qq&&qq.time; if(!t) return false;
+    try{ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(new Date(t))===_todayET; }catch(_){ return false; } };
+  const _mq = (LIVE&&LIVE.market&&LIVE.market.quotes)||{};
+  const _prelim = !hist && !!LIVE && !(_qToday(_mq.vix9d) || _qToday(_mq.vix));
   const L = hist ? null : LIVE;
   const contango = (L&&L.derived&&L.derived.contango!=null)?L.derived.contango:b.contango;
   const vdelta   = (L&&L.derived&&L.derived.vdelta!=null)?L.derived.vdelta:b.vdelta;
@@ -2343,8 +2351,12 @@ function renderSignalMonitor(histBar){
     const labels=opts.nolab?'':bnds.map((v,i)=>{ const x=sx(v); const anc=i===0?'start':i===bnds.length-1?'end':'middle';
       return `<text x="${x.toFixed(1)}" y="${H-1}" font-size="7.5" fill="var(--dim)" text-anchor="${anc}">${fmt(v)}</text>`;}).join('');
     const mx=sx(val).toFixed(1);
-    return `<span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${rects}${labels}`
-      + `<line x1="${mx}" y1="${(by-1.5).toFixed(1)}" x2="${mx}" y2="${(by+bh+1.5).toFixed(1)}" stroke="var(--white)" stroke-width="2"/></svg></span>`; };
+    const inner = `${rects}${labels}`
+      + `<line x1="${mx}" y1="${(by-1.5).toFixed(1)}" x2="${mx}" y2="${(by+bh+1.5).toFixed(1)}" stroke="var(--white)" stroke-width="2"/>`;
+    // dull = the indicator doesn't apply right now (flat, or wrong-side exit) but a
+    // reading exists → show the bar, just dimmed, instead of the disabled hatch.
+    const body = opts.dull ? `<g opacity="0.38">${inner}</g>` : inner;
+    return `<span class="sig-gauge" title="${tip||''}"><svg width="${W}" height="${H}" style="vertical-align:middle">${body}</svg></span>`; };
 
   // Compact pill gauge for the floating mini monitor (no labels, white marker).
   const gaugeMini=(g)=>{ if(!g) return '';
@@ -2356,7 +2368,8 @@ function renderSignalMonitor(histBar){
     const rects=g.z.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const st=_zoneStyle(z,g.v,g.trig);
       return `<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${bh}" rx="2.5" fill="${st.fill}" opacity="${st.op}"/>`;}).join('');
     const mx=sx(g.v).toFixed(1);
-    return wrap(`<svg width="${W}" height="${H}" style="vertical-align:middle">${rects}<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/></svg>`); };
+    const inner=`${rects}<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/>`;
+    return wrap(`<svg width="${W}" height="${H}" style="vertical-align:middle">${g.dull?`<g opacity="0.38">${inner}</g>`:inner}</svg>`); };
 
   // Data-driven gauge domain for a bar_history field: robust [p1,p99] expanded
   // to include the trigger thresholds, with padding. Cached per field.
@@ -2623,9 +2636,12 @@ function renderSignalMonitor(histBar){
         ? {lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.xr13,'C'],[P.xr13,dR.hi,'P']],v:ratio13,fmt:fN2,tip:`exits long-vol when curve re-steepens (<${P.xr13}) · now ${ratio13!=null?ratio13.toFixed(3):'—'}`}
         : {lo:dR.lo,hi:dR.hi,z:[[dR.lo,P.br13,'P'],[P.br13,dR.hi,'C']],v:ratio13,fmt:fN2,tip:`exits short-vol when ratio leaves the bull zone (≥${P.br13}) · now ${ratio13!=null?ratio13.toFixed(3):'—'}`}; break;
     }
-    return {...o, hatch:off, trig}; };
+    // When N/A: if a reading still exists (the market-based exits when flat, or the
+    // UVXY stop-loss while holding SVXY), show the bar DULLED rather than hatched.
+    const hasVal = o && o.v!=null && !isNaN(o.v);
+    return {...o, hatch: off && !hasVal, dull: off && hasVal, trig}; };
   const xspec=[0,1,2,3,4,5,6].map(exitSpec);
-  xspec.forEach((s,i)=>{ exitRules[i][7]=gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt,{hatch:s.hatch,trig:s.trig}); });
+  xspec.forEach((s,i)=>{ exitRules[i][7]=gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt,{hatch:s.hatch,trig:s.trig,dull:s.dull}); });
   const _exClk=[['exTP','__pnl',openpnl],['exSL','__pnl',openpnl],['exTRAIL','__pnl',openpnl],['exTIME','__days',(inPos?1:null)],
                 ['exCARRY','contango',contango],['exMOVE','move_vix_ratio',movevix],['exROLL','ratio_1m_3m',ratio13]];
   exitRules.forEach((r,i)=>{ if(exHas[i]) r[6]=annotate(_exClk[i][0],_exClk[i][1],_r4(_exClk[i][2]),'live'); });
