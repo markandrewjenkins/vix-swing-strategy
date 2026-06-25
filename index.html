@@ -2684,10 +2684,18 @@ function renderSignalMonitor(histBar){
   const ovrSV = !!(spike || b.vix_fade);
   const ovrUV = !!(crush || (b.neg_vol && b.bear_9d && b.bear_1m));
   const ovrActive = !!(ovrSV || ovrUV);
+  // Contango carry is SVXY-bullish only when it is ≥ the trend threshold AND RISING, or
+  // ≥ the high level outright — a positive-but-falling curve (e.g. 2026-02-27) is NOT a
+  // short-vol go. Use the engine's exported flag for history; approximate live from the
+  // last completed bar's contango.
+  const CT_HI=0.1459;
+  const _prevCont = (DATA.bar_history&&DATA.bar_history.length)?DATA.bar_history[DATA.bar_history.length-1].contango:null;
+  const _contBull = hist ? !!b.cont_bull
+    : (contango!=null && ((contango>=P.ct && _prevCont!=null && contango>_prevCont) || contango>=CT_HI));
   let rows=[
-    ['Contango (VIX3M / VIX1M)','Term-structure carry. Positive &amp; rising favors short-vol (SVXY).',
-      'Positive &amp; rising','Backwardation', pct(contango,1),
-      contango>=P.ct?'SVXY':contango<0?'UVXY':'NEU'],
+    ['Contango (VIX3M / VIX1M)','Term-structure carry. Short-vol (SVXY) only when ≥3.3% AND rising, or ≥14.6% — positive but falling is not enough.',
+      'Positive &amp; rising (or ≥14.6%)','Backwardation', pct(contango,1),
+      _contBull?'SVXY':(contango!=null&&contango<0?'UVXY':'NEU')],
     ['VDelta (VIX1M &minus; VIX9D)','Front-end fear gauge. Deeply negative = acute near-term fear.',
       'Elevated','Deeply negative', num(vdelta,2),
       vdelta>P.bvd?'SVXY':vdelta<=P.xvd?'UVXY':'NEU'],
@@ -2704,13 +2712,13 @@ function renderSignalMonitor(histBar){
   // Per-indicator gauge bars. Domain is data-driven (observed p1–p99 of the
   // history, expanded to include the thresholds); zone edges are the real
   // thresholds from P; the marker sits at the live value.
-  const dC=_domain('contango',[0,P.ct]), dV=_domain('vdelta',[P.xvd,P.bvd]),
+  const dC=_domain('contango',[0,P.ct,CT_HI]), dV=_domain('vdelta',[P.xvd,P.bvd]),
         d9=_domain('vix9d',[P.b9lo,P.b9hi]), d1=_domain('vix1m',[P.b1lo,P.b1hi]),
         dR=_domain('ratio_1m_3m',[P.br13,P.xr13]), dM=_domain('move_vix_ratio',[2,11]);
   const fPP=v=>(v*100).toFixed(0)+'%', fN0=v=>(+v).toFixed(0), fN1=v=>(+v).toFixed(1), fN2=v=>(+v).toFixed(2);
   // Gauge specs (domain + zones + value) — used for the full bars and the mini monitor.
   const egauge=[
-    {lo:dC.lo,hi:dC.hi,z:[[dC.lo,0,'r'],[0,P.ct,'n'],[P.ct,dC.hi,'t']],v:contango,fmt:fPP,tip:`bear <0% · bull ≥${(P.ct*100).toFixed(1)}% · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}`},
+    {lo:dC.lo,hi:dC.hi,z:[[dC.lo,0,'r'],[0,CT_HI,'n'],[CT_HI,dC.hi,'t']],v:contango,fmt:fPP,tip:`bear <0% · short-vol needs ≥${(P.ct*100).toFixed(1)}% AND rising, or ≥${(CT_HI*100).toFixed(1)}% outright · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}${hist?(b.cont_bull?' (confirmed)':' (not confirmed)'):''}`},
     {lo:dV.lo,hi:dV.hi,z:[[dV.lo,P.xvd,'r'],[P.xvd,P.bvd,'n'],[P.bvd,dV.hi,'t']],v:vdelta,fmt:fN1,tip:`bear ≤${P.xvd} · bull >${P.bvd} · now ${vdelta!=null?vdelta.toFixed(2):'—'}`},
     {lo:d9.lo,hi:d9.hi,z:[[d9.lo,P.b9lo,'r'],[P.b9lo,P.b9hi,'t'],[P.b9hi,d9.hi,'r']],v:vix9d,fmt:fN0,tip:`calm ${P.b9lo}–${P.b9hi} · now ${vix9d!=null?vix9d.toFixed(2):'—'}`},
     {lo:d1.lo,hi:d1.hi,z:[[d1.lo,P.b1lo,'r'],[P.b1lo,P.b1hi,'t'],[P.b1hi,d1.hi,'r']],v:vix1m,fmt:fN0,tip:`calm ${P.b1lo}–${P.b1hi} · now ${vix1m!=null?vix1m.toFixed(2):'—'}`},
@@ -3106,6 +3114,9 @@ function renderSignalMonitor(histBar){
   // entry trigger (e.g. the 2026-03-03 entry). Activate on the actual fade/sustain flags
   // so the driver is visible, not just on big-spike days.
   const _spkAct=b.vix_fade||b.vix_sustained||_spkDay;
+  // The vol-follow UVXY entry needs the OBV divergence (neg_vol) AND a bearish front end
+  // (VIX9D & VIX1M bearish). neg_vol alone is just a reading, not an actionable entry.
+  const _volFollow=!!(b.neg_vol&&b.bear_9d&&b.bear_1m);
   const gFull=(s)=>gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt||(v=>''),{nolab:s.nolab,hatch:s.hatch,dull:s.dull});
   const sBB ={lo:_dBB.lo,hi:_dBB.hi,z:[[_dBB.lo,0,'r'],[0,_dBB.hi,'t']],v:b.bb_trend,fmt:v=>v.toFixed(2),tip:`BB-trend on log-SVXY · threshold 0 (short-vol regime needs trend ≥ 0, not falling) · now ${b.bb_trend!=null?b.bb_trend.toFixed(2):'—'}`};
   // UVXY gate plotted on the real binding filter — the VIX9D "exhaustion zone" guard:
@@ -3120,14 +3131,14 @@ function renderSignalMonitor(histBar){
   const sSize={lo:_dMA.lo,hi:_dMA.hi,z:[[_dMA.lo,REG,'t'],[REG,_dMA.hi,'r']],v:b.vix1m_ma30,fmt:fN0,tip:`high-vol regime when 30-day VIX avg > ${REG} → SVXY size ×0.48 (UVXY always ×0.43) · now ${b.vix1m_ma30!=null?b.vix1m_ma30.toFixed(1):'—'}`};
   // Binary on/off indicators: Off | On zones, marker on the current state, dulled when
   // not active (resembling the other bars) with a "now …" tooltip.
-  const sSpk ={lo:0,hi:1,z:[[0,0.5,'t'],[0.5,1,'r']],v:b.vix_fade?0.25:(b.vix_sustained?0.75:0.5),nolab:true,dull:!_spkAct,
-    tip:`Spike Type — intraday spike character: faded (VIX spiked ≥8% above the open then closed back → buy the dip, a standalone SVXY entry) vs sustained (closed near the high → blocks SVXY / confirms UVXY) · now ${b.vix_fade?'faded → SVXY':(b.vix_sustained?'sustained → UVXY':'neither')}`};
+  const sSpk ={lo:0,hi:1,z:[[0,0.5,'t'],[0.5,1,'n']],v:b.vix_fade?0.25:(b.vix_sustained?0.75:0.5),nolab:true,dull:!_spkAct,
+    tip:`Spike Type — intraday spike character: faded (VIX spiked ≥8% above the open then closed back → buy the dip, a standalone SVXY entry) vs sustained (spiked and held into the close → a CAUTION that blocks short-vol boost paths; it does NOT buy UVXY on its own) · now ${b.vix_fade?'faded → SVXY':(b.vix_sustained?'sustained (blocks SVXY)':'neither')}`};
   // Vol-follow plotted on its real moving value: the OBV 5d-vs-13d EMA spread (normalised
   // by daily flow). Below 0 = volume momentum weakening; combined with price near its
   // 10-day high it becomes the neg_vol long-vol flag. Dulled until that combo arms.
   const _ov=b.obv_div, _dOV=_domain('obv_div',[0]);
-  const sVF  ={lo:_dOV.lo,hi:_dOV.hi,z:[[_dOV.lo,0,'r'],[0,_dOV.hi,'t']],v:_ov,fmt:v=>v.toFixed(1),dull:!b.neg_vol,
-    tip:`OBV 5d−13d EMA spread (normalised) — below 0 = volume momentum weakening; becomes the long-vol "neg-vol" flag only with price near its 10-day high (${b.price_hi?'yes':'no'}) · now ${_ov!=null?_ov.toFixed(2):'—'}${b.neg_vol?' → Active':''}`};
+  const sVF  ={lo:_dOV.lo,hi:_dOV.hi,z:[[_dOV.lo,0,'r'],[0,_dOV.hi,'t']],v:_ov,fmt:v=>v.toFixed(1),dull:!_volFollow,
+    tip:`OBV 5d−13d EMA spread (normalised) — below 0 = volume momentum weakening. Triggers a long-vol (UVXY) entry only as the full vol-follow path: this divergence (price near the 10-day high: ${b.price_hi?'yes':'no'}) AND a bearish front end (VIX9D & VIX1M bearish: ${(b.bear_9d&&b.bear_1m)?'yes':'no'}). The ● marks that armed state · now ${_ov!=null?_ov.toFixed(2):'—'}${_volFollow?' → Active ●':''}`};
   // Comp rows: Current value rendered WHITE (dimmed when a position is open, like
   // the term-structure entry rows); Signal column shows SVXY/UVXY/Cash/N/A via tag().
   // These are all derived from the EOD term structure → an amber (EOD) refresh clock,
@@ -3139,12 +3150,12 @@ function renderSignalMonitor(histBar){
     +`<td>${tag(r[6],dl)}</td></tr>`; }).join('');
   const _gated=(b.mv_lo||(b.vix9d!=null&&b.vix9d>=41&&b.vix9d<=46));
   const compEntry=[
-    ['Spike Type','Intraday spike character: Faded = VIX spiked ≥8% above the open then closed back (a standalone SVXY entry — this is what triggered e.g. 2026-03-03); Sustained = closed near the high (blocks SVXY / confirms UVXY)','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
-      b.vix_fade?'Faded':(b.vix_sustained?'Sustained':_na), gFull(sSpk), b.vix_fade?'SVXY':(b.vix_sustained?'UVXY':'NA')],
+    ['Spike Type','Intraday spike character: Faded = VIX spiked ≥8% above the open then closed back (a standalone SVXY entry — this is what triggered e.g. 2026-03-03); Sustained = spiked and held into the close (a CAUTION that blocks short-vol boost paths — it does NOT buy UVXY on its own)','Faded → buy the vol dip (SVXY)','Sustained → caution, blocks SVXY',
+      b.vix_fade?'Faded':(b.vix_sustained?'Sustained':_na), gFull(sSpk), b.vix_fade?'SVXY':'NA'],
     ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — short-vol regime confirmation; needs trend ≥ 0 (not falling through zero)','Trend ≥ 0 confirms SVXY','Trend < 0 blocks SVXY',
       b.bb_buy?'Uptrend':'Downtrend', gFull(sBB), b.bb_buy?'SVXY':'NA'],
-    ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end — an independent long-vol entry path','','Active → UVXY entry path',
-      _ov!=null?(_ov.toFixed(1)+(b.neg_vol?' ●':'')):_na, gFull(sVF), b.neg_vol?'UVXY':'NA'],
+    ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) — only an independent long-vol entry when paired with a bearish front end (VIX9D & VIX1M bearish). The ● marks that armed state','','Divergence + bear front end → UVXY',
+      _ov!=null?(_ov.toFixed(1)+(_volFollow?' ●':'')):_na, gFull(sVF), _volFollow?'UVXY':'NA'],
     ['UVXY entry gate','Long-vol entry is blocked when VIX9D is in the 41–46 "exhaustion zone" (first-spike level that mean-reverts) or MOVE/VIX ≤ 2 — allowed below (early panic) and above (escalating crisis)','','Clear → UVXY entry allowed',
       _gated?'Blocked':'Clear', gFull(sGate), 'NA'],
   ];
@@ -3212,9 +3223,9 @@ function renderSignalMonitor(histBar){
     // Comp rows: white value (dimmed when in a position), N/A stays muted-yellow.
     // Signal column mirrors the full monitor: SVXY/UVXY where the indicator points,
     // else N/A (dull yellow). UVXY gate is a blocker, not a direction → always N/A.
-    mh+=mRow('Spike Type', sSpk, b.vix_fade?'Fade':(b.vix_sustained?'Sust':_ms('N/A','var(--namut)')), mSig(b.vix_fade?'SVXY':(b.vix_sustained?'UVXY':'NA')), inPos);
+    mh+=mRow('Spike Type', sSpk, b.vix_fade?'Fade':(b.vix_sustained?'Sust':_ms('N/A','var(--namut)')), mSig(b.vix_fade?'SVXY':'NA'), inPos);
     mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', mSig(b.bb_buy?'SVXY':'NA',_entryDull), _entryDull);
-    mh+=mRow('Vol-follow', sVF, _ov!=null?(_ov.toFixed(1)+(b.neg_vol?' ●':'')):_ms('N/A','var(--namut)'), mSig(b.neg_vol?'UVXY':'NA'), inPos);
+    mh+=mRow('Vol-follow', sVF, _ov!=null?(_ov.toFixed(1)+(_volFollow?' ●':'')):_ms('N/A','var(--namut)'), mSig(_volFollow?'UVXY':'NA'), inPos);
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
