@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-06-25T21:25:25+00:00",
+  "generated_utc": "2026-06-25T21:30:25+00:00",
   "market": {
     "vix_spot": 18.89,
     "vix1m_used": 18.89,
@@ -10,57 +10,57 @@
       "vix9d": 18.07,
       "vix9d_date": "2026-06-24",
       "vix9d_chg": -0.071905,
-      "vix9d_ref": 19.47,
+      "vix9d_ref": 18.07,
       "vix1m": 18.63,
       "vix1m_date": "2026-06-24",
       "vix1m_chg": -0.044125,
-      "vix1m_ref": 19.49,
+      "vix1m_ref": 18.63,
       "vix3m": 20.37,
       "vix3m_date": "2026-06-24",
       "vix3m_chg": -0.032764,
-      "vix3m_ref": 21.06,
+      "vix3m_ref": 20.37,
       "vix6m": 22.4,
       "vix6m_date": "2026-06-24",
       "vix6m_chg": -0.024815,
-      "vix6m_ref": 22.97,
+      "vix6m_ref": 22.4,
       "vix1y": 23.58,
       "vix1y_date": "2026-06-24",
       "vix1y_chg": -0.02883,
-      "vix1y_ref": 24.28,
+      "vix1y_ref": 23.58,
       "vvix": 95.58,
       "vvix_date": "2026-06-24",
       "vvix_chg": -0.039397,
-      "vvix_ref": 99.5
+      "vvix_ref": 95.58
     },
     "quotes": {
       "vix": {
         "price": 18.89,
-        "prev_close": 19.49,
-        "change_pct": -0.030785,
+        "prev_close": 18.63,
+        "change_pct": 0.013956,
         "time": "2026-06-25T20:15:01+00:00"
       },
       "vix9d": {
         "price": 17.92,
-        "prev_close": 19.47,
-        "change_pct": -0.07961,
+        "prev_close": 18.07,
+        "change_pct": -0.008301,
         "time": "2026-06-25T20:15:01+00:00"
       },
       "vix3m": {
         "price": 20.33,
-        "prev_close": 21.06,
-        "change_pct": -0.034663,
+        "prev_close": 20.37,
+        "change_pct": -0.001964,
         "time": "2026-06-25T20:15:01+00:00"
       },
       "vvix": {
         "price": 91.19,
-        "prev_close": 99.5,
-        "change_pct": -0.083518,
+        "prev_close": 95.58,
+        "change_pct": -0.04593,
         "time": "2026-06-25T20:15:01+00:00"
       },
       "vix1y": {
         "price": 23.5,
-        "prev_close": 24.28,
-        "change_pct": -0.032125,
+        "prev_close": 23.58,
+        "change_pct": -0.003393,
         "time": "2026-06-25T20:15:02+00:00"
       },
       "move": {
@@ -79,7 +79,7 @@
         "price": 55.63,
         "prev_close": 55.16,
         "change_pct": 0.008521,
-        "time": "2026-06-25T21:05:01+00:00"
+        "time": "2026-06-25T21:05:38+00:00"
       },
       "uvxy": {
         "price": 26.919,
@@ -88,34 +88,34 @@
         "time": "2026-06-25T21:24:05+00:00"
       },
       "svix": {
-        "price": 22.66,
+        "price": 22.63,
         "prev_close": 22.19,
-        "change_pct": 0.021181,
-        "time": "2026-06-25T20:55:00+00:00"
+        "change_pct": 0.019829,
+        "time": "2026-06-25T21:22:00+00:00"
       },
       "uvix": {
-        "price": 3.47,
+        "price": 3.46,
         "prev_close": 3.58,
-        "change_pct": -0.030726,
-        "time": "2026-06-25T21:24:17+00:00"
+        "change_pct": -0.03352,
+        "time": "2026-06-25T21:29:01+00:00"
       },
       "tqqq": {
-        "price": 74.96,
+        "price": 74.95,
         "prev_close": 73.26,
-        "change_pct": 0.023205,
-        "time": "2026-06-25T21:25:23+00:00"
+        "change_pct": 0.023069,
+        "time": "2026-06-25T21:30:20+00:00"
       },
       "sqqq": {
-        "price": 39.5,
+        "price": 39.53,
         "prev_close": 40.45,
-        "change_pct": -0.023486,
-        "time": "2026-06-25T21:25:31+00:00"
+        "change_pct": -0.022744,
+        "time": "2026-06-25T21:30:24+00:00"
       },
       "spy": {
-        "price": 733.91,
+        "price": 733.96,
         "prev_close": 733.24,
-        "change_pct": 0.000914,
-        "time": "2026-06-25T21:25:28+00:00"
+        "change_pct": 0.000982,
+        "time": "2026-06-25T21:30:26+00:00"
       }
     }
   },
@@ -165,7 +165,7 @@
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
   },
-  "cboe_refreshed": false,
+  "cboe_refreshed": true,
   "official": {
     "date": "2026-06-23",
     "position": "LONG_VOL_SELLER",
