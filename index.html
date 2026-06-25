@@ -201,6 +201,7 @@ body {
 .pos { color: var(--teal) }
 .neg { color: var(--coral) }
 .neu { color: var(--cyan) }
+.teal { color: var(--teal) }
 
 /* ── Pills ────────────────────────────────────────────────────────── */
 .pill {
@@ -798,6 +799,8 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <div class="panel" style="margin-top:12px">
       <div class="ph"><span>Monte Carlo — 2,000 bootstrapped trade orderings</span>
         <span style="font-size:0.7rem;color:var(--dim)">5th–95th &amp; 25th–75th percentile equity cones + median</span></div>
+      <div class="pb" style="padding-bottom:0;font-size:0.8rem;color:var(--txt);line-height:1.5">
+        <b style="color:var(--teal)">What this is:</b> we take the strategy's <i>actual realised trade returns</i> and re-deal their order 2,000 times (sampling with replacement). Each re-deal is one plausible "alternate history" — the same edge, a different sequence of wins and losses. The shaded cones show where the middle 50% (25th–75th) and 90% (5th–95th) of those paths end up. It answers <i>"how much of the headline result is skill vs the luck of ordering?"</i> — it is <b>not</b> a forecast of future prices.</div>
       <div class="pb" style="position:relative;height:340px"><canvas id="mcChart"></canvas></div>
       <div class="pb" id="mc-note" style="padding-top:0;font-size:0.78rem;color:var(--dim)"></div>
     </div>
@@ -810,10 +813,12 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <div class="row" style="margin-top:12px">
       <div class="panel" style="flex:1 1 380px"><div class="ph"><span>MAE — adverse excursion vs outcome</span>
         <span style="font-size:0.7rem;color:var(--dim)">how far each trade went underwater</span></div>
-        <div class="pb" style="position:relative;height:300px"><canvas id="maeChart"></canvas></div></div>
+        <div class="pb" style="position:relative;height:300px"><canvas id="maeChart"></canvas></div>
+        <div class="pb" style="padding-top:0;font-size:0.78rem;color:var(--dim);line-height:1.5"><b style="color:var(--teal)">MAE (Maximum Adverse Excursion)</b> = the <i>worst</i> unrealised loss a trade showed before it closed. Each dot is one trade: x = how deep underwater it went while open, y = its final result. Losers hugging the top (small MAE) mean stops cut losses early; green dots far left are winners the strategy had to "sit through heat" to keep.</div></div>
       <div class="panel" style="flex:1 1 380px"><div class="ph"><span>MFE — favourable excursion vs outcome</span>
         <span style="font-size:0.7rem;color:var(--dim)">peak open profit vs what was kept</span></div>
-        <div class="pb" style="position:relative;height:300px"><canvas id="mfeChart"></canvas></div></div>
+        <div class="pb" style="position:relative;height:300px"><canvas id="mfeChart"></canvas></div>
+        <div class="pb" style="padding-top:0;font-size:0.78rem;color:var(--dim);line-height:1.5"><b style="color:var(--teal)">MFE (Maximum Favourable Excursion)</b> = the <i>best</i> unrealised profit a trade reached before it closed. x = peak open gain, y = final result. Dots far right but low on y are "giveback" — profit that wasn't captured; points near the diagonal mean exits track the peak well.</div></div>
     </div>
   </div>
 
@@ -1572,11 +1577,11 @@ function renderRisk(){
   if(note) note.textContent='Resamples the actual '+n+' trade returns (with replacement) into 2,000 alternate orderings — a sense of the luck-of-sequencing range, not a forecast. Median ending ≈ '+fmtR(pctl(finals,0.5))+'; 5th–95th percentile '+fmtR(pctl(finals,0.05))+' to '+fmtR(pctl(finals,0.95))+'.';
   // ── Risk KPIs ──
   const kp=[
-    {l:'Median outcome', v:fmtR(pctl(finals,0.5)), sub:'MC median total return', c:'neu'},
+    {l:'Median outcome', v:fmtR(pctl(finals,0.5)), sub:'MC median total return', c:'teal'},
     {l:'5th percentile', v:fmtR(pctl(finals,0.05)), sub:'Unlucky-sequence return', c:'neg'},
     {l:'Worst-case drawdown', v:(pctl(dds,0.05)*100).toFixed(0)+'%', sub:'5th-pct MC max drawdown', c:'neg'},
-    {l:'P(drawdown > 40%)', v:probDD(-0.40)+'%', sub:'Across 2,000 simulations', c:'neu'},
-    {l:'P(drawdown > 50%)', v:probDD(-0.50)+'%', sub:'Across 2,000 simulations', c:'neu'},
+    {l:'P(drawdown > 40%)', v:probDD(-0.40)+'%', sub:'Across 2,000 simulations', c:'teal'},
+    {l:'P(drawdown > 50%)', v:probDD(-0.50)+'%', sub:'Across 2,000 simulations', c:'teal'},
   ];
   const rk=document.getElementById('risk-kpis');
   if(rk) rk.innerHTML=kp.map(k=>`<div class="kpi"><div class="kpi-label">${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
@@ -1630,11 +1635,13 @@ function renderMarkets(){
     return ohlc.map(r=>({date:r[0],equity:start*r[4]/base})); };
   const pts=[]; const add=(name,curve,color)=>{ const m=curve&&rr(curve); if(m) pts.push({name,x:+(m.mdd*100).toFixed(1),y:+(m.cagr*100).toFixed(1),color}); };
   const s=aStats();
-  pts.push({name:'Strategy ('+(aMode()?(CHART_MODE==='blend'?'SVIX½/UVIX':'SVIX/UVIX'):'SVXY/UVXY')+')', x:+(s.max_drawdown*100).toFixed(1), y:+(s.cagr*100).toFixed(1), color:YELLOW, big:true});
   add('SPY buy & hold', DATA.spy_curve, CYAN);
   add('SVXY buy & hold', bh(typeof OHLC!=='undefined'?OHLC:null), TEAL);
   add('TQQQ buy & hold', bh(typeof TQQQ_OHLC!=='undefined'?TQQQ_OHLC:null), PURPLE);
-  mkChart('benchChart',{type:'scatter',data:{datasets:pts.map(p=>({label:p.name,data:[{x:p.x,y:p.y}],backgroundColor:p.color,pointRadius:p.big?9:6,pointHoverRadius:p.big?12:9,pointStyle:p.big?'star':'circle'}))},
+  // Strategy pushed LAST so it draws on top. NB: pointStyle 'star' is a *stroked* shape
+  // (uses borderColor) — a filled diamond w/ white border reads far more clearly.
+  pts.push({name:'★ This strategy ('+(aMode()?(CHART_MODE==='blend'?'SVIX½/UVIX':'SVIX/UVIX'):'SVXY/UVXY')+')', x:+(s.max_drawdown*100).toFixed(1), y:+(s.cagr*100).toFixed(1), color:YELLOW, big:true});
+  mkChart('benchChart',{type:'scatter',data:{datasets:pts.map(p=>({label:p.name,data:[{x:p.x,y:p.y}],backgroundColor:p.color,borderColor:p.big?'#fff':p.color,borderWidth:p.big?2:0,pointRadius:p.big?12:6,pointHoverRadius:p.big?15:9,pointStyle:p.big?'rectRot':'circle'}))},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:TICK,font:{size:12,family:FONT},usePointStyle:true}},
       tooltip:{callbacks:{label:c=>c.dataset.label+': CAGR '+c.parsed.y+'%, MaxDD '+c.parsed.x+'%'}}},
       scales:{x:{suggestedMax:2,ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'Max drawdown (% — right is smaller)',color:TICK}},
@@ -2811,7 +2818,10 @@ function renderSignalMonitor(histBar){
       for(const x of bh){ if(x.date>=entryD && x.date<=dispDate && x.open_pnl_pct!=null){ if(mx==null||x.open_pnl_pct>mx) mx=x.open_pnl_pct; } }
       if(openpnl!=null && (mx==null||openpnl>mx)) mx=openpnl; peakPnl=mx; }
   }
-  const carryTrig = inPos && isSV && contango!=null && contango<0;
+  // Engine's NEG_VOL exit is an OBV negative-volume divergence WHILE in profit — NOT a
+  // bare contango<0. (Plotting contango made it look like an exit any time the curve
+  // inverted, e.g. a losing SVXY hold in March 2026.)
+  const carryTrig = inPos && isSV && !!b.neg_vol && openpnl!=null && openpnl>0.05;
   const moveTrig  = inPos && ((isSV && moveSig==='high') || (isUV && moveSig==='low'));
   // Engine's term-structure rollover: SVXY exits once the ratio rises OUT of the
   // bullish zone (>= br13, not the bear xr13); UVXY exits once it drops out of the
@@ -2851,8 +2861,8 @@ function renderSignalMonitor(histBar){
     ['Stop Loss','Closed once the unrealized loss hits the max (UVXY hard stop)', '','Reaches stop-loss zone', pnlCur, false],
     ['Trailing Stop','Closed after giving back too much from the running peak (SVXY)', '','Gain falls a set amount below its peak', pnlCur, false],
     ['Time Stop','Closed after the maximum holding period', 'Held to max horizon','', daysHeldCur, false],
-    ['Negative Vol Carry','Roll yield turns unfavorable — carry no longer pays (SVXY)',
-      'Contango (carry positive)','Backwardation (carry negative)', pct(contango,1), carryTrig],
+    ['Neg-Vol Exit (OBV)','Closes short-vol once an OBV negative-volume divergence appears while the trade is in profit > +5% (SVXY)',
+      'In profit, no divergence → hold','OBV divergence while in profit → exit', pnlCur, carryTrig],
     ['MOVE / VIX Ratio','Cross-asset stress overlay (bond vs equity vol)',
       'Low cross-asset stress','High cross-asset stress',
       num(movevix,2)+(moveSig==='high'?' <span class="neg">HIGH</span>':moveSig==='low'?' <span class="pos">LOW</span>':''), moveTrig],
@@ -2864,6 +2874,11 @@ function renderSignalMonitor(histBar){
   const _fpc=v=>(v*100).toFixed(0)+'%', _fd=v=>(+v).toFixed(0)+'d';
   const tpTh = isSV?0.42728:(isUV?0.13601:null), slTh = isUV?-0.0271:null;
   const TR=0.09162, TM=40, dd=(peakPnl!=null&&openpnl!=null)?Math.max(0,peakPnl-openpnl):null;
+  // Trailing stop only ARMS once the trade has been up ≥ +13.4% — until then a deep
+  // open loss is NOT a trailing-stop candidate (it just never armed). Show the give-back
+  // from peak as the Trailing reading so the value matches the bar's white marker.
+  const armed = peakPnl!=null && peakPnl>=0.1336;
+  exitRules[2][4] = (inPos&&isSV&&dd!=null) ? ('−'+(dd*100).toFixed(0)+'% pk') : pnlCur;
   // Real exit triggers. Historical → the recorded exit_reason on this bar
   // (b.signal 'EXIT_*'); live → computed from current values vs the thresholds.
   const _exTrig=(()=>{
@@ -2903,9 +2918,9 @@ function renderSignalMonitor(histBar){
     switch(i){
       case 0:{ const th=tpTh||0.30; o={lo:-0.05,hi:th*1.15,z:[[-0.05,th,'P'],[th,th*1.15,'C']],v:openpnl,fmt:_fpc,tip:`take-profit at +${(th*100).toFixed(0)}% · now ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; break; }
       case 1:{ const th=slTh||-0.0271; o={lo:th*1.8,hi:0.04,z:[[th*1.8,th,'C'],[th,0.04,'P']],v:openpnl,fmt:_fpc,tip:`stop-loss at ${(th*100).toFixed(1)}% · now ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; break; }
-      case 2:{ const hi=Math.max(TR*1.5,(dd||0)*1.1); o={lo:0,hi,z:[[0,TR,'P'],[TR,hi,'C']],v:dd,fmt:_fpc,tip:`drawdown ${dd!=null?(dd*100).toFixed(1):'—'}pt vs ${(TR*100).toFixed(1)}pt trail`}; break; }
+      case 2:{ const hi=Math.max(TR*1.5,(dd||0)*1.1); o={lo:0,hi,z:[[0,TR,'P'],[TR,hi,'C']],v:dd,fmt:_fpc,tip:`give-back ${dd!=null?(dd*100).toFixed(1):'—'}pt from peak vs ${(TR*100).toFixed(1)}pt trail — ${armed?'armed':'NOT armed (needs a prior peak ≥ +13.4%)'}`}; break; }
       case 3:{ const hi=Math.max(TM*1.2,(daysHeldN||0)*1.1); o={lo:0,hi,z:[[0,TM,'P'],[TM,hi,'C']],v:daysHeldN,fmt:_fd,tip:`max ${TM}d · now ${daysHeldN!=null?daysHeldN:'—'}d`}; break; }
-      case 4:o={lo:dC.lo,hi:dC.hi,z:[[dC.lo,0,'C'],[0,dC.hi,'P']],v:contango,fmt:fPP,tip:`carry turns negative below 0% · now ${contango!=null?(contango*100).toFixed(1):'—'}%`}; break;
+      case 4:{ const th=0.05, hiP=Math.max(th*1.8,(openpnl||0)*1.15); o={lo:-0.06,hi:hiP,z:[[-0.06,th,'P'],[th,hiP,'C']],v:openpnl,fmt:_fpc,tip:`exits short-vol only when an OBV negative-volume divergence is present AND profit > +5% · divergence ${b.neg_vol?'present':'absent'}, P&L now ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; break; }
       // MOVE/VIX — high (≥11) exits short-vol; low (≤2) exits long-vol. Per held
       // side only that tail is the exit; the rest of the range is hold.
       case 5:o=isUV
@@ -2919,8 +2934,12 @@ function renderSignalMonitor(histBar){
     }
     // When N/A: if a reading still exists (the market-based exits when flat, or the
     // UVXY stop-loss while holding SVXY), show the bar DULLED rather than hatched.
+    // Precondition unmet → the exit physically can't fire yet, so dull the bar even
+    // though the reading exists: Trailing not armed (peak < +13.4%), or Neg-Vol with no
+    // OBV divergence present. Keeps the marker from sitting brightly in the exit zone.
+    const precOff = (i===2 && !armed) || (i===4 && !b.neg_vol);
     const hasVal = o && o.v!=null && !isNaN(o.v);
-    return {...o, hatch: off && !hasVal, dull: off && hasVal, trig}; };
+    return {...o, hatch: off && !hasVal, dull: (off && hasVal) || (precOff && hasVal && !off), trig: trig && !precOff }; };
   const xspec=[0,1,2,3,4,5,6].map(exitSpec);
   xspec.forEach((s,i)=>{ exitRules[i][7]=gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt,{hatch:s.hatch,trig:s.trig,dull:s.dull}); });
   const _exClk=[['exTP','__pnl',openpnl],['exSL','__pnl',openpnl],['exTRAIL','__pnl',openpnl],['exTIME','__days',(inPos?1:null)],
@@ -3051,14 +3070,25 @@ function renderSignalMonitor(histBar){
   const _na=`<span style="color:var(--namut)">N/A</span>`;
   const _dBB=_domain('bb_trend',[0]), CAP=45.93, _dV=_domain('vix1m',[CAP]), REG=31.31, _dMA=_domain('vix1m_ma30',[REG]);
   const _spkDay=b.spike_9d||b.spike_1m;
+  // The OHLC spike-character signal fires on an intraday ≥8% spike-and-fade even when the
+  // 1-day move is below the ≥35% spike threshold — vix_fade is itself a standalone SVXY
+  // entry trigger (e.g. the 2026-03-03 entry). Activate on the actual fade/sustain flags
+  // so the driver is visible, not just on big-spike days.
+  const _spkAct=b.vix_fade||b.vix_sustained||_spkDay;
   const gFull=(s)=>gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt||(v=>''),{nolab:s.nolab,hatch:s.hatch,dull:s.dull});
   const sBB ={lo:_dBB.lo,hi:_dBB.hi,z:[[_dBB.lo,0,'r'],[0,_dBB.hi,'t']],v:b.bb_trend,fmt:v=>v.toFixed(2),tip:`BB-trend on log-SVXY · threshold 0 (short-vol regime needs trend ≥ 0, not falling) · now ${b.bb_trend!=null?b.bb_trend.toFixed(2):'—'}`};
-  const sGate={lo:_dV.lo,hi:_dV.hi,z:[[_dV.lo,CAP,'t'],[CAP,_dV.hi,'r']],v:b.vix1m,fmt:fN0,tip:`long-vol entry blocked if VIX1M ≥ ${CAP} (spike-chase cap) or MOVE/VIX ≤ 2 · now ${b.vix1m!=null?b.vix1m.toFixed(1):'—'}`};
+  // UVXY gate plotted on its dynamic component — the MOVE/VIX ratio (moves day to day).
+  // Blocked (red) when MOVE/VIX ≤ 2 (bond vol already "pays" for equity vol); clear
+  // (teal) above 2. The rarely-binding VIX1M ≥ CAP spike-chase cap is noted in the tip.
+  const _mvr = b.move_vix_ratio!=null ? b.move_vix_ratio : (b.move&&b.vix1m? b.move/b.vix1m : null);
+  const _dMV=_domain('move_vix_ratio',[2]);
+  const sGate={lo:_dMV.lo,hi:_dMV.hi,z:[[_dMV.lo,2,'r'],[2,_dMV.hi,'t']],v:_mvr,fmt:v=>v.toFixed(1),
+    tip:`Long-vol (UVXY) entry blocked when MOVE/VIX ≤ 2 or VIX1M ≥ ${CAP} (spike-chase cap) — clear above · MOVE/VIX now ${_mvr!=null?_mvr.toFixed(2):'—'}`};
   const sSize={lo:_dMA.lo,hi:_dMA.hi,z:[[_dMA.lo,REG,'t'],[REG,_dMA.hi,'r']],v:b.vix1m_ma30,fmt:fN0,tip:`high-vol regime when 30-day VIX avg > ${REG} → SVXY size ×0.48 (UVXY always ×0.43) · now ${b.vix1m_ma30!=null?b.vix1m_ma30.toFixed(1):'—'}`};
   // Binary on/off indicators: Off | On zones, marker on the current state, dulled when
   // not active (resembling the other bars) with a "now …" tooltip.
-  const sSpk ={lo:0,hi:1,z:[[0,0.5,'t'],[0.5,1,'r']],v:_spkDay?(b.vix_fade?0.25:0.75):0.25,nolab:true,dull:!_spkDay,
-    tip:`On a ≥35% 1-day VIX spike: Faded (spiked ≥8% above open then closed back → buy the dip, SVXY) vs Sustained (closed near the high → blocks SVXY / confirms UVXY) · now ${_spkDay?(b.vix_fade?'Faded':'Sustained'):'no spike'}`};
+  const sSpk ={lo:0,hi:1,z:[[0,0.5,'t'],[0.5,1,'r']],v:b.vix_fade?0.25:(b.vix_sustained?0.75:0.5),nolab:true,dull:!_spkAct,
+    tip:`Intraday spike character: Faded (VIX spiked ≥8% above the open then closed back → buy the dip, a standalone SVXY entry) vs Sustained (closed near the high → blocks SVXY / confirms UVXY) · now ${b.vix_fade?'Faded → SVXY':(b.vix_sustained?'Sustained → UVXY':'neither')}`};
   const sVF  ={lo:0,hi:1,z:[[0,0.5,'n'],[0.5,1,'r']],v:b.neg_vol?0.75:0.25,nolab:true,dull:!b.neg_vol,
     tip:`Negative vol carry: OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end → an independent long-vol path · now ${b.neg_vol?'Active':'Off'}`};
   // Comp rows: Current value rendered WHITE (dimmed when a position is open, like
@@ -3072,8 +3102,8 @@ function renderSignalMonitor(histBar){
     +`<td>${tag(r[6])}</td></tr>`).join('');
   const _gated=(b.mv_lo||(b.vix1m!=null&&b.vix1m>=CAP));
   const compEntry=[
-    ['Spike Type','On a ≥35% 1-day VIX spike, whether it faded or held into the close: Sustained = spiked ≥8% above open & closed near high; Faded = spiked ≥8% but closed back','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
-      _spkDay?(b.vix_fade?'Faded':'Sustained'):_na, gFull(sSpk), _spkDay?(b.vix_fade?'SVXY':'UVXY'):'NA'],
+    ['Spike Type','Intraday spike character: Faded = VIX spiked ≥8% above the open then closed back (a standalone SVXY entry — this is what triggered e.g. 2026-03-03); Sustained = closed near the high (blocks SVXY / confirms UVXY)','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
+      b.vix_fade?'Faded':(b.vix_sustained?'Sustained':_na), gFull(sSpk), b.vix_fade?'SVXY':(b.vix_sustained?'UVXY':'NA')],
     ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — short-vol regime confirmation; needs trend ≥ 0 (not falling through zero)','Trend ≥ 0 confirms SVXY','Trend < 0 blocks SVXY',
       b.bb_buy?'Uptrend':'Downtrend', gFull(sBB), b.bb_buy?'SVXY':'NA'],
     ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end — an independent long-vol entry path','','Active → UVXY entry path',
@@ -3108,8 +3138,10 @@ function renderSignalMonitor(histBar){
     };
     const stripTags=h=>(''+h).replace(/<[^>]*>/g,'');
     // order: name · current value · bar · signal (values not bold)
+    // `dull` dims BOTH the value text and the whole gauge (zones + white marker line) —
+    // entry rows dull when a position is open, exit rows dull while flat.
     const mRow=(name,spec,valHtml,sigHtml,dull)=>`<div class="mini-row"><span class="mini-name">${name}</span>`
-      +`<span class="mini-val" style="color:${dull?'var(--dimwhite)':'var(--white)'}">${valHtml}</span><span class="mini-bar">${spec?gaugeMini(spec):''}</span>`
+      +`<span class="mini-val" style="color:${dull?'var(--dimwhite)':'var(--white)'}">${valHtml}</span><span class="mini-bar">${spec?gaugeMini({...spec,dull:spec.dull||dull}):''}</span>`
       +`<span class="mini-sig">${sigHtml}</span></div>`;
     const eNames=['Contango','VDelta','VIX9D','VIX1M','VIX1M/3M'];
     const xNames=['Take Profit','Stop Loss','Trailing','Time Stop','Neg Carry','MOVE/VIX','Rollover'];
@@ -3140,7 +3172,7 @@ function renderSignalMonitor(histBar){
     // Comp rows: white value (dimmed when in a position), N/A stays muted-yellow.
     // Signal column mirrors the full monitor: SVXY/UVXY where the indicator points,
     // else N/A (dull yellow). UVXY gate is a blocker, not a direction → always N/A.
-    mh+=mRow('Spike Type', sSpk, _spkDay?(b.vix_fade?'Fade':'Sust'):_ms('N/A','var(--namut)'), mSig(_spkDay?(b.vix_fade?'SVXY':'UVXY'):'NA'), inPos);
+    mh+=mRow('Spike Type', sSpk, b.vix_fade?'Fade':(b.vix_sustained?'Sust':_ms('N/A','var(--namut)')), mSig(b.vix_fade?'SVXY':(b.vix_sustained?'UVXY':'NA')), inPos);
     mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', mSig(b.bb_buy?'SVXY':'NA'), inPos);
     mh+=mRow('Vol-follow', sVF, b.neg_vol?'Active':_ms('N/A','var(--namut)'), mSig(b.neg_vol?'UVXY':'NA'), inPos);
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos);
