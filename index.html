@@ -2579,7 +2579,9 @@ function renderSignalMonitor(histBar){
   // exact position colour — teal (SVXY), red (UVXY), gold (Cash) — others dim.
   // zones = [[from,to,'t'|'r'|'n'], ...] spanning the domain [lo,hi].
   // Capitalise the first letter of each word in a gauge tooltip.
-  const _titleCase=s=>(s||'').replace(/\b[a-z]/g,c=>c.toUpperCase());
+  // Sentence-case: capitalise only the first character (title-casing every word mangled
+  // prose tips like "OBV 5d EMA spread" → "Obv 5D Ema Spread"). Acronyms stay as written.
+  const _titleCase=s=>{ s=s||''; return s?s.charAt(0).toUpperCase()+s.slice(1):''; };
   // ── Zone colouring model ──────────────────────────────────────────────
   // Entry zones: 'r' (UVXY/coral), 't' (SVXY/teal), 'n' (neutral/cash). When FLAT
   // the zone the value lands in brightens; when IN A POSITION the whole entry row
@@ -2918,7 +2920,10 @@ function renderSignalMonitor(histBar){
     switch(i){
       case 0:{ const th=tpTh||0.30; o={lo:-0.05,hi:th*1.15,z:[[-0.05,th,'P'],[th,th*1.15,'C']],v:openpnl,fmt:_fpc,tip:`take-profit at +${(th*100).toFixed(0)}% · now ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; break; }
       case 1:{ const th=slTh||-0.0271; o={lo:th*1.8,hi:0.04,z:[[th*1.8,th,'C'],[th,0.04,'P']],v:openpnl,fmt:_fpc,tip:`stop-loss at ${(th*100).toFixed(1)}% · now ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; break; }
-      case 2:{ const hi=Math.max(TR*1.5,(dd||0)*1.1); o={lo:0,hi,z:[[0,TR,'P'],[TR,hi,'C']],v:dd,fmt:_fpc,tip:`give-back ${dd!=null?(dd*100).toFixed(1):'—'}pt from peak vs ${(TR*100).toFixed(1)}pt trail — ${armed?'armed':'NOT armed (needs a prior peak ≥ +13.4%)'}`}; break; }
+      // Stable, non-clipping domain: lower bound just below 0 so a zero give-back isn't
+      // pinned at the very edge; upper bound holds at ~1.8× the trail and only expands if
+      // the give-back exceeds it — so the marker is always strictly inside the bar.
+      case 2:{ const v=dd, hi=Math.max(TR*1.8,(v||0)*1.15), lo=-TR*0.18; o={lo,hi,z:[[lo,TR,'P'],[TR,hi,'C']],v,fmt:_fpc,tip:`give-back ${dd!=null?(dd*100).toFixed(1):'—'}pt from peak vs ${(TR*100).toFixed(1)}pt trail — ${armed?'armed':'NOT armed (needs a prior peak ≥ +13.4%)'}`}; break; }
       case 3:{ const hi=Math.max(TM*1.2,(daysHeldN||0)*1.1); o={lo:0,hi,z:[[0,TM,'P'],[TM,hi,'C']],v:daysHeldN,fmt:_fd,tip:`max ${TM}d · now ${daysHeldN!=null?daysHeldN:'—'}d`}; break; }
       case 4:{ const th=0.05, hiP=Math.max(th*1.8,(openpnl||0)*1.15); o={lo:-0.06,hi:hiP,z:[[-0.06,th,'P'],[th,hiP,'C']],v:openpnl,fmt:_fpc,tip:`exits short-vol only when an OBV negative-volume divergence is present AND profit > +5% · divergence ${b.neg_vol?'present':'absent'}, P&L now ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; break; }
       // MOVE/VIX — high (≥11) exits short-vol; low (≤2) exits long-vol. Per held
@@ -3077,18 +3082,20 @@ function renderSignalMonitor(histBar){
   const _spkAct=b.vix_fade||b.vix_sustained||_spkDay;
   const gFull=(s)=>gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt||(v=>''),{nolab:s.nolab,hatch:s.hatch,dull:s.dull});
   const sBB ={lo:_dBB.lo,hi:_dBB.hi,z:[[_dBB.lo,0,'r'],[0,_dBB.hi,'t']],v:b.bb_trend,fmt:v=>v.toFixed(2),tip:`BB-trend on log-SVXY · threshold 0 (short-vol regime needs trend ≥ 0, not falling) · now ${b.bb_trend!=null?b.bb_trend.toFixed(2):'—'}`};
-  // UVXY gate plotted on its dynamic component — the MOVE/VIX ratio (moves day to day).
-  // Blocked (red) when MOVE/VIX ≤ 2 (bond vol already "pays" for equity vol); clear
-  // (teal) above 2. The rarely-binding VIX1M ≥ CAP spike-chase cap is noted in the tip.
-  const _mvr = b.move_vix_ratio!=null ? b.move_vix_ratio : (b.move&&b.vix1m? b.move/b.vix1m : null);
-  const _dMV=_domain('move_vix_ratio',[2]);
-  const sGate={lo:_dMV.lo,hi:_dMV.hi,z:[[_dMV.lo,2,'r'],[2,_dMV.hi,'t']],v:_mvr,fmt:v=>v.toFixed(1),
-    tip:`Long-vol (UVXY) entry blocked when MOVE/VIX ≤ 2 or VIX1M ≥ ${CAP} (spike-chase cap) — clear above · MOVE/VIX now ${_mvr!=null?_mvr.toFixed(2):'—'}`};
+  // UVXY gate plotted on the real binding filter — the VIX9D "exhaustion zone" guard:
+  // long-vol entries are BLOCKED (red band) when VIX9D sits in 41–46 (the first-spike
+  // level that tends to mean-revert), but ALLOWED below (early panic) and above (genuine
+  // escalating crisis, e.g. 2025-04-07 → the 04-09 winner). Also blocked when MOVE/VIX ≤ 2.
+  // (The old VIX1M ≥ 45.9 cap is a no-op in the engine — it reads VIX1M from the signals
+  //  frame, where that column doesn't exist — so it is intentionally not shown here.)
+  const _GLO=41, _GHI=46, _mvr=b.move_vix_ratio, _dG=_domain('vix9d',[_GLO,_GHI]);
+  const sGate={lo:_dG.lo,hi:_dG.hi,z:[[_dG.lo,_GLO,'t'],[_GLO,_GHI,'r'],[_GHI,_dG.hi,'t']],v:b.vix9d,fmt:fN0,
+    tip:`Long-vol (UVXY) entry blocked when VIX9D is in the ${_GLO}–${_GHI} exhaustion zone (or MOVE/VIX ≤ 2) — allowed below (early panic) and above (escalating crisis) · VIX9D now ${b.vix9d!=null?b.vix9d.toFixed(1):'—'}, MOVE/VIX ${_mvr!=null?_mvr.toFixed(1):'—'}`};
   const sSize={lo:_dMA.lo,hi:_dMA.hi,z:[[_dMA.lo,REG,'t'],[REG,_dMA.hi,'r']],v:b.vix1m_ma30,fmt:fN0,tip:`high-vol regime when 30-day VIX avg > ${REG} → SVXY size ×0.48 (UVXY always ×0.43) · now ${b.vix1m_ma30!=null?b.vix1m_ma30.toFixed(1):'—'}`};
   // Binary on/off indicators: Off | On zones, marker on the current state, dulled when
   // not active (resembling the other bars) with a "now …" tooltip.
   const sSpk ={lo:0,hi:1,z:[[0,0.5,'t'],[0.5,1,'r']],v:b.vix_fade?0.25:(b.vix_sustained?0.75:0.5),nolab:true,dull:!_spkAct,
-    tip:`Intraday spike character: Faded (VIX spiked ≥8% above the open then closed back → buy the dip, a standalone SVXY entry) vs Sustained (closed near the high → blocks SVXY / confirms UVXY) · now ${b.vix_fade?'Faded → SVXY':(b.vix_sustained?'Sustained → UVXY':'neither')}`};
+    tip:`Spike Type — intraday spike character: faded (VIX spiked ≥8% above the open then closed back → buy the dip, a standalone SVXY entry) vs sustained (closed near the high → blocks SVXY / confirms UVXY) · now ${b.vix_fade?'faded → SVXY':(b.vix_sustained?'sustained → UVXY':'neither')}`};
   // Vol-follow plotted on its real moving value: the OBV 5d-vs-13d EMA spread (normalised
   // by daily flow). Below 0 = volume momentum weakening; combined with price near its
   // 10-day high it becomes the neg_vol long-vol flag. Dulled until that combo arms.
@@ -3104,7 +3111,7 @@ function renderSignalMonitor(histBar){
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
     +`<td><div class="cur-cell"><span class="cur-val${(_prelim&&!inPos)?' prelim':''}" style="color:${inPos?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${_compClk}</span><span class="cur-bar">${r[5]||''}</span></div></td>`
     +`<td>${tag(r[6])}</td></tr>`).join('');
-  const _gated=(b.mv_lo||(b.vix1m!=null&&b.vix1m>=CAP));
+  const _gated=(b.mv_lo||(b.vix9d!=null&&b.vix9d>=41&&b.vix9d<=46));
   const compEntry=[
     ['Spike Type','Intraday spike character: Faded = VIX spiked ≥8% above the open then closed back (a standalone SVXY entry — this is what triggered e.g. 2026-03-03); Sustained = closed near the high (blocks SVXY / confirms UVXY)','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
       b.vix_fade?'Faded':(b.vix_sustained?'Sustained':_na), gFull(sSpk), b.vix_fade?'SVXY':(b.vix_sustained?'UVXY':'NA')],
@@ -3112,7 +3119,7 @@ function renderSignalMonitor(histBar){
       b.bb_buy?'Uptrend':'Downtrend', gFull(sBB), b.bb_buy?'SVXY':'NA'],
     ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end — an independent long-vol entry path','','Active → UVXY entry path',
       _ov!=null?(_ov.toFixed(1)+(b.neg_vol?' ●':'')):_na, gFull(sVF), b.neg_vol?'UVXY':'NA'],
-    ['UVXY entry gates','Long-vol entry is blocked when MOVE/VIX ≤ 2 or VIX1M ≥ 45.9 (the spike-chase cap), unless the spike held intraday','','Clear → UVXY entry allowed',
+    ['UVXY entry gate','Long-vol entry is blocked when VIX9D is in the 41–46 "exhaustion zone" (first-spike level that mean-reverts) or MOVE/VIX ≤ 2 — allowed below (early panic) and above (escalating crisis)','','Clear → UVXY entry allowed',
       _gated?'Blocked':'Clear', gFull(sGate), 'NA'],
   ];
   const compSize=[
