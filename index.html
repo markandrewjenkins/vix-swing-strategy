@@ -824,16 +824,18 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
   <!-- ══ MARKETS & REGIME TAB ═════════════════════════════════════════ -->
   <div id="tab-markets" style="display:none">
-    <div class="panel">
-      <div class="ph"><span>Strategy vs buy-&amp;-hold — risk / return</span>
-        <span style="font-size:0.7rem;color:var(--dim)">CAGR (up) vs max drawdown (right = smaller) — top-right is better; ★ = this strategy</span></div>
-      <div class="pb" style="position:relative;height:340px"><canvas id="benchChart"></canvas></div>
-    </div>
-    <div class="row" style="margin-top:12px">
-      <div class="panel" style="flex:1 1 360px"><div class="ph"><span>Performance by curve regime (at entry)</span></div>
-        <div class="pb" id="regime-curve"></div></div>
-      <div class="panel" style="flex:1 1 360px"><div class="ph"><span>Performance by VIX1M level (at entry)</span></div>
-        <div class="pb" id="regime-vix"></div></div>
+    <div class="row" style="align-items:stretch;gap:12px">
+      <div class="panel" style="flex:2 1 460px;display:flex;flex-direction:column">
+        <div class="ph"><span>Strategy vs buy-&amp;-hold — risk / return</span>
+          <span style="font-size:0.7rem;color:var(--dim)">CAGR (up) vs max drawdown (right = smaller) — top-right is better; ◆ = this strategy</span></div>
+        <div class="pb" style="position:relative;flex:1;min-height:440px"><canvas id="benchChart"></canvas></div>
+      </div>
+      <div style="flex:1 1 300px;display:flex;flex-direction:column;gap:12px">
+        <div class="panel" style="flex:1;display:flex;flex-direction:column"><div class="ph"><span>Performance by curve regime (at entry)</span></div>
+          <div class="pb" id="regime-curve" style="flex:1"></div></div>
+        <div class="panel" style="flex:1;display:flex;flex-direction:column"><div class="ph"><span>Performance by VIX1M level (at entry)</span></div>
+          <div class="pb" id="regime-vix" style="flex:1"></div></div>
+      </div>
     </div>
   </div>
 
@@ -1633,18 +1635,31 @@ function renderMarkets(){
   // Buy-&-hold curve from an OHLC array [date,o,h,l,c], normalised to start capital.
   const bh=(ohlc)=>{ if(!ohlc||!ohlc.length) return null; const base=ohlc[0][4]; if(!base) return null;
     return ohlc.map(r=>({date:r[0],equity:start*r[4]/base})); };
-  const pts=[]; const add=(name,curve,color)=>{ const m=curve&&rr(curve); if(m) pts.push({name,x:+(m.mdd*100).toFixed(1),y:+(m.cagr*100).toFixed(1),color}); };
+  // Each benchmark gets a distinct shape + colour; the strategy is a large diamond drawn
+  // with a glow (custom plugin) so it's unmistakable.
+  const pts=[]; const add=(name,curve,color,shape)=>{ const m=curve&&rr(curve); if(m) pts.push({name,x:+(m.mdd*100).toFixed(1),y:+(m.cagr*100).toFixed(1),color,shape}); };
   const s=aStats();
-  add('SPY buy & hold', DATA.spy_curve, CYAN);
-  add('SVXY buy & hold', bh(typeof OHLC!=='undefined'?OHLC:null), TEAL);
-  add('TQQQ buy & hold', bh(typeof TQQQ_OHLC!=='undefined'?TQQQ_OHLC:null), PURPLE);
-  // Strategy pushed LAST so it draws on top. NB: pointStyle 'star' is a *stroked* shape
-  // (uses borderColor) — a filled diamond w/ white border reads far more clearly.
-  pts.push({name:'★ This strategy ('+(aMode()?(CHART_MODE==='blend'?'SVIX½/UVIX':'SVIX/UVIX'):'SVXY/UVXY')+')', x:+(s.max_drawdown*100).toFixed(1), y:+(s.cagr*100).toFixed(1), color:YELLOW, big:true});
-  mkChart('benchChart',{type:'scatter',data:{datasets:pts.map(p=>({label:p.name,data:[{x:p.x,y:p.y}],backgroundColor:p.color,borderColor:p.big?'#fff':p.color,borderWidth:p.big?2:0,pointRadius:p.big?12:6,pointHoverRadius:p.big?15:9,pointStyle:p.big?'rectRot':'circle'}))},
+  add('SPY buy & hold', DATA.spy_curve, CYAN, 'circle');
+  add('SVXY buy & hold', bh(typeof OHLC!=='undefined'?OHLC:null), TEAL, 'triangle');
+  add('TQQQ buy & hold', bh(typeof TQQQ_OHLC!=='undefined'?TQQQ_OHLC:null), PURPLE, 'rect');
+  pts.push({name:'◆ This strategy ('+(aMode()?(CHART_MODE==='blend'?'SVIX½/UVIX':'SVIX/UVIX'):'SVXY/UVXY')+')', x:+(s.max_drawdown*100).toFixed(1), y:+(s.cagr*100).toFixed(1), color:YELLOW, shape:'rectRot', big:true});
+  // Subtle red→green diagonal wash: bottom-left (deep DD, low CAGR) = worse, top-right = better.
+  const rgBg={id:'rgbg',beforeDatasetsDraw(ch){const a=ch.chartArea;if(!a)return;const ctx=ch.ctx;
+    const g=ctx.createLinearGradient(a.left,a.bottom,a.right,a.top);
+    g.addColorStop(0,'rgba(242,86,58,0.13)');g.addColorStop(0.5,'rgba(255,255,255,0.02)');g.addColorStop(1,'rgba(82,230,189,0.15)');
+    ctx.save();ctx.fillStyle=g;ctx.fillRect(a.left,a.top,a.right-a.left,a.bottom-a.top);
+    ctx.font='600 11px '+FONT;ctx.fillStyle='rgba(82,230,189,0.5)';ctx.textAlign='right';ctx.fillText('better →',a.right-8,a.top+14);
+    ctx.fillStyle='rgba(242,86,58,0.5)';ctx.textAlign='left';ctx.fillText('← worse',a.left+8,a.bottom-8);ctx.restore();}};
+  // Glow halo behind the strategy diamond (last dataset).
+  const stratGlow={id:'stratglow',afterDatasetsDraw(ch){const mi=ch.getDatasetMeta(ch.data.datasets.length-1);
+    const el=mi&&mi.data&&mi.data[0];if(!el)return;const p=el.getProps(['x','y'],true);const ctx=ch.ctx;
+    ctx.save();ctx.shadowColor='rgba(245,209,66,0.95)';ctx.shadowBlur=16;ctx.beginPath();
+    const r=12;ctx.moveTo(p.x,p.y-r);ctx.lineTo(p.x+r,p.y);ctx.lineTo(p.x,p.y+r);ctx.lineTo(p.x-r,p.y);ctx.closePath();
+    ctx.fillStyle=YELLOW;ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle='#fff';ctx.stroke();ctx.restore();}};
+  mkChart('benchChart',{type:'scatter',plugins:[rgBg,stratGlow],data:{datasets:pts.map(p=>({label:p.name,data:[{x:p.x,y:p.y}],backgroundColor:p.color,borderColor:p.big?'#fff':p.color,borderWidth:p.big?2:0,pointRadius:p.big?8:7,pointHoverRadius:p.big?13:10,pointStyle:p.shape}))},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:TICK,font:{size:12,family:FONT},usePointStyle:true}},
       tooltip:{callbacks:{label:c=>c.dataset.label+': CAGR '+c.parsed.y+'%, MaxDD '+c.parsed.x+'%'}}},
-      scales:{x:{suggestedMax:2,ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'Max drawdown (% — right is smaller)',color:TICK}},
+      scales:{x:{max:0,ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'Max drawdown (% — 0 = none, right is better)',color:TICK}},
         y:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID},title:{display:true,text:'CAGR (%)',color:TICK}}}} });
   // ── Regime breakdown: aggregate trades by entry-day curve regime & VIX1M bucket ──
   const _bd=window._tbd||(()=>{const m={};(DATA.bar_history||[]).forEach(r=>m[r.date]=r);window._tbd=m;return m;})();
@@ -2567,7 +2582,7 @@ function renderSignalMonitor(histBar){
   const POSCM = isUV ? 'var(--coralmut)' : 'var(--tealmut)';   // muted held-position colour
   // Entry-signal tag. Bright when flat (actionable); muted when already in a
   // position (entry signals are moot once we've entered).
-  const tag=(k)=>{ const d=inPos;
+  const tag=(k,dull)=>{ const d=(dull===undefined)?inPos:dull;
     if(k==='SVXY') return `<span class="sig-ind" style="color:${d?'var(--tealmut)':'var(--teal)'};font-weight:700">SVXY</span>`;
     if(k==='UVXY') return `<span class="sig-ind" style="color:${d?'var(--coralmut)':'var(--coral)'};font-weight:700">UVXY</span>`;
     if(k==='NA')   return '<span style="color:var(--namut);font-weight:700">N/A</span>';
@@ -2661,6 +2676,14 @@ function renderSignalMonitor(histBar){
     const pad=((hi-lo)||1)*0.08; window._dom[field]={lo:lo-pad,hi:hi+pad}; return window._dom[field]; };
 
   const spike=b.spike_9d||b.spike_1m, crush=b.crush_9d||b.crush_1m;
+  // Standalone ENTRY overrides — these supersede the routine 5-signal term-structure
+  // alignment, so when one is active the routine entry indicators are shown dulled
+  // (still computed, just visibly superseded). ovrSV → short vol (SVXY), ovrUV → long vol.
+  //  · spike-fade (vix_fade) and a ≥35% spike both buy the dip → SVXY
+  //  · crush and the vol-follow path (neg_vol + bear front end) → UVXY
+  const ovrSV = !!(spike || b.vix_fade);
+  const ovrUV = !!(crush || (b.neg_vol && b.bear_9d && b.bear_1m));
+  const ovrActive = !!(ovrSV || ovrUV);
   let rows=[
     ['Contango (VIX3M / VIX1M)','Term-structure carry. Positive &amp; rising favors short-vol (SVXY).',
       'Positive &amp; rising','Backwardation', pct(contango,1),
@@ -2696,7 +2719,10 @@ function renderSignalMonitor(histBar){
   const gCont = ()=>gaugeHtml(egauge[0].lo,egauge[0].hi,egauge[0].z,egauge[0].v,egauge[0].tip,fPP);
   const gRatio= ()=>gaugeHtml(egauge[4].lo,egauge[4].hi,egauge[4].z,egauge[4].v,egauge[4].tip,fN2);
   const gMove = ()=>gaugeHtml(dM.lo,dM.hi,[[dM.lo,2,'t'],[2,11,'n'],[11,dM.hi,'r']],movevix,`low ≤2 · high ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`,fN1);
-  rows.forEach((r,i)=>{ r[7]=gaugeHtml(egauge[i].lo,egauge[i].hi,egauge[i].z,egauge[i].v,egauge[i].tip,egauge[i].fmt); });
+  // When an entry override is active (while flat), the routine term-structure bars are
+  // dulled — they're superseded by the override path. (When in a position the zones
+  // already mute via _zoneStyle.)
+  rows.forEach((r,i)=>{ r[7]=gaugeHtml(egauge[i].lo,egauge[i].hi,egauge[i].z,egauge[i].v,egauge[i].tip,egauge[i].fmt,{dull:!inPos&&ovrActive}); });
 
   // MOVE/VIX is NOT an entry trigger — it's a cross-asset stress overlay that
   // only exits SVXY (high) or blocks/exits UVXY (low). It lives in Exit Rules.
@@ -2902,8 +2928,8 @@ function renderSignalMonitor(histBar){
   // from the bar's own recorded decision (projHist) so it always reconciles with
   // that bar's signals and with the actual trade — no off-by-one to the next bar.
   if(hist){ proj = posInstr(projHist); }
-  else if(spike) proj='SVXY';
-  else if(crush) proj='UVXY';
+  else if(!inPos && ovrSV) proj='SVXY';
+  else if(!inPos && ovrUV) proj='UVXY';
   else if(inPos) proj = anyExit ? 'CASH' : posInstr(curPos);
   else proj = (contango!=null&&contango<0)?'UVXY':(regimeBull?'SVXY':'CASH');
   // Exit gauge specs. Zones use 'P' (position-coloured hold band) + 'C' (cash-
@@ -2958,9 +2984,9 @@ function renderSignalMonitor(histBar){
   sigKeys.forEach((k,i)=>{ const v=_rawVals[i]; const has=v!=null&&!isNaN(v); const cad=(ST[k]&&ST[k].cadence)||(i===2?'eod':'live'); if(has&&(cad==='live'||!eodPending)) entryRefreshed++; });
   if(!eodPending) entryRefreshed++;            // spike/crush (EOD/close-based)
   const nEntry=6;
-  const ovrActive = !!(spike||crush);
-  const ovrColor  = spike ? 'var(--teal)' : 'var(--coral)';      // spike → SVXY (teal), crush → UVXY (coral)
-  const ovrLabel  = spike ? 'SPIKE OVERRIDE ACTIVE' : 'CRUSH OVERRIDE ACTIVE';
+  const ovrColor  = ovrSV ? 'var(--teal)' : 'var(--coral)';      // short-vol override → teal, long-vol → coral
+  const ovrLabel  = spike ? 'SPIKE OVERRIDE ACTIVE' : b.vix_fade ? 'SPIKE-FADE OVERRIDE ACTIVE'
+                  : crush ? 'CRUSH OVERRIDE ACTIVE' : 'VOL-FOLLOW OVERRIDE ACTIVE';
   // When an override is active, each count dims to the muted version of its own colour.
   const _csv = ovrActive ? ' style="color:var(--tealmut)"'  : '';   // short vol → muted teal
   const _cuv = ovrActive ? ' style="color:var(--coralmut)"' : '';   // long vol  → muted coral
@@ -2969,7 +2995,7 @@ function renderSignalMonitor(histBar){
   // When an override is active it jumps to the front of the line and the regular
   // term-structure tally dims (it has been overridden); otherwise show "No spike/crush".
   const ovrFront = ovrActive ? `<b style="color:${ovrColor}">${ovrLabel}</b>${DOT}` : '';
-  const noOvr    = ovrActive ? '' : `${DOT}<span style="color:var(--cashmut);font-weight:600">No spike/crush</span>`;
+  const noOvr    = ovrActive ? '' : `${DOT}<span style="color:var(--cashmut);font-weight:600">No override</span>`;
   const entryMix = `<div class="sig-proj-mixline"><span class="lbl">Entry indicator mix</span>`
     + ovrFront
     + `<span class="vt-sv"${_csv}>${sv} short vol</span>${DOT}<span class="vt-uv"${_cuv}>${uv} long vol</span>${DOT}<span class="vt-neu"${_cca}>${neu} cash</span>`
@@ -3009,10 +3035,10 @@ function renderSignalMonitor(histBar){
     } else {
       explain=`<b>Holding ${isUV?'UVXY (long vol)':'SVXY (short vol)'}.</b> None of the seven exit rules — take-profit, stop-loss, trailing stop, time stop, negative carry, MOVE/VIX stress or term-structure rollover — has triggered, so the position is carried into the next session. The entry indicators below are displayed for context but are ignored while in a trade; they only ever decide a brand-new position from cash.`;
     }
-  } else if(spike && _pk==='sv'){
-    explain=`<b>Entering SVXY (short vol)</b> through the <b>spike-fade override</b>: VIX jumped at least 35% in a single day and then faded back into the close, so the strategy treats the panic as overdone and fades it by selling volatility (buying the dip). This is a standalone entry path — it fires on the spike-and-fade pattern alone and deliberately skips the usual full term-structure alignment that a normal short-vol entry needs.`;
-  } else if(crush && _pk==='uv'){
-    explain=`<b>Entering UVXY (long vol)</b> through the <b>crush override</b>: VIX collapsed by 35% or more in a single day, an unusually sharp drop that historically tends to bounce, so the strategy buys volatility to position for the rebound. Like the spike-fade path this override fires on its own — it does not wait for the four-signal bear regime or any other confirmation.`;
+  } else if(ovrSV && _pk==='sv'){
+    explain=`<b>Entering SVXY (short vol)</b> through the <b>spike-fade override</b>: VIX ${spike?'jumped ≥35% in a single day':'spiked ≥8% above the open intraday'} and then faded back into the close, so the strategy treats the panic as overdone and fades it by selling volatility (buying the dip). This is a standalone entry path — it fires on the spike-and-fade pattern alone and deliberately skips the usual full term-structure alignment, which is why the routine entry indicators above are shown dulled.`;
+  } else if(ovrUV && _pk==='uv'){
+    explain=`<b>Entering UVXY (long vol)</b> through ${crush?'the <b>crush override</b>: VIX collapsed ≥35% in a single day, an unusually sharp drop that historically tends to bounce':'the <b>vol-follow override</b>: an OBV negative-volume divergence with a bearish front end'}, so the strategy buys volatility. This standalone path fires on its own — it does not wait for the four-signal bear regime, so the routine entry indicators above are shown dulled.`;
   } else if(_pk==='sv'){
     explain=`<b>Entering SVXY (short vol):</b> every one of the six entry conditions is aligned bullish (${_svParts.join(', ')||'all six'}). A short-vol entry is deliberately strict — it requires the <i>full</i> set of term-structure signals plus the BB-trend confirmation to agree at once, which filters out half-formed setups. All six line up here, so the strategy sells volatility into the contango.`;
   } else if(_pk==='uv'){
@@ -3022,9 +3048,9 @@ function renderSignalMonitor(histBar){
   }
   const decisionLogic =
       `<div class="sig-logic"><span class="lbl">How it combines</span>`
-    + `<span class="lg-track">Short-vol ${_pips(svxy6,6,'var(--teal)')} <b>${svxy6}/6</b></span>`
-    + `${DOT}<span class="lg-track">Long-vol ${_pips(uvxy4,4,'var(--coral)')} <b>${uvxy4}/4</b></span>`
-    + `${DOT}<span class="lg-track">Override <b style="color:${spike?'var(--teal)':crush?'var(--coral)':'var(--namut)'}">${spike?'SPIKE':crush?'CRUSH':'none'}</b></span></div>`
+    + `<span class="lg-track"${ovrActive?' style="opacity:0.42"':''}>Short-vol ${_pips(svxy6,6,'var(--teal)')} <b>${svxy6}/6</b></span>`
+    + `${DOT}<span class="lg-track"${ovrActive?' style="opacity:0.42"':''}>Long-vol ${_pips(uvxy4,4,'var(--coral)')} <b>${uvxy4}/4</b></span>`
+    + `${DOT}<span class="lg-track">Override <b style="color:${ovrActive?ovrColor:'var(--namut)'}">${spike?'SPIKE':b.vix_fade?'FADE':crush?'CRUSH':(b.neg_vol&&b.bear_9d&&b.bear_1m)?'VOL-FOLLOW':'none'}</b></span></div>`
     + `<div class="sig-logic-why">${_why}</div>`
     + `<div class="sig-explain">${explain}</div>`;
   const lastTxt = (L&&L.generated_utc)?toEtClock(L.generated_utc)+' ET':(hist?b.date:'—');
@@ -3062,7 +3088,7 @@ function renderSignalMonitor(histBar){
   const curCell=(r,dull)=>`<td><div class="cur-cell"><span class="cur-val${(_prelim&&!dull)?' prelim':''}" style="color:${dull?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${r[6]||''}</span><span class="cur-bar">${r[7]||''}</span></div></td>`;
   const rowHtml=(r,cls='',dull=inPos)=>`<tr class="${cls}"><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
-    +curCell(r,dull)+`<td>${tag(r[5])}</td></tr>`;
+    +curCell(r,dull)+`<td>${tag(r[5],dull)}</td></tr>`;
   const exitDivider='<tr class="sig-divider"><td colspan="6">Exit Indicators - Exit signal will be generated if any of these are triggered when in non-cash position</td></tr>';
   const exitHtml=exitRules.map((r,i)=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
@@ -3107,10 +3133,10 @@ function renderSignalMonitor(histBar){
   // These are all derived from the EOD term structure → an amber (EOD) refresh clock,
   // so every row carries one and the gauge bars line up vertically.
   const _compClk = hist ? '' : `<span class="sig-info" style="color:var(--amber)" title="Data as of the prior CBOE close - Update expected after the CBOE close (~5:30 PM ET)">&#9201;</span>`;
-  const compHtml=(arr)=>arr.map(r=>`<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
+  const compHtml=(arr,dullFn)=>arr.map((r,i)=>{ const dl=dullFn?dullFn(r,i):inPos; return `<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
-    +`<td><div class="cur-cell"><span class="cur-val${(_prelim&&!inPos)?' prelim':''}" style="color:${inPos?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${_compClk}</span><span class="cur-bar">${r[5]||''}</span></div></td>`
-    +`<td>${tag(r[6])}</td></tr>`).join('');
+    +`<td><div class="cur-cell"><span class="cur-val${(_prelim&&!dl)?' prelim':''}" style="color:${dl?'var(--dimwhite)':'var(--white)'}">${r[4]}</span><span class="cur-clk">${_compClk}</span><span class="cur-bar">${r[5]||''}</span></div></td>`
+    +`<td>${tag(r[6],dl)}</td></tr>`; }).join('');
   const _gated=(b.mv_lo||(b.vix9d!=null&&b.vix9d>=41&&b.vix9d<=46));
   const compEntry=[
     ['Spike Type','Intraday spike character: Faded = VIX spiked ≥8% above the open then closed back (a standalone SVXY entry — this is what triggered e.g. 2026-03-03); Sustained = closed near the high (blocks SVXY / confirms UVXY)','Faded → buy the vol dip (SVXY)','Sustained → blocks SVXY / confirms UVXY',
@@ -3127,16 +3153,19 @@ function renderSignalMonitor(histBar){
       b.high_vol_regime?'High-vol':'Normal', gFull(sSize), 'NA'],
   ];
   const sizeDivider='<tr class="sig-divider"><td colspan="6">Position Sizing - scales the trade rather than triggering it</td></tr>';
-  const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r)).join('')
+  // Under an active override (while flat) the routine term-structure rows + BB-Trend
+  // (compEntry index 1) dull — superseded by the override path.
+  const _entryDull=inPos||ovrActive;
+  const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r,'',_entryDull)).join('')
     +overrideRows.map(r=>rowHtml(r)).join('')   // spike/crush value follows inPos dull/bright like the entry rows
-    +compHtml(compEntry)
+    +compHtml(compEntry,(r,i)=> i===1 ? _entryDull : inPos)
     +exitDivider+exitHtml
     +sizeDivider+compHtml(compSize)+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;
 
   // ── Floating mini monitor: compact preview of the whole board over the chart ──
   if(document.getElementById('mini-monitor')){
-    const mSig=s=>{ const d=inPos;
+    const mSig=(s,dull)=>{ const d=(dull===undefined)?inPos:dull;
       if(s==='SVXY') return `<span style="color:${d?'var(--tealmut)':'var(--teal)'}">SVXY</span>`;
       if(s==='UVXY') return `<span style="color:${d?'var(--coralmut)':'var(--coral)'}">UVXY</span>`;
       if(s==='NA')   return '<span style="color:var(--namut)">N/A</span>';
@@ -3178,13 +3207,13 @@ function renderSignalMonitor(histBar){
     mh+=`<div class="mini-combo">${help(_cmboTip)} ${_cmbo}</div>`;
     mh+=`<div class="mini-why">${explain}</div>`;   // plain-language methodology for this trade
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
-    rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5]), inPos));
+    rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5],_entryDull), _entryDull));
     mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
     // Comp rows: white value (dimmed when in a position), N/A stays muted-yellow.
     // Signal column mirrors the full monitor: SVXY/UVXY where the indicator points,
     // else N/A (dull yellow). UVXY gate is a blocker, not a direction → always N/A.
     mh+=mRow('Spike Type', sSpk, b.vix_fade?'Fade':(b.vix_sustained?'Sust':_ms('N/A','var(--namut)')), mSig(b.vix_fade?'SVXY':(b.vix_sustained?'UVXY':'NA')), inPos);
-    mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', mSig(b.bb_buy?'SVXY':'NA'), inPos);
+    mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', mSig(b.bb_buy?'SVXY':'NA',_entryDull), _entryDull);
     mh+=mRow('Vol-follow', sVF, _ov!=null?(_ov.toFixed(1)+(b.neg_vol?' ●':'')):_ms('N/A','var(--namut)'), mSig(b.neg_vol?'UVXY':'NA'), inPos);
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
