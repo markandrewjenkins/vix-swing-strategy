@@ -3089,8 +3089,12 @@ function renderSignalMonitor(histBar){
   // not active (resembling the other bars) with a "now …" tooltip.
   const sSpk ={lo:0,hi:1,z:[[0,0.5,'t'],[0.5,1,'r']],v:b.vix_fade?0.25:(b.vix_sustained?0.75:0.5),nolab:true,dull:!_spkAct,
     tip:`Intraday spike character: Faded (VIX spiked ≥8% above the open then closed back → buy the dip, a standalone SVXY entry) vs Sustained (closed near the high → blocks SVXY / confirms UVXY) · now ${b.vix_fade?'Faded → SVXY':(b.vix_sustained?'Sustained → UVXY':'neither')}`};
-  const sVF  ={lo:0,hi:1,z:[[0,0.5,'n'],[0.5,1,'r']],v:b.neg_vol?0.75:0.25,nolab:true,dull:!b.neg_vol,
-    tip:`Negative vol carry: OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end → an independent long-vol path · now ${b.neg_vol?'Active':'Off'}`};
+  // Vol-follow plotted on its real moving value: the OBV 5d-vs-13d EMA spread (normalised
+  // by daily flow). Below 0 = volume momentum weakening; combined with price near its
+  // 10-day high it becomes the neg_vol long-vol flag. Dulled until that combo arms.
+  const _ov=b.obv_div, _dOV=_domain('obv_div',[0]);
+  const sVF  ={lo:_dOV.lo,hi:_dOV.hi,z:[[_dOV.lo,0,'r'],[0,_dOV.hi,'t']],v:_ov,fmt:v=>v.toFixed(1),dull:!b.neg_vol,
+    tip:`OBV 5d−13d EMA spread (normalised) — below 0 = volume momentum weakening; becomes the long-vol "neg-vol" flag only with price near its 10-day high (${b.price_hi?'yes':'no'}) · now ${_ov!=null?_ov.toFixed(2):'—'}${b.neg_vol?' → Active':''}`};
   // Comp rows: Current value rendered WHITE (dimmed when a position is open, like
   // the term-structure entry rows); Signal column shows SVXY/UVXY/Cash/N/A via tag().
   // These are all derived from the EOD term structure → an amber (EOD) refresh clock,
@@ -3107,7 +3111,7 @@ function renderSignalMonitor(histBar){
     ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — short-vol regime confirmation; needs trend ≥ 0 (not falling through zero)','Trend ≥ 0 confirms SVXY','Trend < 0 blocks SVXY',
       b.bb_buy?'Uptrend':'Downtrend', gFull(sBB), b.bb_buy?'SVXY':'NA'],
     ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) with a bearish front end — an independent long-vol entry path','','Active → UVXY entry path',
-      b.neg_vol?'Active':_na, gFull(sVF), b.neg_vol?'UVXY':'NA'],
+      _ov!=null?(_ov.toFixed(1)+(b.neg_vol?' ●':'')):_na, gFull(sVF), b.neg_vol?'UVXY':'NA'],
     ['UVXY entry gates','Long-vol entry is blocked when MOVE/VIX ≤ 2 or VIX1M ≥ 45.9 (the spike-chase cap), unless the spike held intraday','','Clear → UVXY entry allowed',
       _gated?'Blocked':'Clear', gFull(sGate), 'NA'],
   ];
@@ -3174,7 +3178,7 @@ function renderSignalMonitor(histBar){
     // else N/A (dull yellow). UVXY gate is a blocker, not a direction → always N/A.
     mh+=mRow('Spike Type', sSpk, b.vix_fade?'Fade':(b.vix_sustained?'Sust':_ms('N/A','var(--namut)')), mSig(b.vix_fade?'SVXY':(b.vix_sustained?'UVXY':'NA')), inPos);
     mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', mSig(b.bb_buy?'SVXY':'NA'), inPos);
-    mh+=mRow('Vol-follow', sVF, b.neg_vol?'Active':_ms('N/A','var(--namut)'), mSig(b.neg_vol?'UVXY':'NA'), inPos);
+    mh+=mRow('Vol-follow', sVF, _ov!=null?(_ov.toFixed(1)+(b.neg_vol?' ●':'')):_ms('N/A','var(--namut)'), mSig(b.neg_vol?'UVXY':'NA'), inPos);
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
