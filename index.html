@@ -2727,10 +2727,7 @@ function renderSignalMonitor(histBar){
   const gCont = ()=>gaugeHtml(egauge[0].lo,egauge[0].hi,egauge[0].z,egauge[0].v,egauge[0].tip,fPP);
   const gRatio= ()=>gaugeHtml(egauge[4].lo,egauge[4].hi,egauge[4].z,egauge[4].v,egauge[4].tip,fN2);
   const gMove = ()=>gaugeHtml(dM.lo,dM.hi,[[dM.lo,2,'t'],[2,11,'n'],[11,dM.hi,'r']],movevix,`low ≤2 · high ≥11 · now ${movevix!=null?movevix.toFixed(2):'—'}`,fN1);
-  // When an entry override is active (while flat), the routine term-structure bars are
-  // dulled — they're superseded by the override path. (When in a position the zones
-  // already mute via _zoneStyle.)
-  rows.forEach((r,i)=>{ r[7]=gaugeHtml(egauge[i].lo,egauge[i].hi,egauge[i].z,egauge[i].v,egauge[i].tip,egauge[i].fmt,{dull:!inPos&&ovrActive}); });
+  // (Entry-bar HTML built below, once the override/blocker dimming is known.)
 
   // MOVE/VIX is NOT an entry trigger — it's a cross-asset stress overlay that
   // only exits SVXY (high) or blocks/exits UVXY (low). It lives in Exit Rules.
@@ -2812,6 +2809,27 @@ function renderSignalMonitor(histBar){
   const sv = core.filter(v=>v==='SVXY').length;
   const uv = core.filter(v=>v==='UVXY').length;
   const neu = core.filter(v=>v==='NEU').length;
+  const svxy6 = core.filter(v=>v==='SVXY').length + (b.bb_buy?1:0);     // /6 (5 term-structure + BB-Trend)
+  const uvxy4 = [1,2,3,4].filter(i=>core[i]==='UVXY').length;           // /4 bear regime: VDelta,VIX9D,VIX1M,ratio
+  // ── Single decisive BLOCKER ──────────────────────────────────────────────
+  // When flat (and no override is driving): a short-vol setup that is one signal short
+  // (5/6), or a long-vol regime that is complete (4/4) yet vetoed by the UVXY gate. We
+  // name the held-back-by indicator and keep it bright while the would-be-aligned signals
+  // dull — so the board never looks like it "should" have traded. (_blkIdx: 0-4 = a term
+  // signal, 5 = BB-Trend, -1 = the UVXY gate.)
+  const _eNames6=['Contango','VDelta','VIX9D','VIX1M','VIX1M/3M ratio','BB-Trend'];
+  const _gateBlock = b.mv_lo || (b.vix9d!=null && b.vix9d>=41 && b.vix9d<=46);
+  let _blkName=null, _blkIdx=null;
+  if(!inPos && !ovrActive){
+    const _coreSV=core.filter(v=>v==='SVXY').length;
+    if(svxy6===5){ _blkIdx = (_coreSV===5 && !b.bb_buy) ? 5 : core.findIndex(v=>v!=='SVXY'); _blkName=_eNames6[_blkIdx]; }
+    else if(uvxy4===4 && _gateBlock){ _blkIdx=-1; _blkName='UVXY gate'; }
+  }
+  const _blocked = _blkName!=null;
+  // Dull a routine entry signal when in a position, superseded by an override, OR held
+  // back by a blocker (every routine signal except the blocker itself dims).
+  const _dullTerm = (i)=> inPos || (!inPos&&ovrActive) || (_blocked && i!==_blkIdx);
+  const _dullBB   = inPos || (!inPos&&ovrActive) || (_blocked && _blkIdx!==5);
   // This mirrors the real entry rule, not a vote. The SVXY (short-vol) entry
   // requires FULL bullish alignment of the 5 term-structure signals — contango,
   // VDelta, the two VIX zones and the 1m/3m ratio must ALL read short-vol
@@ -3003,9 +3021,12 @@ function renderSignalMonitor(histBar){
   // When an override is active it jumps to the front of the line and the regular
   // term-structure tally dims (it has been overridden); otherwise show "No spike/crush".
   const ovrFront = ovrActive ? `<b style="color:${ovrColor}">${ovrLabel}</b>${DOT}` : '';
-  const noOvr    = ovrActive ? '' : `${DOT}<span style="color:var(--cashmut);font-weight:600">No override</span>`;
+  // Blocker badge: a single indicator vetoing an otherwise-ready entry (mutually exclusive
+  // with an override, which only fires when nothing blocks).
+  const blkFront = _blocked ? `<b style="color:var(--cashc)">HELD BACK BY ${(''+_blkName).toUpperCase()}</b>${DOT}` : '';
+  const noOvr    = (ovrActive||_blocked) ? '' : `${DOT}<span style="color:var(--cashmut);font-weight:600">No override</span>`;
   const entryMix = `<div class="sig-proj-mixline"><span class="lbl">Entry indicator mix</span>`
-    + ovrFront
+    + ovrFront + blkFront
     + `<span class="vt-sv"${_csv}>${sv} short vol</span>${DOT}<span class="vt-uv"${_cuv}>${uv} long vol</span>${DOT}<span class="vt-neu"${_cca}>${neu} cash</span>`
     + noOvr
     + `${DOT}<span class="sig-rf">(${entryRefreshed}/${nEntry} refreshed)</span></div>`;
@@ -3017,8 +3038,8 @@ function renderSignalMonitor(histBar){
   // full 4-signal bear regime; spike/crush is a standalone override. This shows how
   // close each side is and why contrary single signals don't flip the decision.
   const _pips=(n,tot,col)=>{let s='';for(let k=0;k<tot;k++)s+=`<span style="color:${k<n?col:'var(--border2)'}">&#9679;</span>`;return s;};
-  const svxy6 = core.filter(v=>v==='SVXY').length + (b.bb_buy?1:0);     // /6 (5 term-structure + BB-Trend)
-  const uvxy4 = [1,2,3,4].filter(i=>core[i]==='UVXY').length;           // /4 bear regime: VDelta,VIX9D,VIX1M,ratio
+  // svxy6 / uvxy4 / the blocker (_blkName,_blkIdx,_dullTerm,_dullBB) are computed earlier.
+  rows.forEach((r,i)=>{ r[7]=gaugeHtml(egauge[i].lo,egauge[i].hi,egauge[i].z,egauge[i].v,egauge[i].tip,egauge[i].fmt,{dull:_dullTerm(i)}); });
   // Explain the ACTUAL decision (proj), so the readout never contradicts the result.
   const _pk = kindOf(proj);
   let _why;
@@ -3027,6 +3048,9 @@ function renderSignalMonitor(histBar){
     else _why = `<b style="color:${isUV?'var(--coral)':'var(--teal)'}">holding ${isUV?'long vol':'short vol'}</b> &mdash; no exit triggered; entry signals don't apply while in a position`;
   } else if(_pk==='sv') _why = svxy6===6 ? `all 6 short-vol signals aligned &rarr; <b style="color:var(--teal)">SVXY</b>` : `spike-fade entry &rarr; <b style="color:var(--teal)">SVXY</b> (buy the vol dip)`;
   else if(_pk==='uv') _why = crush ? `<b style="color:var(--coral)">crush override</b> &rarr; UVXY` : (uvxy4===4 ? `full bear regime (4/4) &rarr; <b style="color:var(--coral)">UVXY</b>` : `bear / vol-follow path &rarr; <b style="color:var(--coral)">UVXY</b>`);
+  else if(_blocked) _why = _blkIdx===-1
+    ? `bear regime ready (4/4) but the <b style="color:var(--cashc)">UVXY gate</b> blocks the long-vol entry &rarr; <b style="color:var(--cashc)">cash</b>`
+    : `short-vol is one signal short &mdash; <b style="color:var(--cashc)">${_blkName}</b> is holding it back &rarr; <b style="color:var(--cashc)">cash</b>`;
   else _why = `neither side is complete &rarr; <b style="color:var(--cashc)">stay / cash</b> &mdash; contrary single signals don't flip the trade; a side must hit its <i>full</i> set`;
   // ── Plain-language explanation: which indicators drove the trade and why the
   //    contrary ones don't matter. Always reconciles with the actual decision. ──
@@ -3051,6 +3075,10 @@ function renderSignalMonitor(histBar){
     explain=`<b>Entering SVXY (short vol):</b> every one of the six entry conditions is aligned bullish (${_svParts.join(', ')||'all six'}). A short-vol entry is deliberately strict — it requires the <i>full</i> set of term-structure signals plus the BB-trend confirmation to agree at once, which filters out half-formed setups. All six line up here, so the strategy sells volatility into the contango.`;
   } else if(_pk==='uv'){
     explain=`<b>Entering UVXY (long vol):</b> the complete bearish regime is in place — ${_uvParts.join(', ')||'all four bear signals'} are reading bearish together, signalling sustained near-term fear and an inverting curve. Note that contango currently reads ${pct(contango,1)}, but it is not part of the four-signal bear gate, so it neither confirms nor blocks this long-vol entry.`;
+  } else if(_blocked && _blkIdx===-1){
+    explain=`<b>Staying in cash — long-vol entry blocked.</b> The four-signal bear regime is complete, but the <b>UVXY gate</b> vetoes the entry (VIX9D sits in the 41–46 exhaustion zone, or MOVE/VIX ≤ 2 — vol is already "paid for"). The bear signals are shown dulled because they're ready but held back; only the gate decides here.`;
+  } else if(_blocked){
+    explain=`<b>Staying in cash — short-vol entry blocked.</b> Five of the six short-vol conditions agree, but <b>${_blkName}</b> is not confirmed, and a short-vol entry needs the <i>full</i> set. The five aligned signals are shown dulled because they're held back by this one — ${_blkName} is the single indicator deciding the outcome here.`;
   } else {
     explain=`<b>Staying in cash:</b> a short-vol entry needs all six signals aligned (only ${svxy6}/6 agree right now) and a long-vol entry needs the full four-signal bear regime (only ${uvxy4}/4). The signals that do agree aren't enough on their own — each side must hit its complete set before a trade is taken, so the mixed, partly-contrary readings leave the strategy flat and waiting.`;
   }
@@ -3118,7 +3146,11 @@ function renderSignalMonitor(histBar){
   // (VIX9D & VIX1M bearish). neg_vol alone is just a reading, not an actionable entry.
   const _volFollow=!!(b.neg_vol&&b.bear_9d&&b.bear_1m);
   const gFull=(s)=>gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt||(v=>''),{nolab:s.nolab,hatch:s.hatch,dull:s.dull});
-  const sBB ={lo:_dBB.lo,hi:_dBB.hi,z:[[_dBB.lo,0,'r'],[0,_dBB.hi,'t']],v:b.bb_trend,fmt:v=>v.toFixed(2),tip:`BB-trend on log-SVXY · threshold 0 (short-vol regime needs trend ≥ 0, not falling) · now ${b.bb_trend!=null?b.bb_trend.toFixed(2):'—'}`};
+  // Binary up/down matching the engine's bb_buy rule: bullish UNLESS the trend is below
+  // zero AND falling — so a negative-but-rising trend still confirms short vol. (A plain
+  // level bar mis-coloured those rising-from-below cases, e.g. 2026-02-27.)
+  const sBB ={lo:0,hi:1,z:[[0,0.5,'r'],[0.5,1,'t']],v:b.bb_buy?0.75:0.25,nolab:true,
+    tip:`BB-trend on log-SVXY — bullish unless the trend is below 0 AND still falling, so a negative-but-rising trend still confirms SVXY · trend now ${b.bb_trend!=null?b.bb_trend.toFixed(2):'—'} → ${b.bb_buy?'Up (confirms SVXY)':'Down (blocks SVXY)'}`};
   // UVXY gate plotted on the real binding filter — the VIX9D "exhaustion zone" guard:
   // long-vol entries are BLOCKED (red band) when VIX9D sits in 41–46 (the first-spike
   // level that tends to mean-revert), but ALLOWED below (early panic) and above (genuine
@@ -3131,14 +3163,14 @@ function renderSignalMonitor(histBar){
   const sSize={lo:_dMA.lo,hi:_dMA.hi,z:[[_dMA.lo,REG,'t'],[REG,_dMA.hi,'r']],v:b.vix1m_ma30,fmt:fN0,tip:`high-vol regime when 30-day VIX avg > ${REG} → SVXY size ×0.48 (UVXY always ×0.43) · now ${b.vix1m_ma30!=null?b.vix1m_ma30.toFixed(1):'—'}`};
   // Binary on/off indicators: Off | On zones, marker on the current state, dulled when
   // not active (resembling the other bars) with a "now …" tooltip.
-  const sSpk ={lo:0,hi:1,z:[[0,0.5,'t'],[0.5,1,'n']],v:b.vix_fade?0.25:(b.vix_sustained?0.75:0.5),nolab:true,dull:!_spkAct,
+  const sSpk ={lo:0,hi:1,z:[[0,0.5,'t'],[0.5,1,'d']],v:b.vix_fade?0.25:(b.vix_sustained?0.75:0.5),nolab:true,dull:!_spkAct,
     tip:`Spike Type — intraday spike character: faded (VIX spiked ≥8% above the open then closed back → buy the dip, a standalone SVXY entry) vs sustained (spiked and held into the close → a CAUTION that blocks short-vol boost paths; it does NOT buy UVXY on its own) · now ${b.vix_fade?'faded → SVXY':(b.vix_sustained?'sustained (blocks SVXY)':'neither')}`};
   // Vol-follow plotted on its real moving value: the OBV 5d-vs-13d EMA spread (normalised
   // by daily flow). Below 0 = volume momentum weakening; combined with price near its
   // 10-day high it becomes the neg_vol long-vol flag. Dulled until that combo arms.
   const _ov=b.obv_div, _dOV=_domain('obv_div',[0]);
   const sVF  ={lo:_dOV.lo,hi:_dOV.hi,z:[[_dOV.lo,0,'r'],[0,_dOV.hi,'t']],v:_ov,fmt:v=>v.toFixed(1),dull:!_volFollow,
-    tip:`OBV 5d−13d EMA spread (normalised) — below 0 = volume momentum weakening. Triggers a long-vol (UVXY) entry only as the full vol-follow path: this divergence (price near the 10-day high: ${b.price_hi?'yes':'no'}) AND a bearish front end (VIX9D & VIX1M bearish: ${(b.bear_9d&&b.bear_1m)?'yes':'no'}). The ● marks that armed state · now ${_ov!=null?_ov.toFixed(2):'—'}${_volFollow?' → Active ●':''}`};
+    tip:`OBV 5d−13d EMA spread (normalised) — below 0 = volume momentum weakening. Triggers a long-vol (UVXY) entry only as the full vol-follow path: this divergence (price near the 10-day high: ${b.price_hi?'yes':'no'}) AND a bearish front end (VIX9D & VIX1M bearish: ${(b.bear_9d&&b.bear_1m)?'yes':'no'}) — bright when that combo is armed · now ${_ov!=null?_ov.toFixed(2):'—'}${_volFollow?' → Active':''}`};
   // Comp rows: Current value rendered WHITE (dimmed when a position is open, like
   // the term-structure entry rows); Signal column shows SVXY/UVXY/Cash/N/A via tag().
   // These are all derived from the EOD term structure → an amber (EOD) refresh clock,
@@ -3154,8 +3186,8 @@ function renderSignalMonitor(histBar){
       b.vix_fade?'Faded':(b.vix_sustained?'Sustained':_na), gFull(sSpk), b.vix_fade?'SVXY':'NA'],
     ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — short-vol regime confirmation; needs trend ≥ 0 (not falling through zero)','Trend ≥ 0 confirms SVXY','Trend < 0 blocks SVXY',
       b.bb_buy?'Uptrend':'Downtrend', gFull(sBB), b.bb_buy?'SVXY':'NA'],
-    ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) — only an independent long-vol entry when paired with a bearish front end (VIX9D & VIX1M bearish). The ● marks that armed state','','Divergence + bear front end → UVXY',
-      _ov!=null?(_ov.toFixed(1)+(_volFollow?' ●':'')):_na, gFull(sVF), _volFollow?'UVXY':'NA'],
+    ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) — only an independent long-vol entry when paired with a bearish front end (VIX9D & VIX1M bearish)','','Divergence + bear front end → UVXY',
+      _ov!=null?_ov.toFixed(1):_na, gFull(sVF), _volFollow?'UVXY':'NA'],
     ['UVXY entry gate','Long-vol entry is blocked when VIX9D is in the 41–46 "exhaustion zone" (first-spike level that mean-reverts) or MOVE/VIX ≤ 2 — allowed below (early panic) and above (escalating crisis)','','Clear → UVXY entry allowed',
       _gated?'Blocked':'Clear', gFull(sGate), 'NA'],
   ];
@@ -3164,12 +3196,11 @@ function renderSignalMonitor(histBar){
       b.high_vol_regime?'High-vol':'Normal', gFull(sSize), 'NA'],
   ];
   const sizeDivider='<tr class="sig-divider"><td colspan="6">Position Sizing - scales the trade rather than triggering it</td></tr>';
-  // Under an active override (while flat) the routine term-structure rows + BB-Trend
-  // (compEntry index 1) dull — superseded by the override path.
-  const _entryDull=inPos||ovrActive;
-  const body='<tbody>'+entryDivider+rows.map(r=>rowHtml(r,'',_entryDull)).join('')
+  // Routine entry rows dull when superseded by an override or held back by a blocker
+  // (per-signal: the blocker itself stays bright). BB-Trend is compEntry index 1 ≙ _blkIdx 5.
+  const body='<tbody>'+entryDivider+rows.map((r,i)=>rowHtml(r,'',_dullTerm(i))).join('')
     +overrideRows.map(r=>rowHtml(r)).join('')   // spike/crush value follows inPos dull/bright like the entry rows
-    +compHtml(compEntry,(r,i)=> i===1 ? _entryDull : inPos)
+    +compHtml(compEntry,(r,i)=> i===1 ? _dullBB : inPos)
     +exitDivider+exitHtml
     +sizeDivider+compHtml(compSize)+'</tbody>';
   document.getElementById('signal-monitor').innerHTML=head+body;
@@ -3215,17 +3246,21 @@ function renderSignalMonitor(histBar){
     const _cmbo = inPos
       ? `Hold ${_pips(exHold,nExit,holdColor)} ${exHold}/${nExit} &nbsp; Exit ${_pips(exExit,nExit,'var(--cashc)')} ${exExit}/${nExit}`
       : `SV ${_pips(svxy6,6,'var(--teal)')} ${svxy6}/6 &nbsp; LV ${_pips(uvxy4,4,'var(--coral)')} ${uvxy4}/4`;
-    mh+=`<div class="mini-combo">${help(_cmboTip)} ${_cmbo}</div>`;
+    // Mini status badge: override taking over, or a single blocker holding an entry back.
+    const _miniBadge = ovrActive ? `<b style="color:${ovrColor}">${ovrLabel}</b> &middot; `
+      : _blocked ? `<b style="color:var(--cashc)">HELD BACK BY ${(''+_blkName).toUpperCase()}</b> &middot; ` : '';
+    const _cmboDim = (!inPos && (ovrActive||_blocked)) ? ' style="opacity:0.5"' : '';
+    mh+=`<div class="mini-combo">${help(_cmboTip)} ${_miniBadge}<span${_cmboDim}>${_cmbo}</span></div>`;
     mh+=`<div class="mini-why">${explain}</div>`;   // plain-language methodology for this trade
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
-    rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5],_entryDull), _entryDull));
+    rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5],_dullTerm(i)), _dullTerm(i)));
     mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
     // Comp rows: white value (dimmed when in a position), N/A stays muted-yellow.
     // Signal column mirrors the full monitor: SVXY/UVXY where the indicator points,
     // else N/A (dull yellow). UVXY gate is a blocker, not a direction → always N/A.
     mh+=mRow('Spike Type', sSpk, b.vix_fade?'Fade':(b.vix_sustained?'Sust':_ms('N/A','var(--namut)')), mSig(b.vix_fade?'SVXY':'NA'), inPos);
-    mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', mSig(b.bb_buy?'SVXY':'NA',_entryDull), _entryDull);
-    mh+=mRow('Vol-follow', sVF, _ov!=null?(_ov.toFixed(1)+(_volFollow?' ●':'')):_ms('N/A','var(--namut)'), mSig(_volFollow?'UVXY':'NA'), inPos);
+    mh+=mRow('BB-Trend', sBB, b.bb_buy?'Up':'Down', mSig(b.bb_buy?'SVXY':'NA',_dullBB), _dullBB);
+    mh+=mRow('Vol-follow', sVF, _ov!=null?_ov.toFixed(1):_ms('N/A','var(--namut)'), mSig(_volFollow?'UVXY':'NA'), inPos);
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos);
     mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
     exitRules.forEach((r,i)=> mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos));
