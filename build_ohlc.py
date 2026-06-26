@@ -48,11 +48,14 @@ def drop_forming_today(rows):
 def intraday_today(symbol):
     """Build today's OHLC from the 5-min intraday series — Yahoo's *daily* bar
     carries a glitchy/stale open early in the session (e.g. open above the day's
-    high), so we reconstruct today's candle from the 5-min prints instead."""
+    high), so we reconstruct today's candle from the 5-min prints instead.
+
+    includePrePost=true so the candle starts forming in pre-market (~4am ET) and
+    keeps updating through after-hours (~8pm ET), not just the 9:30–4 session."""
     et = _et_now(); today = et.strftime("%Y-%m-%d")
     try:
         url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}"
-               f"?range=1d&interval=5m")
+               f"?range=1d&interval=5m&includePrePost=true")
         res = json.loads(_get(url, timeout=15))["chart"]["result"][0]
         ts = res["timestamp"]; q = res["indicators"]["quote"][0]
         o, h, l, c = q["open"], q["high"], q["low"], q["close"]
