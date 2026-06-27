@@ -486,14 +486,19 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
   pointer-events:none; z-index:6; background:radial-gradient(circle, rgba(240,152,47,0.30), rgba(240,152,47,0) 82%);
   animation:cdlripple .4s ease-out forwards; }
 @keyframes cdlripple { 0% { transform:translate(-50%,-50%) scale(0.45); opacity:0.7 } 70% { opacity:0.18 } 100% { transform:translate(-50%,-50%) scale(1.55); opacity:0 } }
-/* Floating mini Live-Signal preview over the chart's blank right side. */
-.mini-mon { position:absolute; top:10px; right:68px; width:252px; max-width:54%; z-index:5; pointer-events:none;
+/* Floating mini Live-Signal preview. The outer box spans the chart's height with small
+   buffers (top/bottom/right); the inner card is scaled by JS to fill that box, so it
+   occupies the SAME proportion of the chart at any resolution / zoom. */
+.mini-mon { position:absolute; top:2.5%; right:2%; bottom:2.5%; z-index:5; pointer-events:none; }
+.mini-mon .mini-inner { position:absolute; top:0; right:0; transform-origin:top right; width:252px;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
-.mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; display:flex; align-items:center; }
-.mini-mon .mini-ctl { pointer-events:auto; margin-left:auto; display:inline-flex; gap:2px; }
-.mini-mon .mini-ctl button { background:rgba(20,17,11,0.7); color:var(--yellow); border:1px solid var(--border2); border-radius:4px; font-size:0.66rem; line-height:1.2; padding:0 4px; cursor:pointer; font-family:'Saira',sans-serif; }
-.mini-mon .mini-ctl button:hover { background:rgba(240,152,47,0.18); }
+.mini-mon.mini-collapsed .mini-inner { display:none; }
+.mini-mon .mini-exp { position:absolute; top:0; right:0; z-index:6; pointer-events:auto;
+  background:rgba(20,17,11,0.82); color:var(--yellow); border:1px solid var(--border2); border-radius:6px;
+  font-size:0.74rem; line-height:1.1; padding:2px 6px; cursor:pointer; font-family:'Saira',sans-serif; }
+.mini-mon .mini-exp:hover { background:rgba(240,152,47,0.18); }
+.mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; padding-right:26px; display:flex; align-items:center; }
 .mini-mon .mini-pos { text-align:left; font-weight:400; font-size:0.68rem; margin-bottom:3px; white-space:nowrap; }
 .mini-mon .mini-sub { color:var(--dim); text-transform:uppercase; letter-spacing:0.06em; font-size:0.54rem; margin:8px 0 1px; border-top:1px solid var(--border); padding-top:6px; }
 .mini-mon .mini-help { pointer-events:auto; cursor:help; color:var(--dim); margin-left:3px; }
@@ -560,13 +565,12 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <div class="hdr-title">VIX SWING STRATEGY</div>
     <div class="hdr-metarow">
       <span class="hdr-meta" id="hdr-meta">Loading...</span>
-      <span class="hdr-meta" title="Switch the dashboard between the SVXY/UVXY pair, SVIX/UVIX pair, or SVIX1/2 / UVIX pair. Note: The final pair is the recommended blend based on backtests (= SVXY short vol leg + levered UVIX long vol leg).">Toggle Vol ETFs:</span>
-      <span class="cdl-toggle-group instr-inline" title="Switch the dashboard between the SVXY/UVXY pair, SVIX/UVIX pair, or SVIX1/2 / UVIX pair. Note: The final pair is the recommended blend based on backtests (= SVXY short vol leg + levered UVIX long vol leg).">
-        <button id="instr-real" class="cdl-seg active" onclick="setInstr('real')">SVXY / UVXY</button>
+      <span class="hdr-meta" title="NOTE: SVIX/UVIX only launched in 2022, so prior results involving either of these two ETFs are simulated based on SVXY/UVXY trade returns, then leverage-scaled">Toggle Vol ETF Pair:</span>
+      <span class="cdl-toggle-group instr-inline" title="NOTE: SVIX/UVIX only launched in 2022, so prior results involving either of these two ETFs are simulated based on SVXY/UVXY trade returns, then leverage-scaled">
+        <button id="instr-blend" class="cdl-seg active" onclick="setInstr('blend')">SVIX&#189; / UVIX</button>
+        <button id="instr-real" class="cdl-seg" onclick="setInstr('real')">SVXY / UVXY</button>
         <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
-        <button id="instr-blend" class="cdl-seg" onclick="setInstr('blend')">SVIX&#189; / UVIX</button>
       </span>
-      <span class="hdr-disc"><strong>NOTE:</strong> SVIX/UVIX only launched in 2022, so prior results are simulated based on SVXY/UVXY trade returns, then leverage-scaled</span>
     </div>
   </div>
   <div class="tabs">
@@ -1029,6 +1033,14 @@ function _buildSim(svM, uvM){
   // ── equity curve (scale each bar's in-trade move, mark drawdown) ──
   let altEq=start; const eMap={},xMap={};
   trades.forEach(t=>{eMap[t.entry_date]=t;xMap[t.exit_date]=t;});
+  // Open (not-yet-closed) position: the real equity curve marks it daily, but DATA.trades
+  // only holds CLOSED trades — so without this the alt curve flatlines from the last exit
+  // (e.g. the SVXY position open since June 2026). Add a synthetic open entry (no exit) so
+  // the trailing segment scales too.
+  const _bh=DATA.bar_history||[];
+  if(_bh.length){ const _lp=_bh[_bh.length-1].position;
+    if(_lp && _lp!=='CASH'){ let i=_bh.length-1; while(i>0 && _bh[i-1].position===_lp) i--;
+      if(!eMap[_bh[i].date]) eMap[_bh[i].date]={type:_lp}; } }
   let inAlt=null,entryO=null,entryA=null; const curve=[];
   for(const b of (DATA.equity_curve||[])){
     if(eMap[b.date]){inAlt=eMap[b.date];entryO=b.equity;entryA=altEq;}
@@ -1958,8 +1970,8 @@ async function loadLive(){
     const _asOf = (...ts) => { for(const t of ts){ if(!t) continue;
       if(typeof t==='string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) return 'Data as of '+t+' close (EOD)';
       const c=_clk12(t); if(c){ const dstr=_etDate(t); return 'Data as of '+(dstr||'')+' '+c+' ET'+(dstr&&dstr!==_today?' [prior day]':''); } } return ''; };
-    const _UPDFRESH={vix:'Update expected every ~5 min with ~15 min delay (9:30 AM-4:00 PM ET)',
-                     etf:'Update expected every ~5 min with ~5 min delay (~4:00 AM-8:00 PM ET)'};
+    const _UPDFRESH={vix:'Update expected every ~5 mins with ~15 mins delay (9:30 AM-4:00 PM ET)',
+                     etf:'Update expected every ~5 mins with ~5 mins delay (~4:00 AM-8:00 PM ET)'};
     const _UPDSTART={vix:'9:30 AM', etf:'4:00 AM'};
     const _updExp=(grp,fresh)=> grp==='move' ? 'Update expected after the close (~end of day ET)'
       : grp==='eod' ? 'Update expected after the CBOE close (~5:30 PM ET)'
@@ -2031,11 +2043,11 @@ async function loadLive(){
     // ET time the today-dated curve first arrived — that's the last data feeding the
     // day's signals, so it's when everything is final.
     const tsPosted = _fresh(cv.vix9d_date);   // today's CBOE term structure has posted
-    if(note) note.textContent = live ? 'Quotes refresh every 5 min, up to 15 min delay'
+    if(note) note.textContent = live ? 'Quotes refresh every 5 mins, up to 15 mins delay'
                               : regular ? 'Live feed delay - showing last received quotes'
-                              : settle  ? (tsPosted ? 'Quotes refresh every 5 min, VIX TS now final'
-                                                    : 'Quotes refresh every 5 min, awaiting final VIX TS')
-                              : premkt  ? 'Quotes refresh every 5 min where available'
+                              : settle  ? (tsPosted ? 'Quotes refresh every 5 mins, VIX TS now final'
+                                                    : 'Quotes refresh every 5 mins, awaiting final VIX TS')
+                              : premkt  ? 'Quotes refresh every 5 mins where available'
                               : 'Market closed - showing last close';
     if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';   // delay note only when data moves
     // "Data as of" = the freshest live-quote timestamp we hold (the data's own time,
@@ -2128,7 +2140,7 @@ function updateMarket(){
   if(cd){ const np=_nextPhase(); cd.textContent=sep+np.verb+' in '+_fmtDur(np.secs); }
   const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
 }
-let CHART_MODE='real';
+let CHART_MODE='blend';   // default to the recommended SVIX½ / UVIX blend
 function displayCandles(){
   const src = aMode() ? ALT_SVIX : OHLC;
   if(!src) return [];
@@ -2281,13 +2293,24 @@ function buildDaily(){
   if(_keepRange){ try{dailyChart.timeScale().setVisibleLogicalRange(_keepRange);}catch(_){ dailyChart.timeScale().fitContent(); } }
   else dailyChart.timeScale().fitContent();
 }
-// Resize the floating mini-monitor (scales text + visuals). null = re-apply persisted
-// scale after a re-render; 0 = reset; a number = nudge. Anchored to its top-right.
-function miniScale(d){ const mm=document.getElementById('mini-monitor'); if(!mm) return;
-  let s=1; try{ s=parseFloat(localStorage.getItem('miniScale'))||1; }catch(_){}
-  if(d===0) s=1; else if(typeof d==='number') s=Math.max(0.7, Math.min(2.4, s+d));
-  try{ localStorage.setItem('miniScale', s); }catch(_){}
-  mm.style.transformOrigin='top right'; mm.style.transform = s===1?'':'scale('+s+')'; }
+// Fit the floating mini-monitor card to the chart's height so it occupies the same
+// proportion of the chart at any resolution / zoom: scale = boxHeight / contentHeight,
+// capped so it never exceeds ~42% of the chart width. Anchored to its top-right.
+function scaleMini(){ const mm=document.getElementById('mini-monitor'); if(!mm) return;
+  const inner=mm.querySelector('.mini-inner'); if(!inner) return;
+  if(mm.classList.contains('mini-collapsed')) return;
+  inner.style.transform='none';                                  // measure natural size
+  const H=mm.clientHeight, wrap=mm.parentElement, maxW=(wrap?wrap.clientWidth:600)*0.42;
+  const ih=inner.offsetHeight, iw=inner.offsetWidth; if(!ih||!iw) return;
+  let s=H/ih; if(iw*s>maxW) s=maxW/iw; s=Math.max(0.45, Math.min(s, 2.4));
+  inner.style.transform='scale('+s.toFixed(4)+')'; }
+function miniToggle(){ const mm=document.getElementById('mini-monitor'); if(!mm) return;
+  const c=mm.classList.toggle('mini-collapsed');
+  try{ localStorage.setItem('miniCollapsed', c?'1':'0'); }catch(_){}
+  const b=mm.querySelector('.mini-exp'); if(b) b.innerHTML = c?'&#11122;':'&#11121;';
+  if(!c) scaleMini(); }
+if(!window._miniResize){ window.addEventListener('resize',()=>scaleMini());
+  document.addEventListener('fullscreenchange',()=>setTimeout(scaleMini,60)); window._miniResize=true; }
 function replayEnter(){ if(!window.Replay) return;
   const btn=document.getElementById('replay-toggle');
   if(btn&&btn.classList.contains('on')) window.Replay.stop();   // click again → exit, like the X
@@ -2510,12 +2533,13 @@ function renderSummary(){
     window.Replay={
       enter(){ active=true; _suppressSync=true;
         let vr; try{ vr=sumMain.timeScale().getVisibleLogicalRange(); }catch(_){}
-        if(vr){ preRange={from:vr.from,to:vr.to}; W=Math.max(20,Math.round(vr.to-vr.from));
-                idx=Math.max(0,Math.min(times.length-1, Math.round(vr.from+0.55*(vr.to-vr.from)))); }
-        else idx=times.length-1;
+        if(vr){ preRange={from:vr.from,to:vr.to}; W=Math.max(20,Math.round(vr.to-vr.from)); }
+        // Default the playhead to the bar you've locked on (clicked), else today's (latest).
+        const _pin = window._pinnedDate ? idxOf(window._pinnedDate) : -1;
+        idx = (_pin>=0) ? _pin : times.length-1;
         if(ctrls) ctrls.style.display='inline-flex'; if(toggleBtn) toggleBtn.classList.add('on');
-        const di=document.getElementById('replay-date'); if(di){ di.min=times[0]; di.max=times[times.length-1]; }
-        paint(false); },   // keep the current view, don't jump to a default date
+        const di=document.getElementById('replay-date'); if(di){ di.min=times[0]; di.max=times[times.length-1]; di.value=times[idx]; }
+        paint(true); },   // recentre on the default bar (today, or the locked bar)
       start(d){ active=true; _suppressSync=true; pause(); idx=idxOf(d); paint(true); },   // seek → recentre
       toggle(){ if(playing) pause(); else play(); },
       play, pause,
@@ -2788,7 +2812,7 @@ function renderSignalMonitor(histBar){
     const changed = m.changed_utc ? (toEtClock(m.changed_utc)+' ET') : _fallbackChanged(name,valKey);
     // Match the status-bar tooltip convention. If an indicator blends an EOD input
     // with intraday ones, the binding (later) update is the EOD term structure.
-    const upd = cad==='eod' ? 'after the CBOE close (~5:30 PM ET)' : 'every ~5 min (9:30 AM-4:00 PM ET)';
+    const upd = cad==='eod' ? 'after the CBOE close (~5:30 PM ET)' : 'every ~5 mins (9:30 AM-4:00 PM ET)';
     const tip = `Data as of ${changed} - Update expected ${upd}`;
     const col = cad==='eod' ? 'var(--amber)' : 'var(--teal)';
     return `<span class="sig-info" style="color:${col}" title="${tip}">&#9201;</span>`;
@@ -3268,11 +3292,11 @@ function renderSignalMonitor(histBar){
     mh+=mRow('Sizing', sSize, b.high_vol_regime?'High':'Norm', mSig('NA'), inPos);
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
     const _mm=document.getElementById('mini-monitor');
-    _mm.innerHTML='<div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')
-      +'<span class="mini-ctl"><button onclick="miniScale(-0.15)" title="Smaller">&#8722;</button>'
-      +'<button onclick="miniScale(0)" title="Reset size">&#9211;</button>'
-      +'<button onclick="miniScale(0.15)" title="Larger">&#43;</button></span></div>'+mh;
-    miniScale(null);   // re-apply the persisted scale after each render
+    let _miniColl=false; try{ _miniColl=localStorage.getItem('miniCollapsed')==='1'; }catch(_){}
+    _mm.classList.toggle('mini-collapsed', _miniColl);
+    _mm.innerHTML='<button class="mini-exp" title="Expand / collapse" onclick="miniToggle()">'+(_miniColl?'&#11122;':'&#11121;')+'</button>'
+      +'<div class="mini-inner"><div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh+'</div>';
+    scaleMini();   // fit the card to the chart height after each render
   }
   window._sigMonReady=true;
 }
