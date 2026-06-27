@@ -951,6 +951,32 @@ function altLeverage(){
   const med=a=>{ if(!a.length) return null; const s=[...a].sort((p,q)=>p-q); return s[Math.floor(s.length/2)]; };
   _altLev={svF:med(svR)||2.0, uvF:med(uvR)||1.33}; _altLevRef=ALT_SVIX; return _altLev;
 }
+// SVIX candle series extended BACK before its 2022 launch using SVXY (the displayed short
+// leg) — each pre-launch day is SVXY's daily O/H/L/C move ×svF, chained and anchored so it
+// connects to the first real SVIX bar. Cached per ALT_SVIX load.
+let _altFull=null, _altFullRef=null;
+function altCandlesFull(){
+  if(!ALT_SVIX||!ALT_SVIX.length) return ALT_SVIX||[];
+  if(!OHLC||!OHLC.length) return ALT_SVIX;
+  if(_altFullRef===ALT_SVIX && _altFull) return _altFull;
+  // Daily scaled return is floored at -95% (a leveraged ETF can't go below zero) — without
+  // this a >50% SVXY down-day (e.g. Feb-2018) ×2 sends the synthetic price negative.
+  const f=altLeverage().svF||2.0, base=OHLC, jDate=ALT_SVIX[0][0], n=base.length;
+  const lev=r=>Math.max(-0.95, f*r);
+  const sc=new Array(n); sc[0]=base[0][4];
+  for(let i=1;i<n;i++){ const pc=base[i-1][4]; sc[i]=sc[i-1]*(1+lev(pc>0?base[i][4]/pc-1:0)); }
+  let jIdx=base.findIndex(a=>a[0]>=jDate);
+  if(jIdx<1){ _altFull=ALT_SVIX; _altFullRef=ALT_SVIX; return ALT_SVIX; }
+  const anchor = sc[jIdx]>0 ? ALT_SVIX[0][4]/sc[jIdx] : 1;
+  const out=[];
+  for(let i=1;i<jIdx;i++){ const pc=base[i-1][4], prev=sc[i-1]*anchor, c=sc[i]*anchor;
+    const sr=x=>pc>0?prev*(1+lev(x/pc-1)):prev;
+    let o=sr(base[i][1]), h=sr(base[i][2]), l=sr(base[i][3]);
+    h=Math.max(h,o,c); l=Math.min(l,o,c);
+    out.push([base[i][0],+o.toFixed(4),+h.toFixed(4),+l.toFixed(4),+c.toFixed(4)]); }
+  for(const a of ALT_SVIX) out.push(a);
+  _altFull=out; _altFullRef=ALT_SVIX; return out;
+}
 function altTradePct(t){
   const {svF,uvF}=altLeverage();
   const sv = CHART_MODE==='blend' ? svF*0.5 : svF;   // blend halves the short (SVIX) leg
@@ -985,11 +1011,13 @@ const ebClass = r => r==='TP'?'eb-tp':r==='SL'||r==='TRAIL'||r==='TIMESTOP'?'eb-
 // ── Exit-reason bar for the Trades table (value vs threshold, like the monitor) ──
 // Hold band = muted yellow; the exit tail = cash-gold, bright since the exit fired;
 // white tick = the value that triggered, dim tick = the threshold.
-function _exrBar(lo,hi,thr,val,fmt,ge){
+function _exrBar(lo,hi,thr,val,fmt,ge,holdCol){
   if(val==null||isNaN(val)||hi<=lo) return '';
   const W=130,H=20,by=2,bh=5,pad=1; const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
   const h0=ge?lo:thr, h1=ge?thr:hi, e0=ge?thr:lo, e1=ge?hi:thr;
-  const rH=`<rect x="${sx(h0).toFixed(1)}" y="${by}" width="${Math.max(0,sx(h1)-sx(h0)).toFixed(1)}" height="${bh}" rx="2.5" fill="var(--cashmut)" opacity="0.5"/>`;
+  // Hold band = dull teal (short-vol) / dull red (long-vol), matching the mini monitor;
+  // exit band = bright yellow (the side past the threshold that fired the exit).
+  const rH=`<rect x="${sx(h0).toFixed(1)}" y="${by}" width="${Math.max(0,sx(h1)-sx(h0)).toFixed(1)}" height="${bh}" rx="2.5" fill="${holdCol||'var(--cashmut)'}" opacity="0.5"/>`;
   const rE=`<rect x="${sx(e0).toFixed(1)}" y="${by}" width="${Math.max(0,sx(e1)-sx(e0)).toFixed(1)}" height="${bh}" rx="2.5" fill="#d7b150" opacity="1"/>`;
   const mx=sx(val).toFixed(1), tx=sx(thr).toFixed(1);
   const lab=`<text x="1" y="${H-1}" font-size="7" fill="var(--dim)">${fmt(lo)}</text>`
@@ -1016,16 +1044,19 @@ function exitReasonMeta(t){
   const sv=tIsSV(t), r=t.exit_reason, b=_tBarBefore(t.exit_date)||{};
   const fpc=v=>(v*100).toFixed(0)+'%', f2=v=>(+v).toFixed(2);
   const tp=sv?0.42728:0.13601;
+  const hc=sv?'var(--tealmut)':'var(--coralmut)';   // dull hold band colour, per side
   switch(r){
-    case 'TP': return {name:'Take Profit',desc:'Unrealized gain reached the profit target',bar:_exrBar(-0.05,tp*1.2,tp,t.pnl_pct,fpc,true)};
-    case 'SL': return {name:'Stop Loss',desc:'Unrealized loss hit the hard stop (UVXY)',bar:_exrBar(-0.0271*1.8,0.04,-0.0271,t.pnl_pct,fpc,false)};
+    case 'TP': return {name:'Take Profit',desc:'Unrealized gain reached the profit target',bar:_exrBar(-0.05,tp*1.2,tp,t.pnl_pct,fpc,true,hc)};
+    case 'SL': return {name:'Stop Loss',desc:'Unrealized loss hit the hard stop (UVXY)',bar:_exrBar(-0.0271*1.8,0.04,-0.0271,t.pnl_pct,fpc,false,hc)};
     case 'TRAIL': { const TR=0.09162, pk=_tradePeakPnl(t), gb=(pk!=null)?Math.max(0,pk-(t.pnl_pct||0)):null;
-      return {name:'Trailing Stop',desc:'Gain gave back a set band from its running peak',bar:_exrBar(0,Math.max(TR*1.5,(gb||0)*1.15),TR,gb,fpc,true)}; }
-    case 'TIMESTOP': return {name:'Time Stop',desc:'Held to the max horizon without enough gain',bar:_exrBar(0,Math.max(48,t.days*1.1),40,t.days,v=>(v|0)+'d',true)};
-    case 'NEG_VOL': return {name:'Neg-Vol Exit (OBV)',desc:'OBV negative-volume divergence while in profit (>+5%)',bar:_exrBar(-0.06,Math.max(0.09,(t.pnl_pct||0)+0.05),0.05,t.pnl_pct,fpc,true)};
-    case 'MOVE_HI': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress spiked — exits short-vol',bar:_exrBar(0,16,11,b.move_vix_ratio,f2,true)};
-    case 'MOVE_LO': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress collapsed — exits long-vol',bar:_exrBar(0,16,2,b.move_vix_ratio,f2,false)};
-    case 'RATIO': return {name:'Term-Structure Rollover',desc:'Near curve flipped against the position',bar:_exrBar(0.75,1.20,sv?1.096:0.932,b.ratio_1m_3m,f2,sv)};
+      return {name:'Trailing Stop',desc:'Gain gave back a set band from its running peak',bar:_exrBar(0,Math.max(TR*1.5,(gb||0)*1.15),TR,gb,fpc,true,hc)}; }
+    case 'TIMESTOP': return {name:'Time Stop',desc:'Held to the max horizon without enough gain',bar:_exrBar(0,Math.max(48,t.days*1.1),40,t.days,v=>(v|0)+'d',true,hc)};
+    case 'NEG_VOL': return {name:'Neg-Vol Exit (OBV)',desc:'OBV negative-volume divergence while in profit (>+5%)',bar:_exrBar(-0.06,Math.max(0.09,(t.pnl_pct||0)+0.05),0.05,t.pnl_pct,fpc,true,hc)};
+    case 'MOVE_HI': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress spiked — exits short-vol',bar:_exrBar(0,16,11,b.move_vix_ratio,f2,true,hc)};
+    case 'MOVE_LO': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress collapsed — exits long-vol',bar:_exrBar(0,16,2,b.move_vix_ratio,f2,false,hc)};
+    // SVXY rollover exits when the 1M/3M ratio rises out of the bull zone (≥0.932); UVXY
+    // rollover exits when it re-steepens (<1.096). (Thresholds had been swapped.)
+    case 'RATIO': return {name:'Term-Structure Rollover',desc:'Near curve flipped against the position',bar:_exrBar(0.75,1.20,sv?0.932:1.096,b.ratio_1m_3m,f2,sv,hc)};
   }
   return {name:r,desc:'',bar:''};
 }
@@ -2182,7 +2213,7 @@ function updateMarket(){
 }
 let CHART_MODE='blend';   // default to the recommended SVIX½ / UVIX blend
 function displayCandles(){
-  const src = aMode() ? ALT_SVIX : OHLC;
+  const src = aMode() ? altCandlesFull() : OHLC;
   if(!src) return [];
   const out = src.map(a=>({time:a[0],open:a[1],high:a[2],low:a[3],close:a[4]}));
   // Drop a degenerate forming bar (zero range = just-opened placeholder before
@@ -2348,7 +2379,9 @@ function miniToggle(){ const mm=document.getElementById('mini-monitor'); if(!mm)
   const c=mm.classList.toggle('mini-collapsed');
   try{ localStorage.setItem('miniCollapsed', c?'1':'0'); }catch(_){}
   const b=mm.querySelector('.mini-exp'); if(b) b.innerHTML = c?'&#11122;':'&#11121;';
-  if(!c) scaleMini(); }
+  scaleMini();   // always re-fit: on collapse this resets the transform so the title bar
+                 // sits at natural size (it kept the expanded scale before → resized on hover)
+}
 if(!window._miniResize){ window.addEventListener('resize',()=>scaleMini());
   document.addEventListener('fullscreenchange',()=>setTimeout(scaleMini,60)); window._miniResize=true; }
 function replayEnter(){ if(!window.Replay) return;
@@ -2676,7 +2709,7 @@ function renderSignalMonitor(histBar){
   // 'd' = a permanently-dull neutral band (spike/crush middle; never brightens).
   const _zoneStyle=(z,val,trig)=>{ const c=z[2]; const hit=val!=null&&!isNaN(val)&&val>=z[0]&&val<=z[1]&&GBRIGHT;
     if(c==='P') return trig?{fill:POSCM,op:0.45}:{fill:POSC,op:0.95};   // dull the hold band when an exit fires
-    if(c==='C') return (hit&&trig)?{fill:CASHB,op:1}:{fill:CASHD,op:1};
+    if(c==='C') return trig?{fill:CASHB,op:1}:{fill:CASHD,op:1};         // exit band brightens whenever the exit fired
     if(c==='d') return {fill:'var(--cashmut)',op:0.5};
     // 'R'/'T' — spike/crush extremes. Brighten when the reading reaches the tail
     // UNLESS we're already in the position that signal points to (crush→UVXY, spike
@@ -3055,12 +3088,10 @@ function renderSignalMonitor(histBar){
     }
     // When N/A: if a reading still exists (the market-based exits when flat, or the
     // UVXY stop-loss while holding SVXY), show the bar DULLED rather than hatched.
-    // Precondition unmet → the exit physically can't fire yet, so dull the bar even
-    // though the reading exists: Trailing not armed (peak < +13.4%), or Neg-Vol with no
-    // OBV divergence present. Keeps the marker from sitting brightly in the exit zone.
-    const precOff = (i===2 && !armed) || (i===4 && !b.neg_vol);
+    // (A held, not-yet-fired exit now reads as a normal bright hold band — consistent with
+    // its "Hold" status text; it only brightens yellow when it actually fires.)
     const hasVal = o && o.v!=null && !isNaN(o.v);
-    return {...o, hatch: off && !hasVal, dull: (off && hasVal) || (precOff && hasVal && !off), trig: trig && !precOff }; };
+    return {...o, hatch: off && !hasVal, dull: off && hasVal, trig }; };
   const xspec=[0,1,2,3,4,5,6].map(exitSpec);
   xspec.forEach((s,i)=>{ exitRules[i][7]=gaugeHtml(s.lo,s.hi,s.z,s.v,s.tip,s.fmt,{hatch:s.hatch,trig:s.trig,dull:s.dull}); });
   const _exClk=[['exTP','__pnl',openpnl],['exSL','__pnl',openpnl],['exTRAIL','__pnl',openpnl],['exTIME','__days',(inPos?1:null)],
