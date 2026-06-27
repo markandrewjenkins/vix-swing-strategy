@@ -419,7 +419,7 @@ tr:hover td { background: #1f1a10 }
 /* Fixed layout so columns stay put when hovering between days (the Current cell
    gains/loses a clock icon, values change width — none of it should reflow). */
 /* How-it-works explainer */
-.howto { font-size:0.9rem; line-height:1.6; color:var(--text); max-width:880px; }
+.howto { font-size:0.9rem; line-height:1.6; color:var(--text); max-width:none; }
 .howto h3 { color:var(--yellow); font-size:0.95rem; margin:16px 0 4px; font-weight:600; }
 .howto h3:first-child { margin-top:0; }
 .howto p { margin:0 0 6px; }
@@ -502,7 +502,7 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
   background:rgba(20,17,11,0.82); color:var(--yellow); border:1px solid var(--border2); border-radius:6px;
   font-size:0.74rem; line-height:1.1; padding:1px 6px; cursor:pointer; font-family:'Saira',sans-serif; }
 .mini-mon .mini-exp:hover { background:rgba(240,152,47,0.18); }
-.mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; display:flex; align-items:center; gap:8px; white-space:nowrap; }
 .mini-mon .mini-pos { text-align:left; font-weight:400; font-size:0.68rem; margin-bottom:3px; white-space:nowrap; }
 .mini-mon .mini-sub { color:var(--dim); text-transform:uppercase; letter-spacing:0.06em; font-size:0.54rem; margin:8px 0 1px; border-top:1px solid var(--border); padding-top:6px; }
 .mini-mon .mini-help { pointer-events:auto; cursor:help; color:var(--dim); margin-left:3px; }
@@ -632,7 +632,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
 <div id="loading">
   <div class="spinner"></div>
-  <div style="color:var(--dim);font-family:'Saira', sans-serif;font-size:0.75rem;letter-spacing:0.1em">Establishing uplink &middot; decrypting the volatility surface&hellip;</div>
+  <div style="color:var(--dim);font-family:'Saira', sans-serif;font-size:0.75rem;letter-spacing:0.1em">Establishing uplink&hellip;</div>
 </div>
 
 <div id="error-state">
@@ -909,8 +909,6 @@ const FLAVOR_ON = true;
   const lines=[
     'Read the structure · trade the regime · stay free of the noise',
     'The right read in the wrong regime makes all the difference',
-    'Volatility is a cage — term structure is the key',
-    'Fear is priced; position accordingly',
     'The curve speaks; the disciplined listen',
     'Patience is a position'
   ];
@@ -918,9 +916,9 @@ const FLAVOR_ON = true;
     const mc=document.getElementById('main-content'), ft=document.getElementById('flavor-footer');
     if(!FLAVOR_ON){ if(mc) mc.classList.add('flavor-off'); return; }
     try{ console.log('%c// link established — the volatility surface is online','color:#52e6bd;font-family:monospace'); }catch(_){}
-    if(!ft) return; let i=0;
-    const show=()=>{ ft.style.opacity='0'; setTimeout(()=>{ ft.textContent=lines[i%lines.length]; ft.style.opacity=''; i++; }, 350); };
-    show(); setInterval(show, 13000);
+    if(!ft) return;
+    // One line per page load (chosen at random); does NOT rotate while idle.
+    ft.textContent = lines[Math.floor(Math.random()*lines.length)];
   }
   if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
 })();
@@ -1006,7 +1004,14 @@ function _tBarBefore(date){ if(!window._tbd){ window._tbd={}; (DATA.bar_history|
   const ds=window._tbdDates; let lo=0,hi=ds.length-1,res=null;
   while(lo<=hi){const m=(lo+hi)>>1; if(ds[m]<date){res=ds[m];lo=m+1;}else hi=m-1;}
   return res?window._tbd[res]:(window._tbd[date]||null); }
-// Returns {name, desc, bar} for a trade's exit reason.
+// Peak open P&L reached during a trade (for the trailing give-back bar).
+function _tradePeakPnl(t){
+  const m = window._opMap || (window._opMap={}, (DATA.bar_history||[]).forEach(x=>{ if(x.open_pnl_pct!=null) window._opMap[x.date]=x.open_pnl_pct; }), window._opMap);
+  let pk=null; for(const d in m){ if(d>=t.entry_date && d<=t.exit_date){ const v=m[d]; if(pk==null||v>pk) pk=v; } }
+  return pk;
+}
+// Returns {name, desc, bar} for a trade's exit reason. Each bar plots the rule's TRIGGER
+// metric vs its threshold, so the white marker always lands in the bright (exit) zone.
 function exitReasonMeta(t){
   const sv=tIsSV(t), r=t.exit_reason, b=_tBarBefore(t.exit_date)||{};
   const fpc=v=>(v*100).toFixed(0)+'%', f2=v=>(+v).toFixed(2);
@@ -1014,9 +1019,10 @@ function exitReasonMeta(t){
   switch(r){
     case 'TP': return {name:'Take Profit',desc:'Unrealized gain reached the profit target',bar:_exrBar(-0.05,tp*1.2,tp,t.pnl_pct,fpc,true)};
     case 'SL': return {name:'Stop Loss',desc:'Unrealized loss hit the hard stop (UVXY)',bar:_exrBar(-0.0271*1.8,0.04,-0.0271,t.pnl_pct,fpc,false)};
-    case 'TRAIL': return {name:'Trailing Stop',desc:'Gain fell a set band below its running peak',bar:_exrBar(-0.05,Math.max(0.2,t.pnl_pct+0.05),0.09162,t.pnl_pct,fpc,false)};
+    case 'TRAIL': { const TR=0.09162, pk=_tradePeakPnl(t), gb=(pk!=null)?Math.max(0,pk-(t.pnl_pct||0)):null;
+      return {name:'Trailing Stop',desc:'Gain gave back a set band from its running peak',bar:_exrBar(0,Math.max(TR*1.5,(gb||0)*1.15),TR,gb,fpc,true)}; }
     case 'TIMESTOP': return {name:'Time Stop',desc:'Held to the max horizon without enough gain',bar:_exrBar(0,Math.max(48,t.days*1.1),40,t.days,v=>(v|0)+'d',true)};
-    case 'NEG_VOL': return {name:'Negative Vol Carry',desc:'Roll yield turned negative (backwardation)',bar:_exrBar(-0.12,0.18,0,b.contango,fpc,false)};
+    case 'NEG_VOL': return {name:'Neg-Vol Exit (OBV)',desc:'OBV negative-volume divergence while in profit (>+5%)',bar:_exrBar(-0.06,Math.max(0.09,(t.pnl_pct||0)+0.05),0.05,t.pnl_pct,fpc,true)};
     case 'MOVE_HI': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress spiked — exits short-vol',bar:_exrBar(0,16,11,b.move_vix_ratio,f2,true)};
     case 'MOVE_LO': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress collapsed — exits long-vol',bar:_exrBar(0,16,2,b.move_vix_ratio,f2,false)};
     case 'RATIO': return {name:'Term-Structure Rollover',desc:'Near curve flipped against the position',bar:_exrBar(0.75,1.20,sv?1.096:0.932,b.ratio_1m_3m,f2,sv)};
@@ -1611,14 +1617,14 @@ function renderRisk(){
   const step=Math.max(1,Math.floor((n+1)/120));
   const thin=a=>a.filter((_,i)=>i%step===0);
   mkChart('mcChart',{ type:'line', data:{ labels:thin(labels), datasets:[
-      {data:thin(p5),  borderColor:'rgba(0,0,0,0)', pointRadius:0, fill:false},
-      {data:thin(p95), borderColor:'rgba(0,0,0,0)', pointRadius:0, backgroundColor:'rgba(84,210,239,0.10)', fill:'-1'},
-      {data:thin(p25), borderColor:'rgba(0,0,0,0)', pointRadius:0, fill:false},
-      {data:thin(p75), borderColor:'rgba(0,0,0,0)', pointRadius:0, backgroundColor:'rgba(82,230,189,0.18)', fill:'-1'},
-      {data:thin(p50), borderColor:YELLOW, borderWidth:2, pointRadius:0, fill:false},
+      {label:'5th percentile',  data:thin(p5),  borderColor:'rgba(0,0,0,0)', pointRadius:0, pointHoverRadius:4, fill:false},
+      {label:'95th percentile', data:thin(p95), borderColor:'rgba(0,0,0,0)', pointRadius:0, pointHoverRadius:4, backgroundColor:'rgba(84,210,239,0.10)', fill:'-1'},
+      {label:'25th percentile', data:thin(p25), borderColor:'rgba(0,0,0,0)', pointRadius:0, pointHoverRadius:4, fill:false},
+      {label:'75th percentile', data:thin(p75), borderColor:'rgba(0,0,0,0)', pointRadius:0, pointHoverRadius:4, backgroundColor:'rgba(82,230,189,0.18)', fill:'-1'},
+      {label:'Median', data:thin(p50), borderColor:YELLOW, borderWidth:2, pointRadius:0, pointHoverRadius:4, fill:false},
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      tooltip:{callbacks:{title:c=>'After '+c[0].label+' trades',label:c=>' $'+abbrev(c.parsed.y)}}},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},
+      tooltip:{callbacks:{title:c=>'After '+c[0].label+' trades',label:c=>' '+c.dataset.label+': $'+abbrev(c.parsed.y)}}},
       scales:{ x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:12,family:FONT}},grid:{color:GRID},title:{display:true,text:'Trade #',color:TICK}},
         y:{type:'logarithmic',ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>'$'+abbrev(v)},grid:{color:GRID}} } } });
   const fmtR=v=>((v/start-1)>=0?'+':'')+((v/start-1)*100).toLocaleString('en-US',{maximumFractionDigits:0})+'%';
@@ -1695,9 +1701,7 @@ function renderMarkets(){
   const rgBg={id:'rgbg',beforeDatasetsDraw(ch){const a=ch.chartArea;if(!a)return;const ctx=ch.ctx;
     const g=ctx.createLinearGradient(a.left,a.bottom,a.right,a.top);
     g.addColorStop(0,'rgba(242,86,58,0.13)');g.addColorStop(0.5,'rgba(255,255,255,0.02)');g.addColorStop(1,'rgba(82,230,189,0.15)');
-    ctx.save();ctx.fillStyle=g;ctx.fillRect(a.left,a.top,a.right-a.left,a.bottom-a.top);
-    ctx.font='600 11px '+FONT;ctx.fillStyle='rgba(82,230,189,0.5)';ctx.textAlign='right';ctx.fillText('better →',a.right-8,a.top+14);
-    ctx.fillStyle='rgba(242,86,58,0.5)';ctx.textAlign='left';ctx.fillText('← worse',a.left+8,a.bottom-8);ctx.restore();}};
+    ctx.save();ctx.fillStyle=g;ctx.fillRect(a.left,a.top,a.right-a.left,a.bottom-a.top);ctx.restore();}};
   // Glow halo behind the strategy diamond (last dataset).
   const stratGlow={id:'stratglow',afterDatasetsDraw(ch){const mi=ch.getDatasetMeta(ch.data.datasets.length-1);
     const el=mi&&mi.data&&mi.data[0];if(!el)return;const p=el.getProps(['x','y'],true);const ctx=ch.ctx;
@@ -2671,7 +2675,7 @@ function renderSignalMonitor(histBar){
   // reading geometrically sits in the zone (e.g. trailing needs its arm level too).
   // 'd' = a permanently-dull neutral band (spike/crush middle; never brightens).
   const _zoneStyle=(z,val,trig)=>{ const c=z[2]; const hit=val!=null&&!isNaN(val)&&val>=z[0]&&val<=z[1]&&GBRIGHT;
-    if(c==='P') return {fill:POSC,op:0.95};
+    if(c==='P') return trig?{fill:POSCM,op:0.45}:{fill:POSC,op:0.95};   // dull the hold band when an exit fires
     if(c==='C') return (hit&&trig)?{fill:CASHB,op:1}:{fill:CASHD,op:1};
     if(c==='d') return {fill:'var(--cashmut)',op:0.5};
     // 'R'/'T' — spike/crush extremes. Brighten when the reading reaches the tail
@@ -3299,15 +3303,13 @@ function renderSignalMonitor(histBar){
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${posCell('Projected',proj,'var(--white)')}</div>`;
     // Combination readout: when flat show entry alignment (SV 6/6, LV 4/4); when in a
     // position show the exit tally (how many of the 7 exit rules say hold vs exit).
-    const _cmboTip=stripTags(explain);   // plain-language explanation of THIS decision (hover)
     const _cmbo = inPos
       ? `Hold ${_pips(exHold,nExit,holdColor)} ${exHold}/${nExit} &nbsp; Exit ${_pips(exExit,nExit,'var(--cashc)')} ${exExit}/${nExit}`
       : `SV ${_pips(svxy6,6,'var(--teal)')} ${svxy6}/6 &nbsp; LV ${_pips(uvxy4,4,'var(--coral)')} ${uvxy4}/4`;
-    // Mini status badge: override taking over, or a single blocker holding an entry back.
-    const _miniBadge = ovrActive ? `<b style="color:${ovrColor}">${ovrLabel}</b> &middot; `
-      : _blocked ? `<b style="color:var(--cashc)">HELD BACK BY ${(''+_blkName).toUpperCase()}</b> &middot; ` : '';
+    // Override/blocker context lives in the explanation below (not as a badge here, which
+    // stretched the line off the card); the counts dim when superseded as a subtle cue.
     const _cmboDim = (!inPos && (ovrActive||_blocked)) ? ' style="opacity:0.5"' : '';
-    mh+=`<div class="mini-combo">${help(_cmboTip)} ${_miniBadge}<span${_cmboDim}>${_cmbo}</span></div>`;
+    mh+=`<div class="mini-combo"><span${_cmboDim}>${_cmbo}</span></div>`;
     mh+=`<div class="mini-why">${explain}</div>`;   // plain-language methodology for this trade
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5],_dullTerm(i)), _dullTerm(i)));
@@ -3327,7 +3329,8 @@ function renderSignalMonitor(histBar){
     const _mm=document.getElementById('mini-monitor');
     let _miniColl=false; try{ _miniColl=localStorage.getItem('miniCollapsed')==='1'; }catch(_){}
     _mm.classList.toggle('mini-collapsed', _miniColl);
-    _mm.innerHTML='<div class="mini-inner"><div class="mini-hd"><span>Live signals'+(hist?' &middot; '+b.date:'')+'</span>'
+    // Collapsed → constant title (no hovered-bar date) so the minimized bar never resizes.
+    _mm.innerHTML='<div class="mini-inner"><div class="mini-hd"><span>Live signals'+((hist&&!_miniColl)?' &middot; '+b.date:'')+'</span>'
       +'<button class="mini-exp" title="Expand / collapse" onclick="miniToggle()">'+(_miniColl?'&#11122;':'&#11121;')+'</button></div>'
       +'<div class="mini-body">'+mh+'</div></div>';
     scaleMini();   // fit the card to the chart height after each render
