@@ -495,12 +495,14 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .mini-mon .mini-inner { position:absolute; top:0; right:0; transform-origin:top right; width:252px;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
-.mini-mon.mini-collapsed .mini-inner { display:none; }
-.mini-mon .mini-exp { position:absolute; top:0; right:0; z-index:6; pointer-events:auto;
+/* Collapse only the body — the title bar stays so you remember what's minimized. */
+.mini-mon.mini-collapsed .mini-body { display:none; }
+.mini-mon.mini-collapsed .mini-hd { margin-bottom:0; }
+.mini-mon .mini-exp { margin-left:auto; pointer-events:auto;
   background:rgba(20,17,11,0.82); color:var(--yellow); border:1px solid var(--border2); border-radius:6px;
-  font-size:0.74rem; line-height:1.1; padding:2px 6px; cursor:pointer; font-family:'Saira',sans-serif; }
+  font-size:0.74rem; line-height:1.1; padding:1px 6px; cursor:pointer; font-family:'Saira',sans-serif; }
 .mini-mon .mini-exp:hover { background:rgba(240,152,47,0.18); }
-.mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; padding-right:26px; display:flex; align-items:center; }
+.mini-mon .mini-hd { color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; font-size:0.58rem; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
 .mini-mon .mini-pos { text-align:left; font-weight:400; font-size:0.68rem; margin-bottom:3px; white-space:nowrap; }
 .mini-mon .mini-sub { color:var(--dim); text-transform:uppercase; letter-spacing:0.06em; font-size:0.54rem; margin:8px 0 1px; border-top:1px solid var(--border); padding-top:6px; }
 .mini-mon .mini-help { pointer-events:auto; cursor:help; color:var(--dim); margin-left:3px; }
@@ -562,12 +564,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 .flavor-footer { text-align:center; margin:26px 0 14px; font-family:'Saira',sans-serif;
   font-size:0.72rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim);
   opacity:0.55; transition:opacity .8s ease; }
-.flavor-footer .fl-sep { color:var(--teal); opacity:0.7; margin:0 8px; }
-.howto-wrap { position:relative; }
-.vitruvian-bg { position:absolute; top:6px; right:14px; width:128px; height:128px;
-  color:var(--teal); opacity:0.06; pointer-events:none; z-index:0; }
-.howto-wrap > * { position:relative; z-index:1; }
-.flavor-off .flavor-footer, .flavor-off .vitruvian-bg { display:none !important; }
+.flavor-off .flavor-footer { display:none !important; }
 
 </style>
 </head>
@@ -635,7 +632,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
 <div id="loading">
   <div class="spinner"></div>
-  <div style="color:var(--dim);font-family:'Saira', sans-serif;font-size:0.75rem;letter-spacing:0.1em">Loading backtest_results.json ...</div>
+  <div style="color:var(--dim);font-family:'Saira', sans-serif;font-size:0.75rem;letter-spacing:0.1em">Establishing uplink &middot; decrypting the volatility surface&hellip;</div>
 </div>
 
 <div id="error-state">
@@ -823,17 +820,17 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       <div class="pb" id="mc-note" style="padding-top:0;font-size:0.78rem;color:var(--dim)"></div>
     </div>
     <div class="row" style="margin-top:12px">
-      <div class="panel" style="flex:1 1 420px"><div class="ph"><span>Rolling 12-month performance</span></div>
+      <div class="panel" style="flex:1 1 320px"><div class="ph"><span>Rolling 12-month performance</span></div>
         <div class="pb" style="position:relative;height:280px"><canvas id="rollChart"></canvas></div></div>
       <div class="panel" style="flex:1 1 320px"><div class="ph"><span>Trade return distribution</span></div>
         <div class="pb" style="position:relative;height:280px"><canvas id="distChart"></canvas></div></div>
     </div>
     <div class="row" style="margin-top:12px">
-      <div class="panel" style="flex:1 1 380px"><div class="ph"><span>MAE — adverse excursion vs outcome</span>
+      <div class="panel" style="flex:1 1 320px"><div class="ph"><span>MAE — adverse excursion vs outcome</span>
         <span style="font-size:0.7rem;color:var(--dim)">how far each trade went underwater</span></div>
         <div class="pb" style="position:relative;height:300px"><canvas id="maeChart"></canvas></div>
         <div class="pb" style="padding-top:0;font-size:0.78rem;color:var(--dim);line-height:1.5"><b style="color:var(--teal)">MAE (Maximum Adverse Excursion)</b> = the <i>worst</i> unrealised loss a trade showed before it closed. Each dot is one trade: x = how deep underwater it went while open, y = its final result. Losers hugging the top (small MAE) mean stops cut losses early; green dots far left are winners the strategy had to "sit through heat" to keep.</div></div>
-      <div class="panel" style="flex:1 1 380px"><div class="ph"><span>MFE — favourable excursion vs outcome</span>
+      <div class="panel" style="flex:1 1 320px"><div class="ph"><span>MFE — favourable excursion vs outcome</span>
         <span style="font-size:0.7rem;color:var(--dim)">peak open profit vs what was kept</span></div>
         <div class="pb" style="position:relative;height:300px"><canvas id="mfeChart"></canvas></div>
         <div class="pb" style="padding-top:0;font-size:0.78rem;color:var(--dim);line-height:1.5"><b style="color:var(--teal)">MFE (Maximum Favourable Excursion)</b> = the <i>best</i> unrealised profit a trade reached before it closed. x = peak open gain, y = final result. Dots far right but low on y are "giveback" — profit that wasn't captured; points near the diagonal mean exits track the peak well.</div></div>
@@ -859,21 +856,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
   <!-- ══ HOW IT WORKS TAB ═════════════════════════════════════════════ -->
   <div id="tab-howto" style="display:none">
-    <div class="panel howto-wrap"><div class="ph"><span>How the strategy works</span></div>
-      <svg class="vitruvian-bg" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="54" r="33" fill="none" stroke="currentColor" stroke-width="0.7"/>
-        <rect x="18" y="21" width="64" height="66" fill="none" stroke="currentColor" stroke-width="0.7"/>
-        <circle cx="50" cy="29" r="5" fill="none" stroke="currentColor" stroke-width="0.7"/>
-        <line x1="50" y1="34" x2="50" y2="63" stroke="currentColor" stroke-width="0.7"/>
-        <line x1="50" y1="41" x2="22" y2="33" stroke="currentColor" stroke-width="0.7"/>
-        <line x1="50" y1="41" x2="78" y2="33" stroke="currentColor" stroke-width="0.7"/>
-        <line x1="50" y1="41" x2="20" y2="49" stroke="currentColor" stroke-width="0.7"/>
-        <line x1="50" y1="41" x2="80" y2="49" stroke="currentColor" stroke-width="0.7"/>
-        <line x1="50" y1="63" x2="37" y2="86" stroke="currentColor" stroke-width="0.7"/>
-        <line x1="50" y1="63" x2="63" y2="86" stroke="currentColor" stroke-width="0.7"/>
-        <line x1="50" y1="63" x2="47" y2="87" stroke="currentColor" stroke-width="0.7"/>
-        <line x1="50" y1="63" x2="53" y2="87" stroke="currentColor" stroke-width="0.7"/>
-      </svg>
+    <div class="panel"><div class="ph"><span>How the strategy works</span></div>
       <div class="pb howto">
         <h3>The idea</h3>
         <p>This is a VIX <b>term-structure</b> swing strategy. It trades two volatility ETFs: <b>SVXY</b>
@@ -926,15 +909,17 @@ const FLAVOR_ON = true;
   const lines=[
     'Read the structure · trade the regime · stay free of the noise',
     'The right read in the wrong regime makes all the difference',
-    'Choice is an illusion — drawdown is not',
-    'Augmentations online · the vol curve remembers'
+    'Volatility is a cage — term structure is the key',
+    'Fear is priced; position accordingly',
+    'The curve speaks; the disciplined listen',
+    'Patience is a position'
   ];
   function init(){
     const mc=document.getElementById('main-content'), ft=document.getElementById('flavor-footer');
     if(!FLAVOR_ON){ if(mc) mc.classList.add('flavor-off'); return; }
-    try{ console.log('%c// augmentations online · the vol curve remembers','color:#52e6bd;font-family:monospace'); }catch(_){}
+    try{ console.log('%c// link established — the volatility surface is online','color:#52e6bd;font-family:monospace'); }catch(_){}
     if(!ft) return; let i=0;
-    const show=()=>{ ft.style.opacity='0'; setTimeout(()=>{ ft.innerHTML='<span class="fl-sep">&#9670;</span> '+lines[i%lines.length]+' <span class="fl-sep">&#9670;</span>'; ft.style.opacity=''; i++; }, 350); };
+    const show=()=>{ ft.style.opacity='0'; setTimeout(()=>{ ft.textContent=lines[i%lines.length]; ft.style.opacity=''; i++; }, 350); };
     show(); setInterval(show, 13000);
   }
   if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
@@ -2349,7 +2334,7 @@ function buildDaily(){
 // capped so it never exceeds ~42% of the chart width. Anchored to its top-right.
 function scaleMini(){ const mm=document.getElementById('mini-monitor'); if(!mm) return;
   const inner=mm.querySelector('.mini-inner'); if(!inner) return;
-  if(mm.classList.contains('mini-collapsed')) return;
+  if(mm.classList.contains('mini-collapsed')){ inner.style.transform='none'; return; }  // title bar only
   inner.style.transform='none';                                  // measure natural size
   const H=mm.clientHeight, wrap=mm.parentElement, maxW=(wrap?wrap.clientWidth:600)*0.42;
   const ih=inner.offsetHeight, iw=inner.offsetWidth; if(!ih||!iw) return;
@@ -3117,45 +3102,42 @@ function renderSignalMonitor(histBar){
   rows.forEach((r,i)=>{ r[7]=gaugeHtml(egauge[i].lo,egauge[i].hi,egauge[i].z,egauge[i].v,egauge[i].tip,egauge[i].fmt,{dull:_dullTerm(i)}); });
   // Explain the ACTUAL decision (proj), so the readout never contradicts the result.
   const _pk = kindOf(proj);
+  const _instTxt = isUV?'UVXY (long vol)':'SVXY (short vol)';
+  // All exit rules that fired this bar (any single one closes the position; several can
+  // fire together). Listed in the exit explanation so multi-trigger exits are explicit.
+  const _firedExits = [0,1,2,3,4,5,6].filter(i=>exState(i)==='exit').map(i=>exitRules[i][0]);
   let _why;
   if(inPos){
-    if(_pk==='cash') _why = `holding ${isUV?'long vol':'short vol'} &rarr; <b style="color:var(--cashc)">exit</b> &mdash; an exit indicator fired`;
+    if(_pk==='cash') _why = `holding ${isUV?'long vol':'short vol'} &rarr; <b style="color:var(--cashc)">exit</b> &mdash; ${_firedExits.length>1?_firedExits.length+' exit rules fired':'an exit rule fired'}`;
     else _why = `<b style="color:${isUV?'var(--coral)':'var(--teal)'}">holding ${isUV?'long vol':'short vol'}</b> &mdash; no exit triggered; entry signals don't apply while in a position`;
   } else if(_pk==='sv') _why = svxy6===6 ? `all 6 short-vol signals aligned &rarr; <b style="color:var(--teal)">SVXY</b>` : `spike-fade entry &rarr; <b style="color:var(--teal)">SVXY</b> (buy the vol dip)`;
-  else if(_pk==='uv') _why = crush ? `<b style="color:var(--coral)">crush override</b> &rarr; UVXY` : (uvxy4===4 ? `full bear regime (4/4) &rarr; <b style="color:var(--coral)">UVXY</b>` : `bear / vol-follow path &rarr; <b style="color:var(--coral)">UVXY</b>`);
+  else if(_pk==='uv') _why = crush ? `<b style="color:var(--coral)">crush override</b> &rarr; UVXY` : (ovrUV ? `<b style="color:var(--coral)">vol-follow override</b> &rarr; UVXY` : `full bear regime (4/4) &rarr; <b style="color:var(--coral)">UVXY</b>`);
   else if(_blocked) _why = _blkIdx===-1
-    ? `bear regime ready (4/4) but the <b style="color:var(--cashc)">UVXY gate</b> blocks the long-vol entry &rarr; <b style="color:var(--cashc)">cash</b>`
-    : `short-vol is one signal short &mdash; <b style="color:var(--cashc)">${_blkName}</b> is holding it back &rarr; <b style="color:var(--cashc)">cash</b>`;
-  else _why = `neither side is complete &rarr; <b style="color:var(--cashc)">stay / cash</b> &mdash; contrary single signals don't flip the trade; a side must hit its <i>full</i> set`;
-  // ── Plain-language explanation: which indicators drove the trade and why the
-  //    contrary ones don't matter. Always reconciles with the actual decision. ──
-  const _nm=['Contango','VDelta','VIX9D','VIX1M','1M/3M ratio'];
-  const _svParts=_nm.filter((n,i)=>core[i]==='SVXY').concat(b.bb_buy?['BB-Trend up']:[]);
-  const _uvParts=[1,2,3,4].filter(i=>core[i]==='UVXY').map(i=>_nm[i]);
-  const _contrarySV=_nm.filter((n,i)=>core[i]!=='SVXY').concat(b.bb_buy?[]:['BB-Trend down']);
+    ? `bear regime ready (4/4) but the <b style="color:var(--cashc)">UVXY gate</b> blocks it &rarr; <b style="color:var(--cashc)">cash</b>`
+    : `short-vol one signal short &mdash; <b style="color:var(--cashc)">${_blkName}</b> holds it back &rarr; <b style="color:var(--cashc)">cash</b>`;
+  else _why = `neither side complete &rarr; <b style="color:var(--cashc)">stay / cash</b> &mdash; a side must hit its <i>full</i> set`;
+  // ── Plain-language explanation (tightened to ~4 lines, ~equal length; multi-exit aware).
+  //    Always reconciles with the actual decision. ──
   let explain;
-  if(inPos){
-    if(_pk==='cash'){
-      const exi=[0,1,2,3,4,5,6].find(i=>exState(i)==='exit');
-      const exnm=exi!=null?exitRules[exi][0]:'an exit rule';
-      explain=`<b>Exiting ${isUV?'UVXY (long vol)':'SVXY (short vol)'}</b> tonight in after-hours because the <b>${exnm}</b> exit rule has triggered. The strategy runs seven independent exit checks every evening, and the moment any one fires the whole position is closed at the same-day after-hours print. While a position is open the entry indicators are shown only for context — they no longer affect the trade.`;
-    } else {
-      explain=`<b>Holding ${isUV?'UVXY (long vol)':'SVXY (short vol)'}.</b> None of the seven exit rules — take-profit, stop-loss, trailing stop, time stop, negative carry, MOVE/VIX stress or term-structure rollover — has triggered, so the position is carried into the next session. The entry indicators below are displayed for context but are ignored while in a trade; they only ever decide a brand-new position from cash.`;
-    }
+  if(inPos && _pk==='cash'){
+    const exTxt = _firedExits.length>1 ? ('the <b>'+_firedExits.join('</b> + <b>')+'</b> exit rules fired together') : ('the <b>'+(_firedExits[0]||'an exit')+'</b> rule fired');
+    explain=`<b>Exiting ${_instTxt}</b> tonight in after-hours: ${exTxt}. Seven exit checks run each evening; any one closes the whole position at the same-day after-hours print. Entry signals are context-only while in a trade.`;
+  } else if(inPos){
+    explain=`<b>Holding ${_instTxt}.</b> None of the seven exit rules (TP, stop, trailing, time, neg-vol, MOVE/VIX, rollover) fired, so the position carries to the next session. Entry signals below are context-only while in a trade.`;
   } else if(ovrSV && _pk==='sv'){
-    explain=`<b>Entering SVXY (short vol)</b> through the <b>spike-fade override</b>: VIX ${spike?'jumped ≥35% in a single day':'spiked ≥8% above the open intraday'} and then faded back into the close, so the strategy treats the panic as overdone and fades it by selling volatility (buying the dip). This is a standalone entry path — it fires on the spike-and-fade pattern alone and deliberately skips the usual full term-structure alignment, which is why the routine entry indicators above are shown dulled.`;
+    explain=`<b>Entering SVXY (short vol)</b> via the <b>spike-fade override</b>: VIX spiked then faded into the close, so the panic is faded by selling vol. A standalone path — it skips the full term-structure alignment, so the routine signals are dulled.`;
   } else if(ovrUV && _pk==='uv'){
-    explain=`<b>Entering UVXY (long vol)</b> through ${crush?'the <b>crush override</b>: VIX collapsed ≥35% in a single day, an unusually sharp drop that historically tends to bounce':'the <b>vol-follow override</b>: an OBV negative-volume divergence with a bearish front end'}, so the strategy buys volatility. This standalone path fires on its own — it does not wait for the four-signal bear regime, so the routine entry indicators above are shown dulled.`;
+    explain=`<b>Entering UVXY (long vol)</b> via the <b>${crush?'crush':'vol-follow'} override</b>: a standalone long-vol trigger that skips the four-signal bear regime. The routine signals are dulled because this path alone decides the entry.`;
   } else if(_pk==='sv'){
-    explain=`<b>Entering SVXY (short vol):</b> every one of the six entry conditions is aligned bullish (${_svParts.join(', ')||'all six'}). A short-vol entry is deliberately strict — it requires the <i>full</i> set of term-structure signals plus the BB-trend confirmation to agree at once, which filters out half-formed setups. All six line up here, so the strategy sells volatility into the contango.`;
+    explain=`<b>Entering SVXY (short vol):</b> all six short-vol conditions agree. A short-vol entry is strict — it needs the full term-structure set plus BB-trend at once, which filters half-formed setups. All six line up, so it sells vol into contango.`;
   } else if(_pk==='uv'){
-    explain=`<b>Entering UVXY (long vol):</b> the complete bearish regime is in place — ${_uvParts.join(', ')||'all four bear signals'} are reading bearish together, signalling sustained near-term fear and an inverting curve. Note that contango currently reads ${pct(contango,1)}, but it is not part of the four-signal bear gate, so it neither confirms nor blocks this long-vol entry.`;
+    explain=`<b>Entering UVXY (long vol):</b> the full four-signal bear regime is in place — sustained near-term fear and an inverting curve. Contango isn't part of the bear gate, so it neither confirms nor blocks this entry.`;
   } else if(_blocked && _blkIdx===-1){
-    explain=`<b>Staying in cash — long-vol entry blocked.</b> The four-signal bear regime is complete, but the <b>UVXY gate</b> vetoes the entry (VIX9D sits in the 41–46 exhaustion zone, or MOVE/VIX ≤ 2 — vol is already "paid for"). The bear signals are shown dulled because they're ready but held back; only the gate decides here.`;
+    explain=`<b>Cash — long-vol blocked.</b> The bear regime is complete, but the <b>UVXY gate</b> vetoes it (VIX9D in the 41–46 exhaustion zone, or MOVE/VIX ≤ 2). The bear signals are dulled — ready but held back; only the gate decides.`;
   } else if(_blocked){
-    explain=`<b>Staying in cash — short-vol entry blocked.</b> Five of the six short-vol conditions agree, but <b>${_blkName}</b> is not confirmed, and a short-vol entry needs the <i>full</i> set. The five aligned signals are shown dulled because they're held back by this one — ${_blkName} is the single indicator deciding the outcome here.`;
+    explain=`<b>Cash — short-vol blocked.</b> Five of six conditions agree, but <b>${_blkName}</b> isn't confirmed and a short-vol entry needs the full set. The five aligned signals are dulled — held back by this one indicator.`;
   } else {
-    explain=`<b>Staying in cash:</b> a short-vol entry needs all six signals aligned (only ${svxy6}/6 agree right now) and a long-vol entry needs the full four-signal bear regime (only ${uvxy4}/4). The signals that do agree aren't enough on their own — each side must hit its complete set before a trade is taken, so the mixed, partly-contrary readings leave the strategy flat and waiting.`;
+    explain=`<b>Cash.</b> Short-vol needs all six aligned (${svxy6}/6 now) and long-vol the full bear regime (${uvxy4}/4). Partial, mixed readings aren't enough — each side must hit its complete set before a trade is taken.`;
   }
   const decisionLogic =
       `<div class="sig-logic"><span class="lbl">How it combines</span>`
@@ -3345,8 +3327,9 @@ function renderSignalMonitor(histBar){
     const _mm=document.getElementById('mini-monitor');
     let _miniColl=false; try{ _miniColl=localStorage.getItem('miniCollapsed')==='1'; }catch(_){}
     _mm.classList.toggle('mini-collapsed', _miniColl);
-    _mm.innerHTML='<button class="mini-exp" title="Expand / collapse" onclick="miniToggle()">'+(_miniColl?'&#11122;':'&#11121;')+'</button>'
-      +'<div class="mini-inner"><div class="mini-hd">Live signals'+(hist?' &middot; '+b.date:'')+'</div>'+mh+'</div>';
+    _mm.innerHTML='<div class="mini-inner"><div class="mini-hd"><span>Live signals'+(hist?' &middot; '+b.date:'')+'</span>'
+      +'<button class="mini-exp" title="Expand / collapse" onclick="miniToggle()">'+(_miniColl?'&#11122;':'&#11121;')+'</button></div>'
+      +'<div class="mini-body">'+mh+'</div></div>';
     scaleMini();   // fit the card to the chart height after each render
   }
   window._sigMonReady=true;
