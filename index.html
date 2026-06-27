@@ -489,7 +489,9 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 /* Floating mini Live-Signal preview. The outer box spans the chart's height with small
    buffers (top/bottom/right); the inner card is scaled by JS to fill that box, so it
    occupies the SAME proportion of the chart at any resolution / zoom. */
-.mini-mon { position:absolute; top:2.5%; right:2%; bottom:2.5%; z-index:5; pointer-events:none; }
+/* Fixed buffers, not %, so the visual gap matches the top on all sides: the right clears
+   the ~55px price axis and the bottom clears the ~25px time axis (each + a ~12px gap). */
+.mini-mon { position:absolute; top:12px; right:66px; bottom:36px; z-index:5; pointer-events:none; }
 .mini-mon .mini-inner { position:absolute; top:0; right:0; transform-origin:top right; width:252px;
   background:rgba(20,17,11,0.84); border:1px solid var(--border2); border-radius:16px; padding:8px 12px 9px;
   font-size:0.64rem; backdrop-filter:blur(2px); }
@@ -554,6 +556,18 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 @keyframes spin { to { transform: rotate(360deg) } }
 #error-state  { display: none; text-align: center; padding: 60px }
 #main-content { display: none }
+
+/* ── Theme flavor (Deus Ex / cyber-renaissance nod) — fully removable via the
+      FLAVOR_ON flag in the script; .flavor-off hides all of it. ────────────── */
+.flavor-footer { text-align:center; margin:26px 0 14px; font-family:'Saira',sans-serif;
+  font-size:0.72rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--dim);
+  opacity:0.55; transition:opacity .8s ease; }
+.flavor-footer .fl-sep { color:var(--teal); opacity:0.7; margin:0 8px; }
+.howto-wrap { position:relative; }
+.vitruvian-bg { position:absolute; top:6px; right:14px; width:128px; height:128px;
+  color:var(--teal); opacity:0.06; pointer-events:none; z-index:0; }
+.howto-wrap > * { position:relative; z-index:1; }
+.flavor-off .flavor-footer, .flavor-off .vitruvian-bg { display:none !important; }
 
 </style>
 </head>
@@ -845,7 +859,21 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
   <!-- ══ HOW IT WORKS TAB ═════════════════════════════════════════════ -->
   <div id="tab-howto" style="display:none">
-    <div class="panel"><div class="ph"><span>How the strategy works</span></div>
+    <div class="panel howto-wrap"><div class="ph"><span>How the strategy works</span></div>
+      <svg class="vitruvian-bg" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="54" r="33" fill="none" stroke="currentColor" stroke-width="0.7"/>
+        <rect x="18" y="21" width="64" height="66" fill="none" stroke="currentColor" stroke-width="0.7"/>
+        <circle cx="50" cy="29" r="5" fill="none" stroke="currentColor" stroke-width="0.7"/>
+        <line x1="50" y1="34" x2="50" y2="63" stroke="currentColor" stroke-width="0.7"/>
+        <line x1="50" y1="41" x2="22" y2="33" stroke="currentColor" stroke-width="0.7"/>
+        <line x1="50" y1="41" x2="78" y2="33" stroke="currentColor" stroke-width="0.7"/>
+        <line x1="50" y1="41" x2="20" y2="49" stroke="currentColor" stroke-width="0.7"/>
+        <line x1="50" y1="41" x2="80" y2="49" stroke="currentColor" stroke-width="0.7"/>
+        <line x1="50" y1="63" x2="37" y2="86" stroke="currentColor" stroke-width="0.7"/>
+        <line x1="50" y1="63" x2="63" y2="86" stroke="currentColor" stroke-width="0.7"/>
+        <line x1="50" y1="63" x2="47" y2="87" stroke="currentColor" stroke-width="0.7"/>
+        <line x1="50" y1="63" x2="53" y2="87" stroke="currentColor" stroke-width="0.7"/>
+      </svg>
       <div class="pb howto">
         <h3>The idea</h3>
         <p>This is a VIX <b>term-structure</b> swing strategy. It trades two volatility ETFs: <b>SVXY</b>
@@ -879,6 +907,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
   </div>
 
 
+  <div class="flavor-footer" id="flavor-footer"></div>
 </div><!-- /main-content -->
 
 <script>
@@ -888,6 +917,28 @@ const PINK='#e8b94f', CORAL='#f2563a', AMBER='#f0982f', GRAY='#837448', CASHC='#
 const DIM='#998544';
 const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
+
+// ── Theme flavor (subtle Deus Ex / cyber-renaissance nod) ───────────────────
+// REVERSE SWITCH: set FLAVOR_ON=false to remove the footer tagline, the Vitruvian-man
+// watermark on "How It Works", and the console line — nothing else depends on it.
+const FLAVOR_ON = true;
+(function(){
+  const lines=[
+    'Read the structure · trade the regime · stay free of the noise',
+    'The right read in the wrong regime makes all the difference',
+    'Choice is an illusion — drawdown is not',
+    'Augmentations online · the vol curve remembers'
+  ];
+  function init(){
+    const mc=document.getElementById('main-content'), ft=document.getElementById('flavor-footer');
+    if(!FLAVOR_ON){ if(mc) mc.classList.add('flavor-off'); return; }
+    try{ console.log('%c// augmentations online · the vol curve remembers','color:#52e6bd;font-family:monospace'); }catch(_){}
+    if(!ft) return; let i=0;
+    const show=()=>{ ft.style.opacity='0'; setTimeout(()=>{ ft.innerHTML='<span class="fl-sep">&#9670;</span> '+lines[i%lines.length]+' <span class="fl-sep">&#9670;</span>'; ft.style.opacity=''; i++; }, 350); };
+    show(); setInterval(show, 13000);
+  }
+  if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
+})();
 
 let DATA=null, ALT_TRADES=null, ALT_EQ=null, ALT_STATS=null;
 let BLEND_TRADES=null, BLEND_EQ=null, BLEND_STATS=null;   // SVIX ×0.5 + UVIX ×1.0
