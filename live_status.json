@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-06-29T21:25:22+00:00",
+  "generated_utc": "2026-06-29T21:30:24+00:00",
   "market": {
     "vix_spot": 17.65,
     "vix1m_used": 17.65,
@@ -10,57 +10,57 @@
       "vix9d": 16.8,
       "vix9d_date": "2026-06-26",
       "vix9d_chg": -0.0625,
-      "vix9d_ref": 17.92,
+      "vix9d_ref": 16.8,
       "vix1m": 18.41,
       "vix1m_date": "2026-06-26",
       "vix1m_chg": -0.02541,
-      "vix1m_ref": 18.89,
+      "vix1m_ref": 18.41,
       "vix3m": 20.13,
       "vix3m_date": "2026-06-26",
       "vix3m_chg": -0.009838,
-      "vix3m_ref": 20.33,
+      "vix3m_ref": 20.13,
       "vix6m": 22.26,
       "vix6m_date": "2026-06-26",
       "vix6m_chg": -0.004027,
-      "vix6m_ref": 22.35,
+      "vix6m_ref": 22.26,
       "vix1y": 23.45,
       "vix1y_date": "2026-06-26",
       "vix1y_chg": -0.002128,
-      "vix1y_ref": 23.5,
+      "vix1y_ref": 23.45,
       "vvix": 89.02,
       "vvix_date": "2026-06-26",
       "vvix_chg": -0.023796,
-      "vvix_ref": 91.19
+      "vvix_ref": 89.02
     },
     "quotes": {
       "vix": {
         "price": 17.65,
-        "prev_close": 18.89,
-        "change_pct": -0.065643,
+        "prev_close": 18.41,
+        "change_pct": -0.041282,
         "time": "2026-06-29T20:15:01+00:00"
       },
       "vix9d": {
         "price": 15.51,
-        "prev_close": 17.92,
-        "change_pct": -0.134487,
+        "prev_close": 16.8,
+        "change_pct": -0.076786,
         "time": "2026-06-29T20:15:02+00:00"
       },
       "vix3m": {
         "price": 19.53,
-        "prev_close": 20.33,
-        "change_pct": -0.039351,
+        "prev_close": 20.13,
+        "change_pct": -0.029806,
         "time": "2026-06-29T20:15:01+00:00"
       },
       "vvix": {
         "price": 88.71,
-        "prev_close": 91.19,
-        "change_pct": -0.027196,
+        "prev_close": 89.02,
+        "change_pct": -0.003482,
         "time": "2026-06-29T20:15:01+00:00"
       },
       "vix1y": {
         "price": 23.16,
-        "prev_close": 23.5,
-        "change_pct": -0.014468,
+        "prev_close": 23.45,
+        "change_pct": -0.012367,
         "time": "2026-06-29T20:15:02+00:00"
       },
       "move": {
@@ -79,13 +79,13 @@
         "price": 56.48,
         "prev_close": 55.53,
         "change_pct": 0.017108,
-        "time": "2026-06-29T21:05:01+00:00"
+        "time": "2026-06-29T21:05:00+00:00"
       },
       "uvxy": {
-        "price": 25.79,
+        "price": 25.77,
         "prev_close": 27.22,
-        "change_pct": -0.052535,
-        "time": "2026-06-29T21:22:58+00:00"
+        "change_pct": -0.05327,
+        "time": "2026-06-29T21:30:15+00:00"
       },
       "svix": {
         "price": 23.26,
@@ -94,28 +94,28 @@
         "time": "2026-06-29T21:05:00+00:00"
       },
       "uvix": {
-        "price": 3.26,
+        "price": 3.2401,
         "prev_close": 3.5,
-        "change_pct": -0.068571,
-        "time": "2026-06-29T21:25:23+00:00"
+        "change_pct": -0.074257,
+        "time": "2026-06-29T21:29:32+00:00"
       },
       "tqqq": {
-        "price": 76.85,
+        "price": 76.91,
         "prev_close": 71.83,
-        "change_pct": 0.069887,
-        "time": "2026-06-29T21:25:16+00:00"
+        "change_pct": 0.070723,
+        "time": "2026-06-29T21:30:26+00:00"
       },
       "sqqq": {
-        "price": 38.31,
+        "price": 38.2926,
         "prev_close": 41.31,
-        "change_pct": -0.072622,
-        "time": "2026-06-29T21:25:18+00:00"
+        "change_pct": -0.073043,
+        "time": "2026-06-29T21:30:01+00:00"
       },
       "spy": {
-        "price": 740.72,
+        "price": 740.74,
         "prev_close": 728.99,
-        "change_pct": 0.016091,
-        "time": "2026-06-29T21:25:22+00:00"
+        "change_pct": 0.016118,
+        "time": "2026-06-29T21:30:11+00:00"
       }
     }
   },
@@ -165,7 +165,7 @@
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
   },
-  "cboe_refreshed": false,
+  "cboe_refreshed": true,
   "official": {
     "date": "2026-06-23",
     "position": "LONG_VOL_SELLER",
