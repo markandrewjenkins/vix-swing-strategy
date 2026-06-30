@@ -297,6 +297,16 @@ def main() -> None:
             q["change_pct"] = round(q["price"] / ref - 1.0, 6)
             q["prev_close"] = round(ref, 4)
 
+    # SPX (^GSPC) is a regular-session-only index, so it freezes pre/post-market. SPY trades
+    # ~4am-8pm, so when SPY is the fresher quote, derive the SPX level from SPY's % move
+    # applied to SPX's prior close (keeps the index level but updates through extended hours).
+    g, spy = quotes.get("gspc"), quotes.get("spy")
+    if g and spy and spy.get("change_pct") is not None and g.get("prev_close") \
+       and (not g.get("time") or (spy.get("time") and spy["time"] > g["time"])):
+        g["price"] = round(g["prev_close"] * (1.0 + spy["change_pct"]), 2)
+        g["change_pct"] = spy["change_pct"]
+        g["time"] = spy["time"]
+
     # Live values override the EOD term structure for the freshest reading.
     vix_spot = quotes["vix"]["price"]
     vix1m = vix_spot if vix_spot is not None else curve.get("vix1m")

@@ -733,15 +733,15 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     </div>
 
     <div class="row" style="margin-top:12px">
-      <div class="panel" style="flex:1 1 260px">
+      <div class="panel" style="flex:1 1 0">
         <div class="ph"><span>Profit structure</span></div>
         <div class="pb" style="position:relative;height:210px"><canvas id="profitStructChart"></canvas></div>
       </div>
-      <div class="panel" style="flex:1 1 280px">
+      <div class="panel" style="flex:1 1 0">
         <div class="ph"><span>ROI distribution</span></div>
         <div class="pb" style="position:relative;height:210px"><canvas id="roiDistChart"></canvas></div>
       </div>
-      <div class="panel" style="flex:0 0 210px">
+      <div class="panel" style="flex:1 1 0">
         <div class="ph"><span>Trade outcomes</span></div>
         <div class="pb">
           <div style="position:relative;height:140px;margin-bottom:12px"><canvas id="tradeDistChart"></canvas></div>
@@ -751,11 +751,11 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     </div>
 
     <div class="row" style="margin-top:12px">
-      <div class="panel" style="flex:1 1 300px">
+      <div class="panel" style="flex:1 1 0">
         <div class="ph"><span>Risk-adjusted metrics</span></div>
         <div class="pb" id="risk-metrics"></div>
       </div>
-      <div class="panel" style="flex:2 1 420px">
+      <div class="panel" style="flex:1 1 0">
         <div class="ph"><span>Run-ups &amp; drawdowns</span></div>
         <div class="pb" style="position:relative;height:190px"><canvas id="runupChart"></canvas></div>
       </div>
@@ -763,14 +763,14 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
     <!-- merged from Overview: per-signal performance / distribution / exit reasons -->
     <div class="row" style="margin-top:12px">
-      <div class="panel" style="flex:1 1 300px"><div class="ph"><span>Per-signal performance</span></div><div class="pb" id="sig-perf"></div></div>
-      <div class="panel" style="flex:1 1 220px"><div class="ph"><span>Signal distribution</span></div><div class="pb" style="position:relative;height:210px"><canvas id="sigDistChart"></canvas></div></div>
-      <div class="panel" style="flex:1 1 180px"><div class="ph"><span>Exit reasons</span></div><div class="pb" id="exit-reasons"></div></div>
+      <div class="panel" style="flex:1 1 0"><div class="ph"><span>Per-signal performance</span></div><div class="pb" id="sig-perf"></div></div>
+      <div class="panel" style="flex:1 1 0"><div class="ph"><span>Signal distribution</span></div><div class="pb" style="position:relative;height:210px"><canvas id="sigDistChart"></canvas></div></div>
+      <div class="panel" style="flex:1 1 0"><div class="ph"><span>Exit reasons</span></div><div class="pb" id="exit-reasons"></div></div>
     </div>
 
     <!-- Detailed per-signal trade statistics (TradingView-style) -->
     <div class="panel" style="margin-top:12px">
-      <div class="ph"><span>Per-signal statistics</span></div>
+      <div class="ph"><span>Per-signal stats</span></div>
       <div class="pb" style="overflow-x:auto"><table id="sig-stats" class="sig-stats"></table></div>
     </div>
   </div>
@@ -904,7 +904,7 @@ const FONT="'Saira', sans-serif";
 // ── Theme flavor (subtle Deus Ex / cyber-renaissance nod) ───────────────────
 // REVERSE SWITCH: set FLAVOR_ON=false to remove the footer tagline, the Vitruvian-man
 // watermark on "How It Works", and the console line — nothing else depends on it.
-const FLAVOR_ON = true;
+const FLAVOR_ON = false;
 (function(){
   const lines=[
     'Read the structure · trade the regime · stay free of the noise',
@@ -1041,7 +1041,10 @@ function _tradePeakPnl(t){
 // Returns {name, desc, bar} for a trade's exit reason. Each bar plots the rule's TRIGGER
 // metric vs its threshold, so the white marker always lands in the bright (exit) zone.
 function exitReasonMeta(t){
-  const sv=tIsSV(t), r=t.exit_reason, b=_tBarBefore(t.exit_date)||{};
+  // Exit executes same-close, so the rule is evaluated on the EXIT date's bar (not the day
+  // before) — use that bar's readings so the marker lands in the bright exit zone.
+  _tBarBefore(t.exit_date);   // ensures the bar_history map is built
+  const sv=tIsSV(t), r=t.exit_reason, b=(window._tbd&&window._tbd[t.exit_date])||_tBarBefore(t.exit_date)||{};
   const fpc=v=>(v*100).toFixed(0)+'%', f2=v=>(+v).toFixed(2);
   const tp=sv?0.42728:0.13601;
   const hc=sv?'var(--tealmut)':'var(--coralmut)';   // dull hold band colour, per side
@@ -1585,6 +1588,22 @@ function renderExitReasons(){
 }
 
 // ══ TRADES ════════════════════════════════════════════════════════════════
+// The current OPEN position as a trade-like row (unrealized), or null if flat. Values are
+// in the active instrument basis (real / SVIX / blend) so they match the rest of the table.
+function _openTradeRow(){
+  const bh=DATA.bar_history||[]; if(!bh.length) return null;
+  const lp=bh[bh.length-1].position; if(!lp||lp==='CASH') return null;
+  let i=bh.length-1; while(i>0 && bh[i-1].position===lp) i--;
+  const eb=bh[i], lb=bh[bh.length-1], sv=lp==='LONG_VOL_SELLER', opn=lb.open_pnl_pct||0;
+  const {svF,uvF}=altLeverage(); let f=sv?svF:uvF; if(CHART_MODE==='blend'&&sv) f*=0.5;
+  const ret=aMode()?Math.max(-0.95,opn*f):opn;
+  const eqArr=aEq(), eqNow=eqArr.length?eqArr[eqArr.length-1].equity:0;
+  const eqMap={}; eqArr.forEach(x=>eqMap[x.date]=x.equity); const eqEntry=eqMap[eb.date]||eqNow;
+  const pl=eqNow-eqEntry;
+  return { _open:true, type:lp, entry_date:eb.date, exit_date:lb.date, _curDate:lb.date,
+    days:(bh.length-1-i), entry_price:sv?eb.svxy_price:eb.uvxy_price, exit_price:sv?lb.svxy_price:lb.uvxy_price,
+    ret, pnl:pl, pnl_pct:opn, pnl_dollar:pl, equity_after:eqNow };
+}
 function renderTrades(){
   if(!DATA)return;
   const filt=document.getElementById('tfilter')?.value||'ALL';
@@ -1599,7 +1618,23 @@ function renderTrades(){
   // the SVXY/UVXY price (blank only pre-2022 when SVIX/UVIX didn't exist).
   const [svM,uvM] = alt ? altCloseMaps() : [null,null];
   const aPx=(t,date)=>{ const m=tIsSV(t)?svM:uvM; const v=m&&m[date]; return v!=null?fmtPrice(v):'—'; };
-  document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>{const r=tRet(t),p=tPnl(t);const m=exitReasonMeta(t);return `<tr>
+  // Prepend the current OPEN position (unrealized), if any, at the top of the list.
+  const ot=_openTradeRow();
+  if(ot && (filt==='ALL' || (filt==='SV'&&tIsSV(ot)) || (filt==='UV'&&!tIsSV(ot)))) tr.unshift(ot);
+  document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>{const r=tRet(t),p=tPnl(t);
+    if(t._open){ return `<tr style="background:rgba(232,185,79,0.07)">
+      <td style="color:var(--yellow)">&#9679;</td>
+      <td>${pill(t)}</td>
+      <td>${t.entry_date}</td><td style="color:var(--yellow);font-weight:600">OPEN</td>
+      <td style="text-align:right">${t.days}d</td>
+      <td style="text-align:right">${alt?aPx(t,t.entry_date):fmtPrice(t.entry_price)}</td>
+      <td style="text-align:right">${alt?aPx(t,t._curDate):fmtPrice(t.exit_price)}</td>
+      <td style="text-align:right;color:${r>0?TEAL:CORAL};font-weight:600">${fmtPct(r)}</td>
+      <td style="text-align:right;color:${p>0?TEAL:CORAL}">${p>0?'+':''}${fmtK(Math.abs(p)*Math.sign(p))}</td>
+      <td><span class="eb" style="background:rgba(232,185,79,0.18);color:var(--yellow)">Open &middot; held</span></td>
+      <td style="color:var(--dim)">unrealized</td>
+      <td style="text-align:right">${fmtK(t.equity_after)}</td></tr>`; }
+    const m=exitReasonMeta(t);return `<tr>
     <td style="color:var(--dim)">${tr.length-i}</td>
     <td>${pill(t)}</td>
     <td>${t.entry_date}</td><td>${t.exit_date}</td>
@@ -1678,7 +1713,7 @@ function renderRisk(){
   const rstep=Math.max(1,Math.floor(rl.length/150));
   mkChart('rollChart',{ type:'line', data:{ labels:rlab.filter((_,i)=>i%rstep===0),
     datasets:[{label:'Rolling 12-mo return',data:rl.filter((_,i)=>i%rstep===0),borderColor:TEAL,borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(82,230,189,0.08)'}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(c.parsed.y>=0?'+':'')+c.parsed.y+'%'}}},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(c.parsed.y>=0?'+':'')+c.parsed.y+'%'}}},
       scales:{x:{ticks:{color:TICK,maxTicksLimit:10,font:{size:12,family:FONT}},grid:{color:GRID}},
         y:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID}}}} });
   // ── Trade-return distribution histogram ──
@@ -2708,8 +2743,13 @@ function renderSignalMonitor(histBar){
   // reading geometrically sits in the zone (e.g. trailing needs its arm level too).
   // 'd' = a permanently-dull neutral band (spike/crush middle; never brightens).
   const _zoneStyle=(z,val,trig)=>{ const c=z[2]; const hit=val!=null&&!isNaN(val)&&val>=z[0]&&val<=z[1]&&GBRIGHT;
-    if(c==='P') return trig?{fill:POSCM,op:0.45}:{fill:POSC,op:0.95};   // dull the hold band when an exit fires
-    if(c==='C') return trig?{fill:CASHB,op:1}:{fill:CASHD,op:1};         // exit band brightens whenever the exit fired
+    // Exit gauges: the band the marker sits in is the bright one — POSITION colour (teal/
+    // coral) on a HOLD, cash-yellow only when the exit actually fired (trig). So a value
+    // that drifts past a threshold while a secondary condition keeps it held (e.g. the
+    // rollover ratio while VIX levels stay elevated, or trailing before it arms) reads as a
+    // bright HOLD, not a phantom exit.
+    if(c==='P') return (hit&&!trig)?{fill:POSC,op:0.95}:{fill:POSCM,op:0.4};
+    if(c==='C') return trig?{fill:CASHB,op:1}:(hit?{fill:POSC,op:0.95}:{fill:CASHD,op:1});
     if(c==='d') return {fill:'var(--cashmut)',op:0.5};
     // 'R'/'T' — spike/crush extremes. Brighten when the reading reaches the tail
     // UNLESS we're already in the position that signal points to (crush→UVXY, spike
