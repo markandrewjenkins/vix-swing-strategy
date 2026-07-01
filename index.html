@@ -399,6 +399,10 @@ tr:hover td { background: #1f1a10 }
 .cdl-seg { background:transparent; color:var(--dim); border:none; padding:3px 11px; font-family:'Saira',sans-serif; font-size:0.7rem; font-weight:600; letter-spacing:0.03em; cursor:pointer; }
 .cdl-seg.active { background:var(--yellow); color:#1a1410; }
 .cdl-seg:not(.active):hover { color:var(--text); }
+/* Recommended (blend) pair emphasised; the other two smaller & dimmer. */
+.instr-inline .cdl-seg.seg-pref { font-size:0.68rem; font-weight:700; }
+.instr-inline .cdl-seg.seg-alt { font-size:0.55rem; opacity:0.68; }
+.cdl-seg.seg-alt.active { opacity:1; }
 #mkt-refresh { color:var(--dim); }
 /* Summary page */
 .sig-etfnote { font-size:0.7rem; color:var(--dim); line-height:1.45; padding-top:8px; }
@@ -578,10 +582,11 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       <span class="hdr-meta" id="hdr-meta">Loading...</span>
       <span class="hdr-meta" title="NOTE: SVIX/UVIX only launched in 2022, so prior results involving either of these two ETFs are simulated based on SVXY/UVXY trade returns, then leverage-scaled">Toggle Vol ETF Pair:</span>
       <span class="cdl-toggle-group instr-inline" title="NOTE: SVIX/UVIX only launched in 2022, so prior results involving either of these two ETFs are simulated based on SVXY/UVXY trade returns, then leverage-scaled">
-        <button id="instr-blend" class="cdl-seg active" onclick="setInstr('blend')">SVIX&#189; / UVIX</button>
-        <button id="instr-real" class="cdl-seg" onclick="setInstr('real')">SVXY / UVXY</button>
-        <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
+        <button id="instr-blend" class="cdl-seg seg-pref active" onclick="setInstr('blend')" title="Recommended blend (SVXY-scaled short leg + levered UVIX long leg)">&#9733; SVIX&#189; / UVIX</button>
+        <button id="instr-real" class="cdl-seg seg-alt" onclick="setInstr('real')">SVXY / UVXY</button>
+        <button id="instr-alt" class="cdl-seg seg-alt" onclick="setInstr('alt')">SVIX / UVIX</button>
       </span>
+      <span class="hdr-meta" style="color:var(--namut);font-size:0.72rem">&#9733; = recommended</span>
     </div>
   </div>
   <div class="tabs">
@@ -590,7 +595,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <button class="tab" onclick="switchTab('trades')">Trades Detail</button>
     <button class="tab" onclick="switchTab('risk')">Risk Analysis</button>
     <button class="tab" onclick="switchTab('markets')">Markets &amp; Regime</button>
-    <button class="tab" onclick="switchTab('howto')">How It Works</button>
+    <button class="tab" onclick="switchTab('howto')">About</button>
   </div>
 </div>
 
@@ -856,7 +861,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
   <!-- ══ HOW IT WORKS TAB ═════════════════════════════════════════════ -->
   <div id="tab-howto" style="display:none">
-    <div class="panel"><div class="ph"><span>How the strategy works</span></div>
+    <div class="panel"><div class="ph"><span>About this strategy</span></div>
       <div class="pb howto">
         <h3>The idea</h3>
         <p>This is a VIX <b>term-structure</b> swing strategy. It trades two volatility ETFs: <b>SVXY</b>
@@ -885,6 +890,32 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <p class="howto-note">All figures are from a backtest on real SVXY/UVXY prices, no repainting and
           walk-forward-checked where rules were added. Past performance is not indicative of future results;
           this is not investment advice.</p>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:12px"><div class="ph"><span>About this dashboard</span></div>
+      <div class="pb howto">
+        <h3>What this is</h3>
+        <p>An interactive showcase of a personal quantitative research project — a VIX term-structure swing
+          strategy, backtested and presented with a live signal monitor. It exists for
+          <b>demonstration and educational purposes only</b>: to show the strategy&rsquo;s logic, its backtest,
+          and how the signals are read day to day.</p>
+        <h3>How it was built</h3>
+        <p>Built primarily with <b>Claude Code</b>, on top of the author&rsquo;s own research into VIX
+          term-structure and volatility ETFs developed over several years. The engine is Python; the dashboard
+          is a single self-contained page. More at
+          <a href="https://github.com/markandrewjenkins" target="_blank" rel="noopener">github.com/markandrewjenkins</a>
+          and the <a href="https://markandrewjenkins.github.io/portfolio/" target="_blank" rel="noopener">portfolio site</a>.</p>
+        <h3>Data</h3>
+        <p>Live quotes and the term structure come from public sources (CBOE end-of-day files, Yahoo intraday,
+          FRED) and are <b>delayed</b> (~5&ndash;15&nbsp;min). Data is provided as-is with no guarantee of accuracy,
+          completeness or availability &mdash; feeds can lag or fail. SVIX/UVIX before their 2022 launch are
+          <b>simulated</b> from SVXY/UVXY, leverage-scaled.</p>
+        <p class="howto-note"><b>Not investment advice.</b> Nothing here is a recommendation to buy or sell any
+          security. Backtested and simulated results have inherent limitations, do not represent actual trading,
+          and <b>past performance is not indicative of future results</b>. Short- and long-volatility ETFs are
+          high-risk instruments that can lose most of their value very quickly. Do your own research and consult a
+          licensed professional before trading. The author accepts no liability for any use of this dashboard.</p>
       </div>
     </div>
   </div>
@@ -1623,7 +1654,7 @@ function renderTrades(){
   if(ot && (filt==='ALL' || (filt==='SV'&&tIsSV(ot)) || (filt==='UV'&&!tIsSV(ot)))) tr.unshift(ot);
   document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>{const r=tRet(t),p=tPnl(t);
     if(t._open){ return `<tr style="background:rgba(232,185,79,0.07)">
-      <td style="color:var(--yellow)">&#9679;</td>
+      <td style="color:var(--dim)">${tr.length-i}</td>
       <td>${pill(t)}</td>
       <td>${t.entry_date}</td><td style="color:var(--yellow);font-weight:600">OPEN</td>
       <td style="text-align:right">${t.days}d</td>
@@ -1631,8 +1662,8 @@ function renderTrades(){
       <td style="text-align:right">${alt?aPx(t,t._curDate):fmtPrice(t.exit_price)}</td>
       <td style="text-align:right;color:${r>0?TEAL:CORAL};font-weight:600">${fmtPct(r)}</td>
       <td style="text-align:right;color:${p>0?TEAL:CORAL}">${p>0?'+':''}${fmtK(Math.abs(p)*Math.sign(p))}</td>
-      <td><span class="eb" style="background:rgba(232,185,79,0.18);color:var(--yellow)">Open &middot; held</span></td>
-      <td style="color:var(--dim)">unrealized</td>
+      <td><span style="color:var(--namut)">N/A</span></td>
+      <td><span style="display:inline-block;width:120px;border-top:2px dashed var(--namut);opacity:0.55;vertical-align:middle"></span></td>
       <td style="text-align:right">${fmtK(t.equity_after)}</td></tr>`; }
     const m=exitReasonMeta(t);return `<tr>
     <td style="color:var(--dim)">${tr.length-i}</td>
@@ -2748,8 +2779,8 @@ function renderSignalMonitor(histBar){
     // that drifts past a threshold while a secondary condition keeps it held (e.g. the
     // rollover ratio while VIX levels stay elevated, or trailing before it arms) reads as a
     // bright HOLD, not a phantom exit.
-    if(c==='P') return (hit&&!trig)?{fill:POSC,op:0.95}:{fill:POSCM,op:0.4};
-    if(c==='C') return trig?{fill:CASHB,op:1}:(hit?{fill:POSC,op:0.95}:{fill:CASHD,op:1});
+    if(c==='P') return (hit&&!trig&&inPos)?{fill:POSC,op:0.95}:{fill:POSCM,op:0.4};
+    if(c==='C') return trig?{fill:CASHB,op:1}:((hit&&inPos)?{fill:POSC,op:0.95}:{fill:CASHD,op:1});
     if(c==='d') return {fill:'var(--cashmut)',op:0.5};
     // 'R'/'T' — spike/crush extremes. Brighten when the reading reaches the tail
     // UNLESS we're already in the position that signal points to (crush→UVXY, spike
@@ -2830,7 +2861,7 @@ function renderSignalMonitor(histBar){
   const _contBull = hist ? !!b.cont_bull
     : (contango!=null && ((contango>=P.ct && _prevCont!=null && contango>_prevCont) || contango>=CT_HI));
   let rows=[
-    ['Contango (VIX3M / VIX1M)','Term-structure carry. Short-vol (SVXY) only when ≥3.3% AND rising, or ≥14.6% — positive but falling is not enough.',
+    ['Contango (VIX3M / VIX1M)','Term-structure carry; short-vol needs ≥3.3% &amp; rising, or ≥14.6%.',
       'Positive &amp; rising (or ≥14.6%)','Backwardation', pct(contango,1),
       _contBull?'SVXY':(contango!=null&&contango<0?'UVXY':'NEU')],
     ['VDelta (VIX1M &minus; VIX9D)','Front-end fear gauge. Deeply negative = acute near-term fear.',
@@ -3052,7 +3083,7 @@ function renderSignalMonitor(histBar){
     ['Stop Loss','Closed once the unrealized loss hits the max (UVXY hard stop)', '','Reaches stop-loss zone', pnlCur, false],
     ['Trailing Stop','Closed after giving back too much from the running peak (SVXY)', '','Gain falls a set amount below its peak', pnlCur, false],
     ['Time Stop','Closed after the maximum holding period', 'Held to max horizon','', daysHeldCur, false],
-    ['Neg-Vol Exit (OBV)','Closes short-vol once an OBV negative-volume divergence appears while the trade is in profit > +5% (SVXY)',
+    ['Neg-Vol Exit (OBV)','Closes short-vol on an OBV negative-volume divergence while in profit > +5%.',
       'In profit, no divergence → hold','OBV divergence while in profit → exit', pnlCur, carryTrig],
     ['MOVE / VIX Ratio','Cross-asset stress overlay (bond vs equity vol)',
       'Low cross-asset stress','High cross-asset stress',
@@ -3314,13 +3345,13 @@ function renderSignalMonitor(histBar){
     +`<td>${tag(r[6],dl)}</td></tr>`; }).join('');
   const _gated=(b.mv_lo||(b.vix9d!=null&&b.vix9d>=41&&b.vix9d<=46));
   const compEntry=[
-    ['Spike Type','Intraday spike character: Faded = VIX spiked ≥8% above the open then closed back (a standalone SVXY entry — this is what triggered e.g. 2026-03-03); Sustained = spiked and held into the close (a CAUTION that blocks short-vol boost paths — it does NOT buy UVXY on its own)','Faded → buy the vol dip (SVXY)','Sustained → caution, blocks SVXY',
+    ['Spike Type','Intraday spike character: Faded = spiked ≥8% then closed back (standalone SVXY entry); Sustained = spiked &amp; held (blocks SVXY, not a UVXY buy).','Faded → buy the vol dip (SVXY)','Sustained → caution, blocks SVXY',
       b.vix_fade?'Faded':(b.vix_sustained?'Sustained':_na), gFull(sSpk), b.vix_fade?'SVXY':'NA'],
-    ['BB-Trend (log-SVXY)','Bollinger-band trend on cumulative log SVXY returns — short-vol regime confirmation; needs trend ≥ 0 (not falling through zero)','Trend ≥ 0 confirms SVXY','Trend < 0 blocks SVXY',
+    ['BB-Trend (log-SVXY)','BB trend on log-SVXY; short-vol needs trend ≥ 0 (not falling through zero).','Trend ≥ 0 confirms SVXY','Trend < 0 blocks SVXY',
       b.bb_buy?'Uptrend':'Downtrend', gFull(sBB), b.bb_buy?'SVXY':'NA'],
-    ['Vol-follow carry','OBV divergence (price near 10-day high, OBV fast < slow EMA) — only an independent long-vol entry when paired with a bearish front end (VIX9D & VIX1M bearish)','','Divergence + bear front end → UVXY',
+    ['Vol-follow carry','OBV divergence (price near 10d high, OBV fast &lt; slow); long-vol only with a bearish front end.','','Divergence + bear front end → UVXY',
       _ov!=null?_ov.toFixed(1):_na, gFull(sVF), _volFollow?'UVXY':'NA'],
-    ['UVXY entry gate','Long-vol entry is blocked when VIX9D is in the 41–46 "exhaustion zone" (first-spike level that mean-reverts) or MOVE/VIX ≤ 2 — allowed below (early panic) and above (escalating crisis)','','Clear → UVXY entry allowed',
+    ['UVXY entry gate','Long-vol blocked when VIX9D is in the 41–46 exhaustion zone, or MOVE/VIX ≤ 2.','','Clear → UVXY entry allowed',
       _gated?'Blocked':'Clear', gFull(sGate), 'NA'],
   ];
   const compSize=[
