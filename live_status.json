@@ -1,11 +1,11 @@
 {
-  "generated_utc": "2026-07-01T20:05:21+00:00",
+  "generated_utc": "2026-07-01T20:10:23+00:00",
   "market": {
-    "vix_spot": 16.33,
-    "vix1m_used": 16.33,
-    "vix9d_used": 12.61,
-    "vix3m_used": 19.01,
-    "vvix_used": 88.17,
+    "vix_spot": 16.39,
+    "vix1m_used": 16.39,
+    "vix9d_used": 12.78,
+    "vix3m_used": 19.06,
+    "vvix_used": 88.47,
     "curve": {
       "vix9d": 13.73,
       "vix9d_date": "2026-06-30",
@@ -34,34 +34,34 @@
     },
     "quotes": {
       "vix": {
-        "price": 16.33,
+        "price": 16.39,
         "prev_close": 17.65,
-        "change_pct": -0.074788,
-        "time": "2026-07-01T19:50:16+00:00"
+        "change_pct": -0.071388,
+        "time": "2026-07-01T19:55:16+00:00"
       },
       "vix9d": {
-        "price": 12.61,
+        "price": 12.78,
         "prev_close": 15.51,
-        "change_pct": -0.186976,
-        "time": "2026-07-01T19:50:17+00:00"
+        "change_pct": -0.176015,
+        "time": "2026-07-01T19:55:17+00:00"
       },
       "vix3m": {
-        "price": 19.01,
+        "price": 19.06,
         "prev_close": 19.53,
-        "change_pct": -0.026626,
-        "time": "2026-07-01T19:50:16+00:00"
+        "change_pct": -0.024066,
+        "time": "2026-07-01T19:55:16+00:00"
       },
       "vvix": {
-        "price": 88.17,
+        "price": 88.47,
         "prev_close": 88.71,
-        "change_pct": -0.006087,
-        "time": "2026-07-01T19:50:16+00:00"
+        "change_pct": -0.002705,
+        "time": "2026-07-01T19:55:16+00:00"
       },
       "vix1y": {
-        "price": 23.07,
+        "price": 23.11,
         "prev_close": 23.16,
-        "change_pct": -0.003886,
-        "time": "2026-07-01T19:50:17+00:00"
+        "change_pct": -0.002159,
+        "time": "2026-07-01T19:55:16+00:00"
       },
       "move": {
         "price": 71.9589,
@@ -70,97 +70,97 @@
         "time": "2026-07-01T19:30:00+00:00"
       },
       "gspc": {
-        "price": 7478.98,
+        "price": 7481.29,
         "prev_close": 7499.36,
-        "change_pct": -0.002718,
-        "time": "2026-07-01T20:05:25+00:00"
+        "change_pct": -0.00241,
+        "time": "2026-07-01T20:10:26+00:00"
       },
       "svxy": {
         "price": 57.09,
         "prev_close": 57.26,
         "change_pct": -0.002969,
-        "time": "2026-07-01T20:04:48+00:00"
+        "time": "2026-07-01T20:10:08+00:00"
       },
       "uvxy": {
-        "price": 25.2,
+        "price": 25.31,
         "prev_close": 24.89,
-        "change_pct": 0.012455,
-        "time": "2026-07-01T20:05:05+00:00"
+        "change_pct": 0.016874,
+        "time": "2026-07-01T20:10:12+00:00"
       },
       "svix": {
         "price": 23.61,
         "prev_close": 23.78,
         "change_pct": -0.007149,
-        "time": "2026-07-01T20:04:41+00:00"
+        "time": "2026-07-01T20:10:08+00:00"
       },
       "uvix": {
-        "price": 63.12,
+        "price": 62.48,
         "prev_close": 61.8,
-        "change_pct": 0.021359,
-        "time": "2026-07-01T20:05:13+00:00"
+        "change_pct": 0.011003,
+        "time": "2026-07-01T20:10:08+00:00"
       },
       "tqqq": {
-        "price": 77.006,
+        "price": 77.18,
         "prev_close": 81.0,
-        "change_pct": -0.049309,
-        "time": "2026-07-01T20:05:26+00:00"
+        "change_pct": -0.04716,
+        "time": "2026-07-01T20:10:24+00:00"
       },
       "sqqq": {
-        "price": 38.11,
+        "price": 38.0,
         "prev_close": 36.31,
-        "change_pct": 0.049573,
-        "time": "2026-07-01T20:05:20+00:00"
+        "change_pct": 0.046544,
+        "time": "2026-07-01T20:10:27+00:00"
       },
       "spy": {
-        "price": 744.74,
+        "price": 744.97,
         "prev_close": 746.77,
-        "change_pct": -0.002718,
-        "time": "2026-07-01T20:05:25+00:00"
+        "change_pct": -0.00241,
+        "time": "2026-07-01T20:10:26+00:00"
       }
     }
   },
   "derived": {
-    "contango": 0.164115,
-    "backend_slope": 0.130984,
-    "vdelta": 3.72,
-    "ratio_1m_3m": 0.859,
-    "move_vix_ratio": 4.41,
+    "contango": 0.162904,
+    "backend_slope": 0.128017,
+    "vdelta": 3.61,
+    "ratio_1m_3m": 0.8599,
+    "move_vix_ratio": 4.39,
     "regime": "contango"
   },
   "signal_timing": {
     "vix9d": {
-      "value": 12.61,
-      "changed_utc": "2026-07-01T20:05:21+00:00",
+      "value": 12.78,
+      "changed_utc": "2026-07-01T20:10:23+00:00",
       "cadence": "live",
       "expected": "Live ^VIX9D (Yahoo), ~5-min refresh; falls back to CBOE EOD if unavailable. The 4pm close value feeds the ~7pm evaluation."
     },
     "vix1m": {
-      "value": 16.33,
-      "changed_utc": "2026-07-01T20:05:21+00:00",
+      "value": 16.39,
+      "changed_utc": "2026-07-01T20:10:23+00:00",
       "cadence": "live",
       "expected": "Live VIX spot, refreshes ~every 5 min. The 4pm close value is the one that feeds the ~7pm evaluation."
     },
     "contango": {
-      "value": 0.1641,
-      "changed_utc": "2026-07-01T20:05:21+00:00",
+      "value": 0.1629,
+      "changed_utc": "2026-07-01T20:10:23+00:00",
       "cadence": "live",
       "expected": "Live VIX3M \u00f7 VIX1M (both Yahoo intraday); finalises for the ~7pm evaluation."
     },
     "vdelta": {
-      "value": 3.72,
-      "changed_utc": "2026-07-01T20:05:21+00:00",
+      "value": 3.61,
+      "changed_utc": "2026-07-01T20:10:23+00:00",
       "cadence": "live",
       "expected": "Live VIX1M \u2212 VIX9D (both Yahoo intraday)."
     },
     "ratio_1m_3m": {
-      "value": 0.859,
-      "changed_utc": "2026-07-01T20:05:21+00:00",
+      "value": 0.8599,
+      "changed_utc": "2026-07-01T20:10:23+00:00",
       "cadence": "live",
       "expected": "Live VIX1M \u00f7 VIX3M (both Yahoo intraday)."
     },
     "move_vix_ratio": {
-      "value": 4.4065,
-      "changed_utc": "2026-07-01T20:05:21+00:00",
+      "value": 4.3904,
+      "changed_utc": "2026-07-01T20:10:23+00:00",
       "cadence": "live",
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
