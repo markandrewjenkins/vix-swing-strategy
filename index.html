@@ -399,10 +399,6 @@ tr:hover td { background: #1f1a10 }
 .cdl-seg { background:transparent; color:var(--dim); border:none; padding:3px 11px; font-family:'Saira',sans-serif; font-size:0.7rem; font-weight:600; letter-spacing:0.03em; cursor:pointer; }
 .cdl-seg.active { background:var(--yellow); color:#1a1410; }
 .cdl-seg:not(.active):hover { color:var(--text); }
-/* Recommended (blend) pair emphasised; the other two smaller & dimmer. */
-.instr-inline .cdl-seg.seg-pref { font-size:0.68rem; font-weight:700; }
-.instr-inline .cdl-seg.seg-alt { font-size:0.55rem; opacity:0.68; }
-.cdl-seg.seg-alt.active { opacity:1; }
 #mkt-refresh { color:var(--dim); }
 /* Summary page */
 .sig-etfnote { font-size:0.7rem; color:var(--dim); line-height:1.45; padding-top:8px; }
@@ -429,6 +425,8 @@ tr:hover td { background: #1f1a10 }
 .howto p { margin:0 0 6px; }
 .howto b { color:#fdf4d6; }
 .howto .howto-note { color:var(--dim); font-size:0.8rem; margin-top:14px; border-top:1px solid var(--border); padding-top:10px; }
+.howto a { color:var(--yellow); font-weight:600; text-decoration:none; }
+.howto a:hover { text-decoration:underline; }
 /* Exit-reason legend under the trades table */
 .exit-legend { display:flex; flex-wrap:wrap; gap:6px 18px; padding:12px 4px 2px; font-size:0.72rem; color:var(--dim); border-top:1px solid var(--border); margin-top:10px; }
 .exit-legend .el-title { color:var(--yellow); font-weight:600; }
@@ -582,11 +580,10 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       <span class="hdr-meta" id="hdr-meta">Loading...</span>
       <span class="hdr-meta" title="NOTE: SVIX/UVIX only launched in 2022, so prior results involving either of these two ETFs are simulated based on SVXY/UVXY trade returns, then leverage-scaled">Toggle Vol ETF Pair:</span>
       <span class="cdl-toggle-group instr-inline" title="NOTE: SVIX/UVIX only launched in 2022, so prior results involving either of these two ETFs are simulated based on SVXY/UVXY trade returns, then leverage-scaled">
-        <button id="instr-blend" class="cdl-seg seg-pref active" onclick="setInstr('blend')" title="Recommended blend (SVXY-scaled short leg + levered UVIX long leg)">&#9733; SVIX&#189; / UVIX</button>
-        <button id="instr-real" class="cdl-seg seg-alt" onclick="setInstr('real')">SVXY / UVXY</button>
-        <button id="instr-alt" class="cdl-seg seg-alt" onclick="setInstr('alt')">SVIX / UVIX</button>
+        <button id="instr-blend" class="cdl-seg active" onclick="setInstr('blend')">SVIX&#189; / UVIX <span style="font-weight:400">(recommended)</span></button>
+        <button id="instr-real" class="cdl-seg" onclick="setInstr('real')">SVXY / UVXY</button>
+        <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
       </span>
-      <span class="hdr-meta" style="color:var(--namut);font-size:0.72rem">&#9733; = recommended</span>
     </div>
   </div>
   <div class="tabs">
@@ -1057,6 +1054,11 @@ function _exrBar(lo,hi,thr,val,fmt,ge,holdCol){
   return `<svg width="${W}" height="${H}" style="vertical-align:middle">${rH}${rE}${lab}`
     +`<line x1="${mx}" y1="0.5" x2="${mx}" y2="${by+bh+0.5}" stroke="var(--white)" stroke-width="2"/></svg>`;
 }
+// Disabled/N-A bar for the Trades table — matches the mini monitor's hatched N/A style.
+function _hatchExrBar(){ const W=130,by=2,bh=5; let l='';
+  for(let x=-bh;x<W;x+=5) l+=`<line x1="${x}" y1="${by+bh}" x2="${x+bh}" y2="${by}" stroke="var(--orangemut)" stroke-width="1" opacity="0.55"/>`;
+  return `<svg width="${W}" height="20" style="vertical-align:middle"><clipPath id="ohc"><rect x="1" y="${by}" width="${W-2}" height="${bh}" rx="2.5"/></clipPath>`
+    +`<rect x="1" y="${by}" width="${W-2}" height="${bh}" rx="2.5" fill="#15110a"/><g clip-path="url(#ohc)">${l}</g></svg>`; }
 // bar_history lookup for the trade's signal bar (the trading day before the fill).
 function _tBarBefore(date){ if(!window._tbd){ window._tbd={}; (DATA.bar_history||[]).forEach(r=>window._tbd[r.date]=r);
     window._tbdDates=(DATA.bar_history||[]).map(r=>r.date).sort(); }
@@ -1085,7 +1087,7 @@ function exitReasonMeta(t){
     case 'TRAIL': { const TR=0.09162, pk=_tradePeakPnl(t), gb=(pk!=null)?Math.max(0,pk-(t.pnl_pct||0)):null;
       return {name:'Trailing Stop',desc:'Gain gave back a set band from its running peak',bar:_exrBar(0,Math.max(TR*1.5,(gb||0)*1.15),TR,gb,fpc,true,hc)}; }
     case 'TIMESTOP': return {name:'Time Stop',desc:'Held to the max horizon without enough gain',bar:_exrBar(0,Math.max(48,t.days*1.1),40,t.days,v=>(v|0)+'d',true,hc)};
-    case 'NEG_VOL': return {name:'Neg-Vol Exit (OBV)',desc:'OBV negative-volume divergence while in profit (>+5%)',bar:_exrBar(-0.06,Math.max(0.09,(t.pnl_pct||0)+0.05),0.05,t.pnl_pct,fpc,true,hc)};
+    case 'NEG_VOL': return {name:'Neg-Vol Exit (OBV)',desc:'OBV negative-volume divergence (spread &lt; 0) while in profit (>+5%)',bar:_exrBar(-4,4,0,b.obv_div,v=>(+v).toFixed(1),false,hc)};
     case 'MOVE_HI': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress spiked — exits short-vol',bar:_exrBar(0,16,11,b.move_vix_ratio,f2,true,hc)};
     case 'MOVE_LO': return {name:'MOVE / VIX Ratio',desc:'Cross-asset stress collapsed — exits long-vol',bar:_exrBar(0,16,2,b.move_vix_ratio,f2,false,hc)};
     // SVXY rollover exits when the 1M/3M ratio rises out of the bull zone (≥0.932); UVXY
@@ -1663,7 +1665,7 @@ function renderTrades(){
       <td style="text-align:right;color:${r>0?TEAL:CORAL};font-weight:600">${fmtPct(r)}</td>
       <td style="text-align:right;color:${p>0?TEAL:CORAL}">${p>0?'+':''}${fmtK(Math.abs(p)*Math.sign(p))}</td>
       <td><span style="color:var(--namut)">N/A</span></td>
-      <td><span style="display:inline-block;width:120px;border-top:2px dashed var(--namut);opacity:0.55;vertical-align:middle"></span></td>
+      <td>${_hatchExrBar()}</td>
       <td style="text-align:right">${fmtK(t.equity_after)}</td></tr>`; }
     const m=exitReasonMeta(t);return `<tr>
     <td style="color:var(--dim)">${tr.length-i}</td>
@@ -3083,8 +3085,8 @@ function renderSignalMonitor(histBar){
     ['Stop Loss','Closed once the unrealized loss hits the max (UVXY hard stop)', '','Reaches stop-loss zone', pnlCur, false],
     ['Trailing Stop','Closed after giving back too much from the running peak (SVXY)', '','Gain falls a set amount below its peak', pnlCur, false],
     ['Time Stop','Closed after the maximum holding period', 'Held to max horizon','', daysHeldCur, false],
-    ['Neg-Vol Exit (OBV)','Closes short-vol on an OBV negative-volume divergence while in profit > +5%.',
-      'In profit, no divergence → hold','OBV divergence while in profit → exit', pnlCur, carryTrig],
+    ['Neg-Vol Exit (OBV)','Same OBV divergence as the Vol-follow entry signal; closes short-vol when the spread &lt; 0 AND in profit &gt; +5%.',
+      'Spread ≥ 0, or not in profit → hold','Spread &lt; 0 while in profit → exit', (b.obv_div!=null?b.obv_div.toFixed(1):dimc('N/A')), carryTrig],
     ['MOVE / VIX Ratio','Cross-asset stress overlay (bond vs equity vol)',
       'Low cross-asset stress','High cross-asset stress',
       num(movevix,2)+(moveSig==='high'?' <span class="neg">HIGH</span>':moveSig==='low'?' <span class="pos">LOW</span>':''), moveTrig],
@@ -3145,7 +3147,10 @@ function renderSignalMonitor(histBar){
       // the give-back exceeds it — so the marker is always strictly inside the bar.
       case 2:{ const v=dd, hi=Math.max(TR*1.8,(v||0)*1.15), lo=-TR*0.18; o={lo,hi,z:[[lo,TR,'P'],[TR,hi,'C']],v,fmt:_fpc,tip:`give-back ${dd!=null?(dd*100).toFixed(1):'—'}pt from peak vs ${(TR*100).toFixed(1)}pt trail — ${armed?'armed':'NOT armed (needs a prior peak ≥ +13.4%)'}`}; break; }
       case 3:{ const hi=Math.max(TM*1.2,(daysHeldN||0)*1.1); o={lo:0,hi,z:[[0,TM,'P'],[TM,hi,'C']],v:daysHeldN,fmt:_fd,tip:`max ${TM}d · now ${daysHeldN!=null?daysHeldN:'—'}d`}; break; }
-      case 4:{ const th=0.05, hiP=Math.max(th*1.8,(openpnl||0)*1.15); o={lo:-0.06,hi:hiP,z:[[-0.06,th,'P'],[th,hiP,'C']],v:openpnl,fmt:_fpc,tip:`exits short-vol only when an OBV negative-volume divergence is present AND profit > +5% · divergence ${b.neg_vol?'present':'absent'}, P&L now ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; break; }
+      // Plotted on the OBV 5d−13d spread — the SAME signal as the Vol-follow entry row — so
+      // the shared driver is explicit. Exit fires when the spread is < 0 (divergence) AND the
+      // trade is in profit > +5% (the profit gate; noted in the tip).
+      case 4:{ const dO=_domain('obv_div',[0]); o={lo:dO.lo,hi:dO.hi,z:[[dO.lo,0,'C'],[0,dO.hi,'P']],v:b.obv_div,fmt:v=>(+v).toFixed(1),tip:`OBV negative-volume divergence — the same reading as the Vol-follow entry signal. Closes short-vol when this spread crosses below 0 AND the trade is in profit > +5% · spread now ${b.obv_div!=null?b.obv_div.toFixed(2):'—'}, P&L ${openpnl!=null?(openpnl*100).toFixed(1):'—'}%`}; break; }
       // MOVE/VIX — high (≥11) exits short-vol; low (≤2) exits long-vol. Per held
       // side only that tail is the exit; the rest of the range is hold.
       case 5:o=isUV
@@ -3389,7 +3394,7 @@ function renderSignalMonitor(histBar){
       +`<span class="mini-val" style="color:${dull?'var(--dimwhite)':'var(--white)'}">${valHtml}</span><span class="mini-bar">${spec?gaugeMini({...spec,dull:spec.dull||dull}):''}</span>`
       +`<span class="mini-sig">${sigHtml}</span></div>`;
     const eNames=['Contango','VDelta','VIX9D','VIX1M','VIX1M/3M'];
-    const xNames=['Take Profit','Stop Loss','Trailing','Time Stop','Neg Carry','MOVE/VIX','Rollover'];
+    const xNames=['Take Profit','Stop Loss','Trailing','Time Stop','Neg-Vol','MOVE/VIX','Rollover'];
     const scSpec={lo:scLo,hi:scHi,z:scZ,v:isNaN(scBarV)?null:scBarV,fmt:v=>(v*100).toFixed(0)+'%',tip:scTip};
     const moff=posInstr(curPos);   // displayed bar's position (hist = hovered bar, live = official)
     const posCell=(lab,inst,labCol)=>{const k=kindOf(inst);const txt=k==='sv'?'Short Vol':k==='uv'?'Long Vol':'Cash';
