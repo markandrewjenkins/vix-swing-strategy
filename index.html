@@ -2294,16 +2294,18 @@ function displayMarkers(){
   let svC={}, uvC={};
   if(alt){ (ALT_SVIX||[]).forEach(a=>svC[a[0]]=a[4]); (ALT_UVIX||[]).forEach(a=>uvC[a[0]]=a[4]); }
   const ENTRY='#fff3c8';   // luminous pale gold — pops against the deeper gold candles without looking stark white
+  // Position size bought at entry (fraction of equity), shown next to the ticker.
+  const szP=t=>' '+Math.round((t.pos_size!=null?t.pos_size:1)*100)+'%';
   DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     if(alt){
       const map=sv?svC:uvC; const e=map[t.entry_date], x=map[t.exit_date];
       if(e==null||x==null) return;            // no real SVIX/UVIX candle for this trade (pre-2022)
       const pct=altTradePct(t); const nm=sv?'SVIX':'UVIX'; const win=pct>=0;  // leverage-scaled real return
-      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+nm});
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+nm+szP(t)});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(pct*100).toFixed(1)+'%'});
     } else {
       const win=t.pnl_pct>=0;
-      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?'SVXY':'UVXY')});
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?'SVXY':'UVXY')+szP(t)});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
     } });
   // Currently-OPEN position has no closed-trade row, so the loop above skips its
@@ -2314,8 +2316,11 @@ function displayMarkers(){
   if(_oty && _ostart && _ostart>_lastEx){
     const sv=_oty==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     const ok = !alt || ((sv?svC:uvC)[_ostart]!=null);   // alt needs a real SVIX/UVIX candle
+    // Open position's size: UVXY ~43%, SVXY 100% (≈48% in a high-vol regime at entry).
+    const _eb=(DATA.bar_history||[]).find(x=>x.date===_ostart)||{};
+    const _osz=sv?(_eb.high_vol_regime?'48%':'100%'):'43%';
     if(ok) markers.push({time:_ostart,position:mp,color:ENTRY,shape:'arrowUp',size:0,
-      text:'▲ '+(alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'))});
+      text:'▲ '+(alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'))+' '+_osz});
   }
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
 }

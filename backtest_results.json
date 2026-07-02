@@ -1,22 +1,22 @@
 {
   "meta": {
-    "generated": "2026-06-25T00:54:41.856303",
+    "generated": "2026-07-02T17:55:15.804280",
     "start_capital": 100000.0,
     "start_date": "2011-12-02",
-    "end_date": "2026-06-23",
-    "trading_days": 3689,
+    "end_date": "2026-07-01",
+    "trading_days": 3695,
     "instruments": "SVXY / UVXY"
   },
   "summary": {
-    "total_return": 90.77014,
-    "cagr": 0.361678,
-    "sharpe": 1.1174,
-    "sortino": 1.0477,
-    "calmar": 1.3637,
+    "total_return": 94.257406,
+    "cagr": 0.364462,
+    "sharpe": 1.1242,
+    "sortino": 1.0538,
+    "calmar": 1.3742,
     "max_drawdown": -0.265227,
     "max_dd_duration": 438,
-    "final_equity": 9177014.04,
-    "spy_return": 4.866389,
+    "final_equity": 9525740.6,
+    "spy_return": 4.958717,
     "total_trades": 121,
     "win_rate": 0.6198,
     "profit_factor": 2.1113,
@@ -35,7 +35,7 @@
     "svxy_total_pnl": 5990995.26,
     "uvxy_total_pnl": 3069333.56,
     "cash_days": 1493,
-    "cash_pct": 0.4047,
+    "cash_pct": 0.4041,
     "max_consec_wins": 7,
     "max_consec_losses": 4,
     "expected_payoff": 74878.75
@@ -22174,6 +22174,42 @@
       "equity": 9177014.04,
       "drawdown": -6.0243,
       "runup": 9701.59
+    },
+    {
+      "date": "2026-06-24",
+      "equity": 9203710.78,
+      "drawdown": -5.7509,
+      "runup": 9730.1037
+    },
+    {
+      "date": "2026-06-25",
+      "equity": 9278795.57,
+      "drawdown": -4.982,
+      "runup": 9810.2986
+    },
+    {
+      "date": "2026-06-26",
+      "equity": 9265446.88,
+      "drawdown": -5.1187,
+      "runup": 9796.0414
+    },
+    {
+      "date": "2026-06-29",
+      "equity": 9442313.2,
+      "drawdown": -3.3075,
+      "runup": 9984.9451
+    },
+    {
+      "date": "2026-06-30",
+      "equity": 9554105.61,
+      "drawdown": -2.1628,
+      "runup": 10104.3459
+    },
+    {
+      "date": "2026-07-01",
+      "equity": 9525740.6,
+      "drawdown": -2.4532,
+      "runup": 10074.0504
     }
   ],
   "spy_curve": [
@@ -36932,6 +36968,30 @@
     {
       "date": "2026-06-23",
       "equity": 587522.04
+    },
+    {
+      "date": "2026-06-24",
+      "equity": 587249.71
+    },
+    {
+      "date": "2026-06-25",
+      "equity": 588098.66
+    },
+    {
+      "date": "2026-06-26",
+      "equity": 583845.9
+    },
+    {
+      "date": "2026-06-29",
+      "equity": 593464.68
+    },
+    {
+      "date": "2026-06-30",
+      "equity": 598085.87
+    },
+    {
+      "date": "2026-07-01",
+      "equity": 597276.96
     }
   ],
   "trades": [
@@ -36946,7 +37006,8 @@
       "days": 33,
       "exit_reason": "TRAIL",
       "equity_after": 127787.82,
-      "bars_in_trade": 33
+      "bars_in_trade": 33,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -36959,7 +37020,8 @@
       "days": 29,
       "exit_reason": "TP",
       "equity_after": 196248.21,
-      "bars_in_trade": 29
+      "bars_in_trade": 29,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -36972,7 +37034,8 @@
       "days": 29,
       "exit_reason": "RATIO",
       "equity_after": 181272.63,
-      "bars_in_trade": 29
+      "bars_in_trade": 29,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -36985,7 +37048,8 @@
       "days": 20,
       "exit_reason": "TRAIL",
       "equity_after": 190267.8,
-      "bars_in_trade": 20
+      "bars_in_trade": 20,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -36998,7 +37062,8 @@
       "days": 18,
       "exit_reason": "TRAIL",
       "equity_after": 216085.23,
-      "bars_in_trade": 18
+      "bars_in_trade": 18,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37011,7 +37076,8 @@
       "days": 26,
       "exit_reason": "NEG_VOL",
       "equity_after": 240676.61,
-      "bars_in_trade": 26
+      "bars_in_trade": 26,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37024,7 +37090,8 @@
       "days": 31,
       "exit_reason": "RATIO",
       "equity_after": 259956.59,
-      "bars_in_trade": 31
+      "bars_in_trade": 31,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37037,7 +37104,8 @@
       "days": 5,
       "exit_reason": "NEG_VOL",
       "equity_after": 281590.08,
-      "bars_in_trade": 5
+      "bars_in_trade": 5,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37050,7 +37118,8 @@
       "days": 6,
       "exit_reason": "RATIO",
       "equity_after": 282221.36,
-      "bars_in_trade": 6
+      "bars_in_trade": 6,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37063,7 +37132,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 274962.1,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37076,7 +37146,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 259152.59,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37089,7 +37160,8 @@
       "days": 25,
       "exit_reason": "RATIO",
       "equity_after": 284750.16,
-      "bars_in_trade": 25
+      "bars_in_trade": 25,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37102,7 +37174,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 296313.38,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37115,7 +37188,8 @@
       "days": 38,
       "exit_reason": "TP",
       "equity_after": 424086.6,
-      "bars_in_trade": 38
+      "bars_in_trade": 38,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37128,7 +37202,8 @@
       "days": 26,
       "exit_reason": "RATIO",
       "equity_after": 374863.6,
-      "bars_in_trade": 26
+      "bars_in_trade": 26,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL",
@@ -37141,7 +37216,8 @@
       "days": 2,
       "exit_reason": "SL",
       "equity_after": 365132.05,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37154,7 +37230,8 @@
       "days": 2,
       "exit_reason": "NEG_VOL",
       "equity_after": 394777.81,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37167,7 +37244,8 @@
       "days": 8,
       "exit_reason": "RATIO",
       "equity_after": 342981.84,
-      "bars_in_trade": 8
+      "bars_in_trade": 8,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37180,7 +37258,8 @@
       "days": 8,
       "exit_reason": "NEG_VOL",
       "equity_after": 376969.24,
-      "bars_in_trade": 8
+      "bars_in_trade": 8,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37193,7 +37272,8 @@
       "days": 40,
       "exit_reason": "NEG_VOL",
       "equity_after": 486859.53,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37206,7 +37286,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 438060.06,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL",
@@ -37219,7 +37300,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 507236.15,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37232,7 +37314,8 @@
       "days": 2,
       "exit_reason": "TP",
       "equity_after": 541178.73,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37245,7 +37328,8 @@
       "days": 3,
       "exit_reason": "RATIO",
       "equity_after": 476707.89,
-      "bars_in_trade": 3
+      "bars_in_trade": 3,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37258,7 +37342,8 @@
       "days": 2,
       "exit_reason": "NEG_VOL",
       "equity_after": 530279.48,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37271,7 +37356,8 @@
       "days": 2,
       "exit_reason": "NEG_VOL",
       "equity_after": 569099.95,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37284,7 +37370,8 @@
       "days": 14,
       "exit_reason": "NEG_VOL",
       "equity_after": 638677.7,
-      "bars_in_trade": 14
+      "bars_in_trade": 14,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37297,7 +37384,8 @@
       "days": 22,
       "exit_reason": "RATIO",
       "equity_after": 511325.5,
-      "bars_in_trade": 22
+      "bars_in_trade": 22,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37310,7 +37398,8 @@
       "days": 2,
       "exit_reason": "NEG_VOL",
       "equity_after": 548509.05,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37323,7 +37412,8 @@
       "days": 4,
       "exit_reason": "RATIO",
       "equity_after": 592564.74,
-      "bars_in_trade": 4
+      "bars_in_trade": 4,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37336,7 +37426,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 552121.74,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37349,7 +37440,8 @@
       "days": 2,
       "exit_reason": "RATIO",
       "equity_after": 554243.53,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37362,7 +37454,8 @@
       "days": 27,
       "exit_reason": "TRAIL",
       "equity_after": 693750.93,
-      "bars_in_trade": 27
+      "bars_in_trade": 27,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37375,7 +37468,8 @@
       "days": 16,
       "exit_reason": "TRAIL",
       "equity_after": 769780.47,
-      "bars_in_trade": 16
+      "bars_in_trade": 16,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37388,7 +37482,8 @@
       "days": 27,
       "exit_reason": "TRAIL",
       "equity_after": 858035.54,
-      "bars_in_trade": 27
+      "bars_in_trade": 27,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37401,7 +37496,8 @@
       "days": 3,
       "exit_reason": "RATIO",
       "equity_after": 911033.29,
-      "bars_in_trade": 3
+      "bars_in_trade": 3,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37414,7 +37510,8 @@
       "days": 22,
       "exit_reason": "TP",
       "equity_after": 1321633.9,
-      "bars_in_trade": 22
+      "bars_in_trade": 22,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37427,7 +37524,8 @@
       "days": 18,
       "exit_reason": "RATIO",
       "equity_after": 1119216.57,
-      "bars_in_trade": 18
+      "bars_in_trade": 18,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37440,7 +37538,8 @@
       "days": 23,
       "exit_reason": "RATIO",
       "equity_after": 1112251.76,
-      "bars_in_trade": 23
+      "bars_in_trade": 23,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37453,7 +37552,8 @@
       "days": 28,
       "exit_reason": "TRAIL",
       "equity_after": 1278949.84,
-      "bars_in_trade": 28
+      "bars_in_trade": 28,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37466,7 +37566,8 @@
       "days": 17,
       "exit_reason": "RATIO",
       "equity_after": 1195706.22,
-      "bars_in_trade": 17
+      "bars_in_trade": 17,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37479,7 +37580,8 @@
       "days": 39,
       "exit_reason": "TRAIL",
       "equity_after": 1136838.86,
-      "bars_in_trade": 39
+      "bars_in_trade": 39,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37492,7 +37594,8 @@
       "days": 23,
       "exit_reason": "NEG_VOL",
       "equity_after": 1202366.15,
-      "bars_in_trade": 23
+      "bars_in_trade": 23,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL",
@@ -37505,7 +37608,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 1318890.76,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37518,7 +37622,8 @@
       "days": 1,
       "exit_reason": "SL",
       "equity_after": 1269561.41,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37531,7 +37636,8 @@
       "days": 3,
       "exit_reason": "RATIO",
       "equity_after": 1216370.32,
-      "bars_in_trade": 3
+      "bars_in_trade": 3,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37544,7 +37650,8 @@
       "days": 11,
       "exit_reason": "RATIO",
       "equity_after": 1235454.63,
-      "bars_in_trade": 11
+      "bars_in_trade": 11,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37557,7 +37664,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 1256959.48,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37570,7 +37678,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 1290675.04,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37583,7 +37692,8 @@
       "days": 36,
       "exit_reason": "TRAIL",
       "equity_after": 1316844.45,
-      "bars_in_trade": 36
+      "bars_in_trade": 36,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37596,7 +37706,8 @@
       "days": 36,
       "exit_reason": "NEG_VOL",
       "equity_after": 1489425.29,
-      "bars_in_trade": 36
+      "bars_in_trade": 36,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37609,7 +37720,8 @@
       "days": 28,
       "exit_reason": "RATIO",
       "equity_after": 1354262.06,
-      "bars_in_trade": 28
+      "bars_in_trade": 28,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37622,7 +37734,8 @@
       "days": 6,
       "exit_reason": "RATIO",
       "equity_after": 1318973.63,
-      "bars_in_trade": 6
+      "bars_in_trade": 6,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37635,7 +37748,8 @@
       "days": 3,
       "exit_reason": "RATIO",
       "equity_after": 1250366.77,
-      "bars_in_trade": 3
+      "bars_in_trade": 3,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37648,7 +37762,8 @@
       "days": 2,
       "exit_reason": "RATIO",
       "equity_after": 1247804.59,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37661,7 +37776,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 1264203.19,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37674,7 +37790,8 @@
       "days": 2,
       "exit_reason": "RATIO",
       "equity_after": 1222788.78,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL",
@@ -37687,7 +37804,8 @@
       "days": 2,
       "exit_reason": "TP",
       "equity_after": 1300650.26,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37700,7 +37818,8 @@
       "days": 4,
       "exit_reason": "SL",
       "equity_after": 1276146.89,
-      "bars_in_trade": 4
+      "bars_in_trade": 4,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37713,7 +37832,8 @@
       "days": 8,
       "exit_reason": "RATIO",
       "equity_after": 1289171.66,
-      "bars_in_trade": 8
+      "bars_in_trade": 8,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37726,7 +37846,8 @@
       "days": 23,
       "exit_reason": "NEG_VOL",
       "equity_after": 1397903.61,
-      "bars_in_trade": 23
+      "bars_in_trade": 23,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37739,7 +37860,8 @@
       "days": 4,
       "exit_reason": "RATIO",
       "equity_after": 1295342.82,
-      "bars_in_trade": 4
+      "bars_in_trade": 4,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37752,7 +37874,8 @@
       "days": 2,
       "exit_reason": "RATIO",
       "equity_after": 1314130.57,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37765,7 +37888,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 1293803.64,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37778,7 +37902,8 @@
       "days": 2,
       "exit_reason": "RATIO",
       "equity_after": 1231231.33,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37791,7 +37916,8 @@
       "days": 1,
       "exit_reason": "RATIO",
       "equity_after": 1263605.5,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37804,7 +37930,8 @@
       "days": 20,
       "exit_reason": "RATIO",
       "equity_after": 1250210.46,
-      "bars_in_trade": 20
+      "bars_in_trade": 20,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37817,7 +37944,8 @@
       "days": 28,
       "exit_reason": "RATIO",
       "equity_after": 1227180.29,
-      "bars_in_trade": 28
+      "bars_in_trade": 28,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL",
@@ -37830,7 +37958,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 1301706.71,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37843,7 +37972,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 1439562.1,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37856,7 +37986,8 @@
       "days": 1,
       "exit_reason": "SL",
       "equity_after": 1406340.36,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37869,7 +38000,8 @@
       "days": 1,
       "exit_reason": "SL",
       "equity_after": 1353194.42,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37882,7 +38014,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 1449268.63,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37895,7 +38028,8 @@
       "days": 1,
       "exit_reason": "SL",
       "equity_after": 1376828.19,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37908,7 +38042,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 1583111.11,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -37921,7 +38056,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 1974410.45,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37934,7 +38070,8 @@
       "days": 40,
       "exit_reason": "TIMESTOP",
       "equity_after": 1887099.41,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 0.4751
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37947,7 +38084,8 @@
       "days": 37,
       "exit_reason": "TRAIL",
       "equity_after": 1893672.62,
-      "bars_in_trade": 37
+      "bars_in_trade": 37,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37960,7 +38098,8 @@
       "days": 32,
       "exit_reason": "NEG_VOL",
       "equity_after": 2121280.34,
-      "bars_in_trade": 32
+      "bars_in_trade": 32,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37973,7 +38112,8 @@
       "days": 40,
       "exit_reason": "TIMESTOP",
       "equity_after": 2103237.74,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37986,7 +38126,8 @@
       "days": 54,
       "exit_reason": "NEG_VOL",
       "equity_after": 2596281.59,
-      "bars_in_trade": 54
+      "bars_in_trade": 54,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -37999,7 +38140,8 @@
       "days": 19,
       "exit_reason": "NEG_VOL",
       "equity_after": 2729718.14,
-      "bars_in_trade": 19
+      "bars_in_trade": 19,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38012,7 +38154,8 @@
       "days": 23,
       "exit_reason": "NEG_VOL",
       "equity_after": 2877870.33,
-      "bars_in_trade": 23
+      "bars_in_trade": 23,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38025,7 +38168,8 @@
       "days": 40,
       "exit_reason": "TIMESTOP",
       "equity_after": 3008588.05,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38038,7 +38182,8 @@
       "days": 46,
       "exit_reason": "NEG_VOL",
       "equity_after": 3316350.43,
-      "bars_in_trade": 46
+      "bars_in_trade": 46,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38051,7 +38196,8 @@
       "days": 40,
       "exit_reason": "TIMESTOP",
       "equity_after": 3080588.33,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38064,7 +38210,8 @@
       "days": 5,
       "exit_reason": "NEG_VOL",
       "equity_after": 3360117.77,
-      "bars_in_trade": 5
+      "bars_in_trade": 5,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38077,7 +38224,8 @@
       "days": 40,
       "exit_reason": "TIMESTOP",
       "equity_after": 3108835.45,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38090,7 +38238,8 @@
       "days": 40,
       "exit_reason": "TIMESTOP",
       "equity_after": 2916726.09,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38103,7 +38252,8 @@
       "days": 56,
       "exit_reason": "TRAIL",
       "equity_after": 3078833.07,
-      "bars_in_trade": 56
+      "bars_in_trade": 56,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL",
@@ -38116,7 +38266,8 @@
       "days": 2,
       "exit_reason": "RATIO",
       "equity_after": 3214002.82,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38129,7 +38280,8 @@
       "days": 48,
       "exit_reason": "NEG_VOL",
       "equity_after": 3766101.33,
-      "bars_in_trade": 48
+      "bars_in_trade": 48,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38142,7 +38294,8 @@
       "days": 22,
       "exit_reason": "RATIO",
       "equity_after": 3805835.13,
-      "bars_in_trade": 22
+      "bars_in_trade": 22,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38155,7 +38308,8 @@
       "days": 81,
       "exit_reason": "TP",
       "equity_after": 5455574.42,
-      "bars_in_trade": 81
+      "bars_in_trade": 81,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38168,7 +38322,8 @@
       "days": 32,
       "exit_reason": "RATIO",
       "equity_after": 5671514.91,
-      "bars_in_trade": 32
+      "bars_in_trade": 32,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38181,7 +38336,8 @@
       "days": 6,
       "exit_reason": "RATIO",
       "equity_after": 5148435.58,
-      "bars_in_trade": 6
+      "bars_in_trade": 6,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38194,7 +38350,8 @@
       "days": 37,
       "exit_reason": "NEG_VOL",
       "equity_after": 5951850.03,
-      "bars_in_trade": 37
+      "bars_in_trade": 37,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38207,7 +38364,8 @@
       "days": 45,
       "exit_reason": "TIMESTOP",
       "equity_after": 6187644.39,
-      "bars_in_trade": 45
+      "bars_in_trade": 45,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38220,7 +38378,8 @@
       "days": 3,
       "exit_reason": "RATIO",
       "equity_after": 5930879.35,
-      "bars_in_trade": 3
+      "bars_in_trade": 3,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38233,7 +38392,8 @@
       "days": 3,
       "exit_reason": "RATIO",
       "equity_after": 5993240.53,
-      "bars_in_trade": 3
+      "bars_in_trade": 3,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38246,7 +38406,8 @@
       "days": 30,
       "exit_reason": "NEG_VOL",
       "equity_after": 6340239.03,
-      "bars_in_trade": 30
+      "bars_in_trade": 30,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38259,7 +38420,8 @@
       "days": 17,
       "exit_reason": "RATIO",
       "equity_after": 5695591.71,
-      "bars_in_trade": 17
+      "bars_in_trade": 17,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38272,7 +38434,8 @@
       "days": 33,
       "exit_reason": "RATIO",
       "equity_after": 5470810.58,
-      "bars_in_trade": 33
+      "bars_in_trade": 33,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38285,7 +38448,8 @@
       "days": 40,
       "exit_reason": "TIMESTOP",
       "equity_after": 5447252.45,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38298,7 +38462,8 @@
       "days": 18,
       "exit_reason": "RATIO",
       "equity_after": 5487854.33,
-      "bars_in_trade": 18
+      "bars_in_trade": 18,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38311,7 +38476,8 @@
       "days": 14,
       "exit_reason": "RATIO",
       "equity_after": 5353170.12,
-      "bars_in_trade": 14
+      "bars_in_trade": 14,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL",
@@ -38324,7 +38490,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 6017391.66,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -38337,7 +38504,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 6534275.63,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL",
@@ -38350,7 +38518,8 @@
       "days": 1,
       "exit_reason": "TP",
       "equity_after": 7326163.29,
-      "bars_in_trade": 1
+      "bars_in_trade": 1,
+      "pos_size": 0.43
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38363,7 +38532,8 @@
       "days": 8,
       "exit_reason": "NEG_VOL",
       "equity_after": 7831780.53,
-      "bars_in_trade": 8
+      "bars_in_trade": 8,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38376,7 +38546,8 @@
       "days": 40,
       "exit_reason": "TIMESTOP",
       "equity_after": 8074332.41,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38389,7 +38560,8 @@
       "days": 17,
       "exit_reason": "NEG_VOL",
       "equity_after": 8533607.0,
-      "bars_in_trade": 17
+      "bars_in_trade": 17,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38402,7 +38574,8 @@
       "days": 17,
       "exit_reason": "NEG_VOL",
       "equity_after": 9019651.37,
-      "bars_in_trade": 17
+      "bars_in_trade": 17,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38415,7 +38588,8 @@
       "days": 25,
       "exit_reason": "RATIO",
       "equity_after": 8721435.52,
-      "bars_in_trade": 25
+      "bars_in_trade": 25,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38428,7 +38602,8 @@
       "days": 16,
       "exit_reason": "RATIO",
       "equity_after": 8249537.47,
-      "bars_in_trade": 16
+      "bars_in_trade": 16,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38441,7 +38616,8 @@
       "days": 32,
       "exit_reason": "NEG_VOL",
       "equity_after": 9074164.5,
-      "bars_in_trade": 32
+      "bars_in_trade": 32,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38454,7 +38630,8 @@
       "days": 2,
       "exit_reason": "NEG_VOL",
       "equity_after": 9641516.75,
-      "bars_in_trade": 2
+      "bars_in_trade": 2,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38467,7 +38644,8 @@
       "days": 9,
       "exit_reason": "RATIO",
       "equity_after": 9121253.01,
-      "bars_in_trade": 9
+      "bars_in_trade": 9,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38480,7 +38658,8 @@
       "days": 5,
       "exit_reason": "RATIO",
       "equity_after": 8917510.94,
-      "bars_in_trade": 5
+      "bars_in_trade": 5,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38493,7 +38672,8 @@
       "days": 40,
       "exit_reason": "TIMESTOP",
       "equity_after": 8847349.29,
-      "bars_in_trade": 40
+      "bars_in_trade": 40,
+      "pos_size": 1.0
     },
     {
       "type": "LONG_VOL_SELLER",
@@ -38506,7 +38686,8 @@
       "days": 27,
       "exit_reason": "RATIO",
       "equity_after": 9160328.81,
-      "bars_in_trade": 27
+      "bars_in_trade": 27,
+      "pos_size": 1.0
     }
   ],
   "monthly": [
@@ -39204,14 +39385,18 @@
     },
     {
       "month": "2026-06",
-      "ret": -0.049005
+      "ret": -0.009928
+    },
+    {
+      "month": "2026-07",
+      "ret": -0.002969
     }
   ],
   "condition_counts": {
-    "bull_9d": 1752,
-    "bull_1m": 3107,
-    "bull_ratio": 2767,
-    "bear_9d": 1937,
+    "bull_9d": 1756,
+    "bull_1m": 3113,
+    "bull_ratio": 2773,
+    "bear_9d": 1939,
     "bear_1m": 582,
     "bear_ratio": 57,
     "spike_9d": 19,
@@ -39222,7 +39407,7 @@
   "signal_counts": {
     "CASH": 1493,
     "LONG_SVXY": 103,
-    "HOLD_SVXY": 1946,
+    "HOLD_SVXY": 1952,
     "EXIT_SVXY": 102,
     "LONG_UVXY": 19,
     "HOLD_UVXY": 7,
@@ -190447,8 +190632,8 @@
       "contango": 0.1435,
       "vdelta": 0.99,
       "ratio_1m_3m": 0.8745,
-      "move": 65.39,
-      "move_vix_ratio": 3.78,
+      "move": 70.02,
+      "move_vix_ratio": 4.05,
       "bull_9d": true,
       "bull_1m": true,
       "bull_ratio": true,
@@ -190488,8 +190673,8 @@
       "contango": 0.0806,
       "vdelta": 0.02,
       "ratio_1m_3m": 0.9255,
-      "move": 65.39,
-      "move_vix_ratio": 3.36,
+      "move": 68.78,
+      "move_vix_ratio": 3.53,
       "bull_9d": true,
       "bull_1m": true,
       "bull_ratio": true,
@@ -190516,6 +190701,252 @@
       "vix1m_ma30": 17.51,
       "svxy_price": 55.0,
       "uvxy_price": 28.0
+    },
+    {
+      "date": "2026-06-24",
+      "position": "LONG_VOL_SELLER",
+      "equity": 9203710.78,
+      "open_pnl_pct": 0.004736,
+      "signal": "HOLD_SVXY",
+      "vix1m": 18.63,
+      "vix9d": 18.07,
+      "vix3m": 20.37,
+      "contango": 0.0934,
+      "vdelta": 0.56,
+      "ratio_1m_3m": 0.9146,
+      "move": 69.06,
+      "move_vix_ratio": 3.71,
+      "bull_9d": true,
+      "bull_1m": true,
+      "bull_ratio": true,
+      "bear_9d": false,
+      "bear_1m": false,
+      "bear_ratio": false,
+      "spike_9d": false,
+      "spike_1m": false,
+      "crush_9d": false,
+      "crush_1m": false,
+      "bb_buy": true,
+      "vix_fade": false,
+      "vix_sustained": false,
+      "neg_vol": false,
+      "cont_bull": true,
+      "obv_div": 0.34,
+      "price_hi": false,
+      "bear_roll": 0.0,
+      "mv_hi": false,
+      "mv_lo": false,
+      "pc_bull": false,
+      "high_vol_regime": false,
+      "bb_trend": 5.1066,
+      "vix1m_ma30": 17.53,
+      "svxy_price": 55.16,
+      "uvxy_price": 27.65
+    },
+    {
+      "date": "2026-06-25",
+      "position": "LONG_VOL_SELLER",
+      "equity": 9278795.57,
+      "open_pnl_pct": 0.012933,
+      "signal": "HOLD_SVXY",
+      "vix1m": 18.89,
+      "vix9d": 17.92,
+      "vix3m": 20.33,
+      "contango": 0.0762,
+      "vdelta": 0.97,
+      "ratio_1m_3m": 0.9292,
+      "move": 67.1,
+      "move_vix_ratio": 3.55,
+      "bull_9d": true,
+      "bull_1m": true,
+      "bull_ratio": true,
+      "bear_9d": false,
+      "bear_1m": false,
+      "bear_ratio": false,
+      "spike_9d": false,
+      "spike_1m": false,
+      "crush_9d": false,
+      "crush_1m": false,
+      "bb_buy": true,
+      "vix_fade": false,
+      "vix_sustained": true,
+      "neg_vol": false,
+      "cont_bull": false,
+      "obv_div": 0.647,
+      "price_hi": false,
+      "bear_roll": 0.0,
+      "mv_hi": false,
+      "mv_lo": false,
+      "pc_bull": false,
+      "high_vol_regime": false,
+      "bb_trend": 5.0833,
+      "vix1m_ma30": 17.59,
+      "svxy_price": 55.61,
+      "uvxy_price": 26.97
+    },
+    {
+      "date": "2026-06-26",
+      "position": "LONG_VOL_SELLER",
+      "equity": 9265446.88,
+      "open_pnl_pct": 0.011475,
+      "signal": "HOLD_SVXY",
+      "vix1m": 18.41,
+      "vix9d": 16.8,
+      "vix3m": 20.13,
+      "contango": 0.0934,
+      "vdelta": 1.61,
+      "ratio_1m_3m": 0.9146,
+      "move": 66.79,
+      "move_vix_ratio": 3.63,
+      "bull_9d": true,
+      "bull_1m": true,
+      "bull_ratio": true,
+      "bear_9d": false,
+      "bear_1m": false,
+      "bear_ratio": false,
+      "spike_9d": false,
+      "spike_1m": false,
+      "crush_9d": false,
+      "crush_1m": false,
+      "bb_buy": true,
+      "vix_fade": false,
+      "vix_sustained": false,
+      "neg_vol": false,
+      "cont_bull": true,
+      "obv_div": 0.648,
+      "price_hi": false,
+      "bear_roll": 0.0,
+      "mv_hi": false,
+      "mv_lo": false,
+      "pc_bull": false,
+      "high_vol_regime": false,
+      "bb_trend": 5.0701,
+      "vix1m_ma30": 17.59,
+      "svxy_price": 55.53,
+      "uvxy_price": 27.22
+    },
+    {
+      "date": "2026-06-29",
+      "position": "LONG_VOL_SELLER",
+      "equity": 9442313.2,
+      "open_pnl_pct": 0.030783,
+      "signal": "HOLD_SVXY",
+      "vix1m": 17.65,
+      "vix9d": 15.51,
+      "vix3m": 19.53,
+      "contango": 0.1065,
+      "vdelta": 2.14,
+      "ratio_1m_3m": 0.9037,
+      "move": 66.79,
+      "move_vix_ratio": 3.78,
+      "bull_9d": true,
+      "bull_1m": true,
+      "bull_ratio": true,
+      "bear_9d": false,
+      "bear_1m": false,
+      "bear_ratio": false,
+      "spike_9d": false,
+      "spike_1m": false,
+      "crush_9d": false,
+      "crush_1m": false,
+      "bb_buy": true,
+      "vix_fade": false,
+      "vix_sustained": false,
+      "neg_vol": false,
+      "cont_bull": true,
+      "obv_div": 0.773,
+      "price_hi": true,
+      "bear_roll": 0.0,
+      "mv_hi": false,
+      "mv_lo": false,
+      "pc_bull": false,
+      "high_vol_regime": false,
+      "bb_trend": 4.9882,
+      "vix1m_ma30": 17.58,
+      "svxy_price": 56.59,
+      "uvxy_price": 25.71
+    },
+    {
+      "date": "2026-06-30",
+      "position": "LONG_VOL_SELLER",
+      "equity": 9554105.61,
+      "open_pnl_pct": 0.042987,
+      "signal": "HOLD_SVXY",
+      "vix1m": 16.45,
+      "vix9d": 13.73,
+      "vix3m": 19.0,
+      "contango": 0.155,
+      "vdelta": 2.72,
+      "ratio_1m_3m": 0.8658,
+      "move": 66.79,
+      "move_vix_ratio": 4.06,
+      "bull_9d": false,
+      "bull_1m": true,
+      "bull_ratio": true,
+      "bear_9d": true,
+      "bear_1m": false,
+      "bear_ratio": false,
+      "spike_9d": false,
+      "spike_1m": false,
+      "crush_9d": false,
+      "crush_1m": false,
+      "bb_buy": true,
+      "vix_fade": false,
+      "vix_sustained": false,
+      "neg_vol": false,
+      "cont_bull": true,
+      "obv_div": 0.94,
+      "price_hi": true,
+      "bear_roll": 1.0,
+      "mv_hi": false,
+      "mv_lo": false,
+      "pc_bull": false,
+      "high_vol_regime": false,
+      "bb_trend": 4.6884,
+      "vix1m_ma30": 17.53,
+      "svxy_price": 57.26,
+      "uvxy_price": 24.89
+    },
+    {
+      "date": "2026-07-01",
+      "position": "LONG_VOL_SELLER",
+      "equity": 9525740.6,
+      "open_pnl_pct": 0.039891,
+      "signal": "HOLD_SVXY",
+      "vix1m": 16.59,
+      "vix9d": 13.14,
+      "vix3m": 19.16,
+      "contango": 0.1549,
+      "vdelta": 3.45,
+      "ratio_1m_3m": 0.8659,
+      "move": 66.79,
+      "move_vix_ratio": 4.03,
+      "bull_9d": false,
+      "bull_1m": true,
+      "bull_ratio": true,
+      "bear_9d": true,
+      "bear_1m": false,
+      "bear_ratio": false,
+      "spike_9d": false,
+      "spike_1m": false,
+      "crush_9d": false,
+      "crush_1m": false,
+      "bb_buy": true,
+      "vix_fade": false,
+      "vix_sustained": false,
+      "neg_vol": false,
+      "cont_bull": true,
+      "obv_div": 0.887,
+      "price_hi": true,
+      "bear_roll": 1.0,
+      "mv_hi": false,
+      "mv_lo": false,
+      "pc_bull": false,
+      "high_vol_regime": false,
+      "bb_trend": 4.4924,
+      "vix1m_ma30": 17.5,
+      "svxy_price": 57.09,
+      "uvxy_price": 25.19
     }
   ]
 }
