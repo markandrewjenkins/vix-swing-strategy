@@ -793,7 +793,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       </div>
       <div style="overflow-x:auto">
         <table><thead><tr>
-          <th>#</th><th>Instr.</th><th>Entry date</th><th>Exit date</th><th style="text-align:right">Days</th>
+          <th>#</th><th>Instr.</th><th style="text-align:right" title="Position size bought at entry, as a fraction of equity">Size</th><th>Entry date</th><th>Exit date</th><th style="text-align:right">Days</th>
           <th style="text-align:right">Entry $</th><th style="text-align:right">Exit $</th><th style="text-align:right">Return</th><th style="text-align:right">P&amp;L $</th><th>Exit reason</th><th>vs threshold</th><th style="text-align:right">Equity after</th>
         </tr></thead><tbody id="trade-tbody"></tbody></table>
       </div>
@@ -1635,7 +1635,8 @@ function _openTradeRow(){
   const pl=eqNow-eqEntry;
   return { _open:true, type:lp, entry_date:eb.date, exit_date:lb.date, _curDate:lb.date,
     days:(bh.length-1-i), entry_price:sv?eb.svxy_price:eb.uvxy_price, exit_price:sv?lb.svxy_price:lb.uvxy_price,
-    ret, pnl:pl, pnl_pct:opn, pnl_dollar:pl, equity_after:eqNow };
+    ret, pnl:pl, pnl_pct:opn, pnl_dollar:pl, equity_after:eqNow,
+    pos_size: sv?(eb.high_vol_regime?0.475:1.0):0.43 };
 }
 function renderTrades(){
   if(!DATA)return;
@@ -1654,10 +1655,12 @@ function renderTrades(){
   // Prepend the current OPEN position (unrealized), if any, at the top of the list.
   const ot=_openTradeRow();
   if(ot && (filt==='ALL' || (filt==='SV'&&tIsSV(ot)) || (filt==='UV'&&!tIsSV(ot)))) tr.unshift(ot);
+  const szT=t=>Math.round((t.pos_size!=null?t.pos_size:1)*100)+'%';
   document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>{const r=tRet(t),p=tPnl(t);
     if(t._open){ return `<tr style="background:rgba(232,185,79,0.07)">
       <td style="color:var(--dim)">${tr.length-i}</td>
       <td>${pill(t)}</td>
+      <td style="text-align:right">${szT(t)}</td>
       <td>${t.entry_date}</td><td style="color:var(--yellow);font-weight:600">OPEN</td>
       <td style="text-align:right">${t.days}d</td>
       <td style="text-align:right">${alt?aPx(t,t.entry_date):fmtPrice(t.entry_price)}</td>
@@ -1670,6 +1673,7 @@ function renderTrades(){
     const m=exitReasonMeta(t);return `<tr>
     <td style="color:var(--dim)">${tr.length-i}</td>
     <td>${pill(t)}</td>
+    <td style="text-align:right">${szT(t)}</td>
     <td>${t.entry_date}</td><td>${t.exit_date}</td>
     <td style="text-align:right">${t.days}d</td>
     <td style="text-align:right">${alt?aPx(t,t.entry_date):fmtPrice(t.entry_price)}</td>
@@ -1686,8 +1690,8 @@ function renderTrades(){
 function exportTradesCsv(){
   const alt=aMode(); const [svM,uvM]=alt?altCloseMaps():[null,null];
   const px=(t,d)=>{ if(!alt) return d; const m=tIsSV(t)?svM:uvM; const v=m&&m[d]; return v!=null?v.toFixed(2):''; };
-  const rows=[['instrument','entry_date','exit_date','days','entry_price','exit_price','return_pct','pnl_usd','exit_reason','equity_after']];
-  aTrades().forEach(t=>rows.push([ tInstr(t), t.entry_date, t.exit_date, t.days,
+  const rows=[['instrument','size_pct','entry_date','exit_date','days','entry_price','exit_price','return_pct','pnl_usd','exit_reason','equity_after']];
+  aTrades().forEach(t=>rows.push([ tInstr(t), Math.round((t.pos_size!=null?t.pos_size:1)*100)+'%', t.entry_date, t.exit_date, t.days,
     alt?px(t,t.entry_date):(t.entry_price??''), alt?px(t,t.exit_date):(t.exit_price??''),
     (tRet(t)*100).toFixed(2)+'%', Math.round(tPnl(t)), t.exit_reason, Math.round(t.equity_after) ]));
   const csv=rows.map(r=>r.map(x=>{const s=String(x); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\n');
@@ -2294,18 +2298,16 @@ function displayMarkers(){
   let svC={}, uvC={};
   if(alt){ (ALT_SVIX||[]).forEach(a=>svC[a[0]]=a[4]); (ALT_UVIX||[]).forEach(a=>uvC[a[0]]=a[4]); }
   const ENTRY='#fff3c8';   // luminous pale gold — pops against the deeper gold candles without looking stark white
-  // Position size bought at entry (fraction of equity), shown next to the ticker.
-  const szP=t=>' '+Math.round((t.pos_size!=null?t.pos_size:1)*100)+'%';
   DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     if(alt){
       const map=sv?svC:uvC; const e=map[t.entry_date], x=map[t.exit_date];
       if(e==null||x==null) return;            // no real SVIX/UVIX candle for this trade (pre-2022)
       const pct=altTradePct(t); const nm=sv?'SVIX':'UVIX'; const win=pct>=0;  // leverage-scaled real return
-      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+nm+szP(t)});
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+nm});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(pct*100).toFixed(1)+'%'});
     } else {
       const win=t.pnl_pct>=0;
-      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?'SVXY':'UVXY')+szP(t)});
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?'SVXY':'UVXY')});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
     } });
   // Currently-OPEN position has no closed-trade row, so the loop above skips its
@@ -2316,11 +2318,8 @@ function displayMarkers(){
   if(_oty && _ostart && _ostart>_lastEx){
     const sv=_oty==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     const ok = !alt || ((sv?svC:uvC)[_ostart]!=null);   // alt needs a real SVIX/UVIX candle
-    // Open position's size: UVXY ~43%, SVXY 100% (≈48% in a high-vol regime at entry).
-    const _eb=(DATA.bar_history||[]).find(x=>x.date===_ostart)||{};
-    const _osz=sv?(_eb.high_vol_regime?'48%':'100%'):'43%';
     if(ok) markers.push({time:_ostart,position:mp,color:ENTRY,shape:'arrowUp',size:0,
-      text:'▲ '+(alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'))+' '+_osz});
+      text:'▲ '+(alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'))});
   }
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
 }
