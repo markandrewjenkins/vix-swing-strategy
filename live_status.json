@@ -1,8 +1,8 @@
 {
-  "generated_utc": "2026-07-10T10:40:27+00:00",
+  "generated_utc": "2026-07-10T10:45:23+00:00",
   "market": {
-    "vix_spot": 15.95,
-    "vix1m_used": 15.95,
+    "vix_spot": 15.93,
+    "vix1m_used": 15.93,
     "vix9d_used": 12.5,
     "vix3m_used": 18.99,
     "vvix_used": 88.78,
@@ -34,10 +34,10 @@
     },
     "quotes": {
       "vix": {
-        "price": 15.95,
+        "price": 15.93,
         "prev_close": 16.9,
-        "change_pct": -0.056213,
-        "time": "2026-07-10T10:25:16+00:00"
+        "change_pct": -0.057396,
+        "time": "2026-07-10T10:30:16+00:00"
       },
       "vix9d": {
         "price": 12.5,
@@ -70,28 +70,28 @@
         "time": "2026-07-09T20:38:45+00:00"
       },
       "gspc": {
-        "price": 7546.05,
+        "price": 7547.66,
         "prev_close": 7482.71,
-        "change_pct": 0.008465,
-        "time": "2026-07-10T10:40:17+00:00"
+        "change_pct": 0.00868,
+        "time": "2026-07-10T10:44:45+00:00"
       },
       "svxy": {
         "price": 57.94,
         "prev_close": 57.29,
         "change_pct": 0.011346,
-        "time": "2026-07-10T10:10:21+00:00"
+        "time": "2026-07-10T10:24:01+00:00"
       },
       "uvxy": {
-        "price": 23.92,
+        "price": 23.85,
         "prev_close": 24.63,
-        "change_pct": -0.028827,
-        "time": "2026-07-10T10:10:00+00:00"
+        "change_pct": -0.031669,
+        "time": "2026-07-10T10:31:23+00:00"
       },
       "svix": {
         "price": 24.4,
         "prev_close": 23.87,
         "change_pct": 0.022204,
-        "time": "2026-07-10T10:16:06+00:00"
+        "time": "2026-07-10T10:16:54+00:00"
       },
       "uvix": {
         "price": 58.72,
@@ -100,30 +100,30 @@
         "time": "2026-07-10T10:31:29+00:00"
       },
       "tqqq": {
-        "price": 75.65,
+        "price": 75.7,
         "prev_close": 72.72,
-        "change_pct": 0.040292,
-        "time": "2026-07-10T10:40:23+00:00"
+        "change_pct": 0.040979,
+        "time": "2026-07-10T10:45:25+00:00"
       },
       "sqqq": {
-        "price": 38.48,
+        "price": 38.43,
         "prev_close": 40.08,
-        "change_pct": -0.03992,
-        "time": "2026-07-10T10:40:32+00:00"
+        "change_pct": -0.041168,
+        "time": "2026-07-10T10:45:02+00:00"
       },
       "spy": {
-        "price": 751.71,
+        "price": 751.8699,
         "prev_close": 745.4,
-        "change_pct": 0.008465,
-        "time": "2026-07-10T10:40:17+00:00"
+        "change_pct": 0.00868,
+        "time": "2026-07-10T10:44:45+00:00"
       }
     }
   },
   "derived": {
-    "contango": 0.190596,
+    "contango": 0.19209,
     "backend_slope": 0.122696,
-    "vdelta": 3.45,
-    "ratio_1m_3m": 0.8399,
+    "vdelta": 3.43,
+    "ratio_1m_3m": 0.8389,
     "move_vix_ratio": 4.32,
     "regime": "contango"
   },
@@ -135,32 +135,32 @@
       "expected": "Live ^VIX9D (Yahoo), ~5-min refresh; falls back to CBOE EOD if unavailable. The 4pm close value feeds the ~7pm evaluation."
     },
     "vix1m": {
-      "value": 15.95,
-      "changed_utc": "2026-07-10T10:40:27+00:00",
+      "value": 15.93,
+      "changed_utc": "2026-07-10T10:45:23+00:00",
       "cadence": "live",
       "expected": "Live VIX spot, refreshes ~every 5 min. The 4pm close value is the one that feeds the ~7pm evaluation."
     },
     "contango": {
-      "value": 0.1906,
-      "changed_utc": "2026-07-10T10:40:27+00:00",
+      "value": 0.1921,
+      "changed_utc": "2026-07-10T10:45:23+00:00",
       "cadence": "live",
       "expected": "Live VIX3M \u00f7 VIX1M (both Yahoo intraday); finalises for the ~7pm evaluation."
     },
     "vdelta": {
-      "value": 3.45,
-      "changed_utc": "2026-07-10T10:40:27+00:00",
+      "value": 3.43,
+      "changed_utc": "2026-07-10T10:45:23+00:00",
       "cadence": "live",
       "expected": "Live VIX1M \u2212 VIX9D (both Yahoo intraday)."
     },
     "ratio_1m_3m": {
-      "value": 0.8399,
-      "changed_utc": "2026-07-10T10:40:27+00:00",
+      "value": 0.8389,
+      "changed_utc": "2026-07-10T10:45:23+00:00",
       "cadence": "live",
       "expected": "Live VIX1M \u00f7 VIX3M (both Yahoo intraday)."
     },
     "move_vix_ratio": {
-      "value": 4.3193,
-      "changed_utc": "2026-07-10T10:40:27+00:00",
+      "value": 4.3248,
+      "changed_utc": "2026-07-10T10:45:23+00:00",
       "cadence": "live",
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
