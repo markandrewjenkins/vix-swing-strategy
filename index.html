@@ -3002,8 +3002,11 @@ function renderSignalMonitor(histBar){
   const _blocked = _blkName!=null;
   // Dull a routine entry signal when in a position, superseded by an override, OR held
   // back by a blocker (every routine signal except the blocker itself dims).
-  const _dullTerm = (i)=> inPos || (!inPos&&ovrActive) || (_blocked && i!==_blkIdx);
-  const _dullBB   = inPos || (!inPos&&ovrActive) || (_blocked && _blkIdx!==5);
+  // Dim routine entry signals only when they don't apply: in a position, or superseded by
+  // a standalone override. A one-signal-short "blocker" does NOT dim them — when flat the
+  // aligned signals stay bright (the blocker is named in the text instead).
+  const _dullTerm = (i)=> inPos || (!inPos&&ovrActive);
+  const _dullBB   = inPos || (!inPos&&ovrActive);
   // This mirrors the real entry rule, not a vote. The SVXY (short-vol) entry
   // requires FULL bullish alignment of the 5 term-structure signals — contango,
   // VDelta, the two VIX zones and the 1m/3m ratio must ALL read short-vol
@@ -3248,9 +3251,9 @@ function renderSignalMonitor(histBar){
   } else if(_pk==='uv'){
     explain=`<b>Entering UVXY (long vol):</b> the full four-signal bear regime is in place — sustained near-term fear and an inverting curve. Contango isn't part of the bear gate, so it neither confirms nor blocks this entry.`;
   } else if(_blocked && _blkIdx===-1){
-    explain=`<b>Cash — long-vol blocked.</b> The bear regime is complete, but the <b>UVXY gate</b> vetoes it (VIX9D in the 41–46 exhaustion zone, or MOVE/VIX ≤ 2). The bear signals are dulled — ready but held back; only the gate decides.`;
+    explain=`<b>Cash — long-vol blocked.</b> The bear regime is complete, but the <b>UVXY gate</b> vetoes it (VIX9D in the 41–46 exhaustion zone, or MOVE/VIX ≤ 2) — the bear signals are ready but held back; only the gate decides here.`;
   } else if(_blocked){
-    explain=`<b>Cash — short-vol blocked.</b> Five of six conditions agree, but <b>${_blkName}</b> isn't confirmed and a short-vol entry needs the full set. The five aligned signals are dulled — held back by this one indicator.`;
+    explain=`<b>Cash — short-vol blocked.</b> Five of six conditions agree, but <b>${_blkName}</b> isn't confirmed and a short-vol entry needs the full set — so it's held back by this one indicator.`;
   } else {
     explain=`<b>Cash.</b> Short-vol needs all six aligned (${svxy6}/6 now) and long-vol the full bear regime (${uvxy4}/4). Partial, mixed readings aren't enough — each side must hit its complete set before a trade is taken.`;
   }
@@ -3419,7 +3422,7 @@ function renderSignalMonitor(histBar){
       : `SV ${_pips(svxy6,6,'var(--teal)')} ${svxy6}/6 &nbsp; LV ${_pips(uvxy4,4,'var(--coral)')} ${uvxy4}/4`;
     // Override/blocker context lives in the explanation below (not as a badge here, which
     // stretched the line off the card); the counts dim when superseded as a subtle cue.
-    const _cmboDim = (!inPos && (ovrActive||_blocked)) ? ' style="opacity:0.5"' : '';
+    const _cmboDim = (!inPos && ovrActive) ? ' style="opacity:0.5"' : '';
     mh+=`<div class="mini-combo"><span${_cmboDim}>${_cmbo}</span></div>`;
     mh+=`<div class="mini-why">${explain}</div>`;   // plain-language methodology for this trade
     mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
