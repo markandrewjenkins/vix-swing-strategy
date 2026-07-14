@@ -270,16 +270,21 @@ def main() -> None:
               f"(date={curve.get('vix9d_date')}, ET={et.strftime('%H:%M')}) "
               f"— not yet past the ~5:30pm post window")
 
-    # Ensure every index has a prior-day reference close for today's intraday %change
-    # (older cached curves predate the _ref field). When the cached close is from a
-    # prior day it IS the reference; if it's already today's, derive the prior close.
+    # Set each index's reference close for TODAY's intraday %change.
+    #   • cached / prior-day curve (dt != today): the cached close IS yesterday's close, so
+    #     it is the reference. This must OVERWRITE any _ref carried over from a prior EOD run
+    #     (which pointed at the close BEFORE this cached one — the bug that made intraday
+    #      %change read ~yesterday's move all day).
+    #   • curve already shows today's close (dt == today, just posted at EOD): keep the
+    #     prior close set in the fetch loop, or derive it from the stored %change.
     for key in ("vix9d", "vix1m", "vix3m", "vix6m", "vix1y", "vvix"):
-        if curve.get(key) is not None and curve.get(key + "_ref") is None:
-            dt, chg = curve.get(key + "_date"), curve.get(key + "_chg")
-            if dt != today_iso:
-                curve[key + "_ref"] = curve[key]
-            elif chg not in (None, -1):
-                curve[key + "_ref"] = round(curve[key] / (1.0 + chg), 4)
+        if curve.get(key) is None:
+            continue
+        dt, chg = curve.get(key + "_date"), curve.get(key + "_chg")
+        if dt != today_iso:
+            curve[key + "_ref"] = curve[key]
+        elif curve.get(key + "_ref") is None and chg not in (None, -1):
+            curve[key + "_ref"] = round(curve[key] / (1.0 + chg), 4)
 
     # Live quotes (Yahoo intraday). Indices (VIX*) are regular-session only, so no
     # pre/post. ETFs use includePrePost so they update from ~4am through after-hours.
