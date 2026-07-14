@@ -2812,7 +2812,11 @@ function renderSignalMonitor(histBar){
     if(val==null||isNaN(val)||hi<=lo) return '';
     fmt = fmt || (v=>(+v).toFixed(1));
     const sx=v=>pad+Math.max(0,Math.min(1,(v-lo)/(hi-lo)))*(W-2*pad);
-    const rects=zones.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const st=_zoneStyle(z,val,opts.trig);
+    // Clamp the value used for the zone "hit" test to the domain — otherwise a reading that
+    // overshoots the range (marker pinned to the edge) fails the hit test and the highlighted
+    // band flips vs a day where the same reading sits inside the range.
+    const _cval=Math.max(lo,Math.min(hi,val));
+    const rects=zones.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const st=_zoneStyle(z,_cval,opts.trig);
       return `<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${bh}" rx="2.5" fill="${st.fill}" opacity="${st.op}"/>`;}).join('');
     // boundary labels: min (left), each threshold (mid), max (right). Suppressed
     // for opts.nolab (components whose thresholds we keep hidden).
@@ -2834,7 +2838,8 @@ function renderSignalMonitor(histBar){
     if(g.hatch) return wrap(_hatchSvg(W,H,by,bh));
     if(g.v==null||isNaN(g.v)||g.hi<=g.lo) return '';
     const sx=x=>pad+Math.max(0,Math.min(1,(x-g.lo)/(g.hi-g.lo)))*(W-2*pad);
-    const rects=g.z.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const st=_zoneStyle(z,g.v,g.trig);
+    const _cv=Math.max(g.lo,Math.min(g.hi,g.v));   // clamp for the hit test (see gaugeHtml)
+    const rects=g.z.map(z=>{const x0=sx(z[0]),x1=sx(z[1]);const st=_zoneStyle(z,_cv,g.trig);
       return `<rect x="${x0.toFixed(1)}" y="${by}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${bh}" rx="2.5" fill="${st.fill}" opacity="${st.op}"/>`;}).join('');
     const mx=sx(g.v).toFixed(1);
     const inner=`${rects}<line x1="${mx}" y1="0.5" x2="${mx}" y2="${H-0.5}" stroke="var(--white)" stroke-width="2"/>`;
@@ -3042,7 +3047,10 @@ function renderSignalMonitor(histBar){
     const dispDate = hist ? b.date : ((OHLC&&OHLC.length)?OHLC[OHLC.length-1][0]:null);
     let entryD = (LIVE&&LIVE.official&&LIVE.official.entry_date)?LIVE.official.entry_date:null;
     if(hist){ const tr = DATA.trades.find(t=>t.entry_date<=b.date && t.exit_date>=b.date); if(tr) entryD = tr.entry_date; }
-    const n = _tdBetween(entryD, dispDate); daysHeldN=n;
+    // _tdBetween counts both endpoints (offset+1); the backtest's day count / time-stop
+    // threshold is the offset (exit_idx-entry_idx), so subtract 1 to align — otherwise the
+    // Time-Stop gauge hits its threshold a day early (e.g. showed 40d on 04-28, exit 04-29).
+    const _tb = _tdBetween(entryD, dispDate); const n = (_tb!=null)?Math.max(0,_tb-1):null; daysHeldN=n;
     daysHeldCur = (n!=null && n>0) ? (n+'d') : dimc('—');
     // Running peak of open P&L over the current run (for the trailing-stop gauge).
     if(entryD){ const bh=DATA.bar_history||[]; let mx=null;
