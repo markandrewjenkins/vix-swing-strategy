@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-07-15T00:20:28+00:00",
+  "generated_utc": "2026-07-15T00:25:24+00:00",
   "market": {
     "vix_spot": 16.5,
     "vix1m_used": 16.5,
@@ -64,10 +64,10 @@
         "time": "2026-07-14T20:15:01+00:00"
       },
       "move": {
-        "price": 75.0326,
-        "prev_close": 77.7746,
-        "change_pct": -0.035256,
-        "time": "2026-07-14T20:30:15+00:00"
+        "price": null,
+        "prev_close": null,
+        "change_pct": null,
+        "time": null
       },
       "gspc": {
         "price": 7554.77,
@@ -124,7 +124,7 @@
     "backend_slope": 0.115026,
     "vdelta": 3.04,
     "ratio_1m_3m": 0.8549,
-    "move_vix_ratio": 4.55,
+    "move_vix_ratio": null,
     "regime": "contango"
   },
   "signal_timing": {
@@ -159,8 +159,8 @@
       "expected": "Live VIX1M \u00f7 VIX3M (both Yahoo intraday)."
     },
     "move_vix_ratio": {
-      "value": 4.5474,
-      "changed_utc": "2026-07-14T20:45:21+00:00",
+      "value": null,
+      "changed_utc": "2026-07-15T00:25:24+00:00",
       "cadence": "live",
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
