@@ -1283,28 +1283,33 @@ function rerenderActive(){
   const mt=document.getElementById('tab-markets'); if(mt && mt.style.display!=='none' && typeof renderMarkets==='function') renderMarkets();
 }
 
+// Open-position return in the CURRENT toggle basis. Used by BOTH the header badge and the
+// Trades-Detail open-trade row so they always agree. Real SVXY/UVXY open P&L in the real
+// view; in alt/blend the actual SVIX/UVIX move (live quote vs entry close, leverage-scaled
+// fallback), halved for the blend's half-weight SVIX leg.
+function _openPosReturn(L, sv, uv, entryDate, realPnl){
+  if(!aMode() || !(sv||uv)) return realPnl;
+  let alt=null;
+  try{ const [svM,uvM]=altCloseMaps(); const ec=(sv?svM:uvM)[entryDate];
+    const aq=(L&&L.market&&L.market.quotes)?(sv?L.market.quotes.svix:L.market.quotes.uvix):null;
+    const apx=aq?aq.price:null;
+    if(ec!=null && apx!=null) alt=apx/ec-1;
+  }catch(_){}
+  if(alt==null && realPnl!=null){ const lv=altLeverage(); alt=realPnl*(sv?lv.svF:lv.uvF); }
+  if(alt!=null && CHART_MODE==='blend' && sv) alt*=0.5;   // blend holds the SVIX leg at half size
+  return (alt!=null)?alt:realPnl;
+}
 // Header "CURRENT POSITION" + live open P&L, following the SVXY/UVXY↔SVIX/UVIX toggle.
 function updateLivePosition(src){
   const L = src || LIVE; if(!L || !L.official) return;
   const o = L.official, raw = o.position || 'CASH';
   const sv = raw==='LONG_VOL_SELLER', uv = raw==='LONG_VOL';
-  const name = sv?svN():uv?uvN():'CASH';
+  // In the blend view the SVIX (short) leg is held at half weight — label it SVIX½.
+  const name = sv?((CHART_MODE==='blend')?'SVIX½':svN()):uv?uvN():'CASH';
   const pcls = sv?'pos-svxy':uv?'pos-uvxy':'pos-cash';
   const posEl=document.getElementById('lv-pos');
   if(posEl){ posEl.textContent=name; posEl.className='live-val '+pcls; }
-  // open P&L: real SVXY/UVXY live return from the feed; in alt mode use the
-  // SVIX/UVIX candle entry + live quote (fall back to leverage-scaling).
-  let pnl = o.open_pnl;
-  if(aMode() && (sv||uv) && o.entry_date){
-    let alt=null;
-    try{ const [svM,uvM]=altCloseMaps(); const ec=(sv?svM:uvM)[o.entry_date];
-      const aq=(L.market&&L.market.quotes)?(sv?L.market.quotes.svix:L.market.quotes.uvix):null;
-      const apx=aq?aq.price:null;
-      if(ec!=null && apx!=null) alt=apx/ec-1;
-    }catch(_){}
-    if(alt==null && o.open_pnl!=null){ const lv=altLeverage(); alt=o.open_pnl*(sv?lv.svF:lv.uvF); }
-    if(alt!=null) pnl=alt;
-  }
+  const pnl = _openPosReturn(L, sv, uv, o.entry_date, o.open_pnl);
   const pnlEl=document.getElementById('lv-pospnl');
   if(pnlEl){
     // Italic when the open P&L isn't from a live quote as of today (e.g. pre-market).
@@ -1627,15 +1632,21 @@ function _openTradeRow(){
   const bh=DATA.bar_history||[]; if(!bh.length) return null;
   const lp=bh[bh.length-1].position; if(!lp||lp==='CASH') return null;
   let i=bh.length-1; while(i>0 && bh[i-1].position===lp) i--;
-  const eb=bh[i], lb=bh[bh.length-1], sv=lp==='LONG_VOL_SELLER', opn=lb.open_pnl_pct||0;
-  const {svF,uvF}=altLeverage(); let f=sv?svF:uvF; if(CHART_MODE==='blend'&&sv) f*=0.5;
-  const ret=aMode()?Math.max(-0.95,opn*f):opn;
+  const eb=bh[i], lb=bh[bh.length-1], sv=lp==='LONG_VOL_SELLER', uv=lp==='LONG_VOL', opn=lb.open_pnl_pct||0;
+  // Prefer the LIVE open P&L (matches the header) over the last recorded bar.
+  const _realPnl=(LIVE&&LIVE.official&&LIVE.official.open_pnl!=null)?LIVE.official.open_pnl:opn;
+  const ret=_openPosReturn(LIVE, sv, uv, eb.date, _realPnl);   // same calc as the header badge
+  // Live current price (matches the return's basis); fall back to the last close.
+  const _q=(LIVE&&LIVE.market&&LIVE.market.quotes)?LIVE.market.quotes:null;
+  const _curAltPx=_q?(sv?(_q.svix&&_q.svix.price):(_q.uvix&&_q.uvix.price)):null;
+  const _curRealPx=_q?(sv?(_q.svxy&&_q.svxy.price):(_q.uvxy&&_q.uvxy.price)):null;
   const eqArr=aEq(), eqNow=eqArr.length?eqArr[eqArr.length-1].equity:0;
   const eqMap={}; eqArr.forEach(x=>eqMap[x.date]=x.equity); const eqEntry=eqMap[eb.date]||eqNow;
-  const pl=eqNow-eqEntry;
-  return { _open:true, type:lp, entry_date:eb.date, exit_date:lb.date, _curDate:lb.date,
-    days:(bh.length-1-i), entry_price:sv?eb.svxy_price:eb.uvxy_price, exit_price:sv?lb.svxy_price:lb.uvxy_price,
-    ret, pnl:pl, pnl_pct:opn, pnl_dollar:pl, equity_after:eqNow,
+  const pl=eqEntry*ret;   // dollars consistent with the shown %
+  return { _open:true, type:lp, entry_date:eb.date, exit_date:lb.date, _curDate:lb.date, _curAltPx,
+    days:(bh.length-1-i), entry_price:sv?eb.svxy_price:eb.uvxy_price,
+    exit_price:(_curRealPx!=null?_curRealPx:(sv?lb.svxy_price:lb.uvxy_price)),
+    ret, pnl:pl, pnl_pct:ret, pnl_dollar:pl, equity_after:eqEntry+pl,
     pos_size: sv?(eb.high_vol_regime?0.475:1.0):0.43 };
 }
 function renderTrades(){
@@ -1664,7 +1675,7 @@ function renderTrades(){
       <td>${t.entry_date}</td><td style="color:var(--yellow);font-weight:600">OPEN</td>
       <td style="text-align:right">${t.days}d</td>
       <td style="text-align:right">${alt?aPx(t,t.entry_date):fmtPrice(t.entry_price)}</td>
-      <td style="text-align:right">${alt?aPx(t,t._curDate):fmtPrice(t.exit_price)}</td>
+      <td style="text-align:right">${alt?(t._curAltPx!=null?fmtPrice(t._curAltPx):aPx(t,t._curDate)):fmtPrice(t.exit_price)}</td>
       <td style="text-align:right;color:${r>0?TEAL:CORAL};font-weight:600">${fmtPct(r)}</td>
       <td style="text-align:right;color:${p>0?TEAL:CORAL}">${p>0?'+':''}${fmtK(Math.abs(p)*Math.sign(p))}</td>
       <td><span style="color:var(--namut)">N/A</span></td>
@@ -2381,6 +2392,10 @@ function buildDaily(){
   aTrades().forEach(t=>{ const sv=tIsSV(t), win=tRet(t)>0, posn=sv?'aboveBar':'belowBar', shp=sv?'arrowDown':'arrowUp';
     mk.push({time:t.entry_date,position:posn,color:WHITE,shape:shp,text:(sv?svN():uvN())});
     mk.push({time:t.exit_date, position:posn,color:win?TEAL:CORAL,shape:shp,text:(tRet(t)>=0?'+':'')+(tRet(t)*100).toFixed(1)+'%'}); });
+  // Current OPEN position has no closed-trade row — add its entry marker too.
+  const _ot=_openTradeRow();
+  if(_ot){ const sv=tIsSV(_ot), posn=sv?'aboveBar':'belowBar', shp=sv?'arrowDown':'arrowUp';
+    mk.push({time:_ot.entry_date,position:posn,color:WHITE,shape:shp,text:(sv?svN():uvN())+' (open)'}); }
   mk.sort((a,b)=>a.time<b.time?-1:1);
   // preserve the current view across rebuilds (toggle / tab-switch) instead of snapping back
   let _keepRange=_dailyPendRange||null; if(dailyChart){ if(!_keepRange){ try{_keepRange=dailyChart.timeScale().getVisibleLogicalRange();}catch(_){} } try{dailyChart.remove();}catch(_){} dailyChart=null; }
