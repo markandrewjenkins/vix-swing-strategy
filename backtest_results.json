@@ -1,22 +1,22 @@
 {
   "meta": {
-    "generated": "2026-07-18T03:45:36.579596",
+    "generated": "2026-07-20T23:46:20.466758",
     "start_capital": 100000.0,
     "start_date": "2011-12-02",
-    "end_date": "2026-07-16",
-    "trading_days": 3706,
+    "end_date": "2026-07-17",
+    "trading_days": 3707,
     "instruments": "SVXY / UVXY"
   },
   "summary": {
-    "total_return": 95.976008,
-    "cagr": 0.364862,
-    "sharpe": 1.126,
-    "sortino": 1.0563,
-    "calmar": 1.3757,
+    "total_return": 93.439815,
+    "cagr": 0.362292,
+    "sharpe": 1.1201,
+    "sortino": 1.0514,
+    "calmar": 1.366,
     "max_drawdown": -0.265227,
     "max_dd_duration": 438,
-    "final_equity": 9697600.84,
-    "spy_return": 4.946796,
+    "final_equity": 9443981.47,
+    "spy_return": 4.937195,
     "total_trades": 121,
     "win_rate": 0.6198,
     "profit_factor": 2.1113,
@@ -35,7 +35,7 @@
     "svxy_total_pnl": 5990995.26,
     "uvxy_total_pnl": 3069333.56,
     "cash_days": 1493,
-    "cash_pct": 0.4029,
+    "cash_pct": 0.4028,
     "max_consec_wins": 7,
     "max_consec_losses": 4,
     "expected_payoff": 74878.75
@@ -22276,6 +22276,12 @@
       "equity": 9697600.84,
       "drawdown": -1.2069,
       "runup": 10257.6073
+    },
+    {
+      "date": "2026-07-17",
+      "equity": 9443981.47,
+      "drawdown": -3.7906,
+      "runup": 9986.7269
     }
   ],
   "spy_curve": [
@@ -37102,6 +37108,10 @@
     {
       "date": "2026-07-16",
       "equity": 601249.37
+    },
+    {
+      "date": "2026-07-17",
+      "equity": 595298.71
     }
   ],
   "trades": [
@@ -39499,13 +39509,13 @@
     },
     {
       "month": "2026-07",
-      "ret": 0.015019
+      "ret": -0.011526
     }
   ],
   "condition_counts": {
-    "bull_9d": 1757,
-    "bull_1m": 3124,
-    "bull_ratio": 2784,
+    "bull_9d": 1758,
+    "bull_1m": 3125,
+    "bull_ratio": 2785,
     "bear_9d": 1949,
     "bear_1m": 582,
     "bear_ratio": 57,
@@ -39517,7 +39527,7 @@
   "signal_counts": {
     "CASH": 1493,
     "LONG_SVXY": 103,
-    "HOLD_SVXY": 1963,
+    "HOLD_SVXY": 1964,
     "EXIT_SVXY": 102,
     "LONG_UVXY": 19,
     "HOLD_UVXY": 7,
@@ -191357,8 +191367,8 @@
       "contango": 0.1445,
       "vdelta": 2.03,
       "ratio_1m_3m": 0.8737,
-      "move": 69.55,
-      "move_vix_ratio": 4.05,
+      "move": 77.77,
+      "move_vix_ratio": 4.53,
       "bull_9d": true,
       "bull_1m": true,
       "bull_ratio": true,
@@ -191398,8 +191408,8 @@
       "contango": 0.1697,
       "vdelta": 3.04,
       "ratio_1m_3m": 0.8549,
-      "move": 69.55,
-      "move_vix_ratio": 4.22,
+      "move": 75.03,
+      "move_vix_ratio": 4.55,
       "bull_9d": false,
       "bull_1m": true,
       "bull_ratio": true,
@@ -191439,8 +191449,8 @@
       "contango": 0.2068,
       "vdelta": 3.61,
       "ratio_1m_3m": 0.8287,
-      "move": 69.55,
-      "move_vix_ratio": 4.44,
+      "move": 68.48,
+      "move_vix_ratio": 4.37,
       "bull_9d": false,
       "bull_1m": true,
       "bull_ratio": true,
@@ -191480,8 +191490,8 @@
       "contango": 0.1656,
       "vdelta": 2.75,
       "ratio_1m_3m": 0.8579,
-      "move": null,
-      "move_vix_ratio": null,
+      "move": 68.16,
+      "move_vix_ratio": 4.07,
       "bull_9d": false,
       "bull_1m": true,
       "bull_ratio": true,
@@ -191508,6 +191518,47 @@
       "vix1m_ma30": 17.49,
       "svxy_price": 58.12,
       "uvxy_price": 23.38
+    },
+    {
+      "date": "2026-07-17",
+      "position": "LONG_VOL_SELLER",
+      "equity": 9443981.47,
+      "open_pnl_pct": 0.030965,
+      "signal": "HOLD_SVXY",
+      "vix1m": 18.77,
+      "vix9d": 16.85,
+      "vix3m": 20.54,
+      "contango": 0.0943,
+      "vdelta": 1.92,
+      "ratio_1m_3m": 0.9138,
+      "move": 70.88,
+      "move_vix_ratio": 3.78,
+      "bull_9d": true,
+      "bull_1m": true,
+      "bull_ratio": true,
+      "bear_9d": false,
+      "bear_1m": false,
+      "bear_ratio": false,
+      "spike_9d": false,
+      "spike_1m": false,
+      "crush_9d": false,
+      "crush_1m": false,
+      "bb_buy": true,
+      "vix_fade": false,
+      "vix_sustained": true,
+      "neg_vol": false,
+      "cont_bull": false,
+      "obv_div": 0.092,
+      "price_hi": false,
+      "bear_roll": 0.0,
+      "mv_hi": false,
+      "mv_lo": false,
+      "pc_bull": false,
+      "high_vol_regime": false,
+      "bb_trend": 4.4976,
+      "vix1m_ma30": 17.4,
+      "svxy_price": 56.6,
+      "uvxy_price": 25.44
     }
   ]
 }
