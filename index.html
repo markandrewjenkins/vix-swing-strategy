@@ -7,6 +7,9 @@
 <title>VIX Swing Strategy</title>
 <link href="https://fonts.googleapis.com/css2?family=Saira:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- Wheel-zoom / drag-pan for the Chart.js equity curve. If this fails to load the chart
+     still renders — Chart.js just ignores the unknown `zoom` plugin options. -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root {
@@ -569,7 +572,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 .flavor-off .flavor-footer { display:none !important; }
 /* Persistent small-print disclaimer shown at the bottom of every tab. */
 .page-disclaimer { max-width:1180px; margin:20px auto 14px; padding:10px 16px 0;
-  border-top:1px solid var(--border); color:var(--dim); font-size:0.66rem; line-height:1.6;
+  color:var(--dim); font-size:0.66rem; line-height:1.6;
   text-align:center; opacity:0.85; }
 .page-disclaimer b { color:var(--dim); }
 
@@ -866,10 +869,18 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <div class="panel"><div class="ph"><span>About this dashboard</span></div>
       <div class="pb howto">
         <h3>What this is</h3>
-        <p>An interactive showcase of a personal quantitative research project — a VIX term-structure swing
-          strategy, backtested and presented with a live signal monitor. It exists for
-          <b>demonstration and educational purposes only</b>: to show the strategy&rsquo;s logic, its backtest,
-          and how its signals are read day to day.</p>
+        <p>A dashboard depicting a <b>VIX term-structure&ndash;oriented swing trading strategy</b>, backtested and
+          presented with a live signal monitor. It was built primarily with <b>Claude Code</b>, on top of the
+          author&rsquo;s own research into VIX term-structure behaviour and volatility ETFs developed over several
+          years. The engine is Python; the dashboard is a single self-contained page, and the whole pipeline
+          updates itself in the cloud.</p>
+        <h3>Why it was built</h3>
+        <p>This is a personal quantitative research project, intended for <b>demonstration and educational
+          purposes only</b>: to show the strategy&rsquo;s logic, its backtest, and how its signals are read day to
+          day. It also exists to explore what modern AI coding tools &mdash; in particular Claude Code &mdash; can
+          do when pointed at a real quantitative-finance problem end to end: the data pipeline, the signal engine,
+          the backtest and this live front-end were all built collaboratively with AI. It is a personal project,
+          not a product or a service.</p>
         <h3>How to read it</h3>
         <p><b>Live Chart w/ Signals</b> — price with entry/exit markers plus the live signal monitor (hover or
           click any bar to see exactly what the strategy saw that day). <b>P&amp;L Summary</b> — equity curve and
@@ -889,6 +900,13 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           are simulated</b> from SVXY/UVXY returns, leverage-scaled, so any figure spanning that period is partly
           modelled rather than traded. Backtested results assume execution at the marks shown and do not include
           slippage, commissions, borrow costs or taxes. The strategy has not been traded live at scale.</p>
+        <h3>Nothing here is advice</h3>
+        <p class="howto-note">Nothing here is investment advice, a recommendation, or a solicitation to trade. The
+          author makes no claim of ownership over the underlying strategy research and accepts no responsibility
+          for any trading results, losses, or decisions made on the basis of this page. Signals are model output on
+          delayed data and can be wrong; anyone who trades does so entirely at their own risk. Further work from
+          the author is available on his
+          <a href="https://markandrewjenkins.github.io/portfolio/" target="_blank" rel="noopener">portfolio site</a>.</p>
       </div>
     </div>
 
@@ -918,27 +936,6 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <h3>Position sizing</h3>
         <p>Short-vol is full size (cut to ~&times;0.48 in a high-vol regime); long-vol is sized ~&times;0.43. The
           headline drawdown is driven by the short-vol &ldquo;grind&rdquo;, not the long-vol trades.</p>
-        <p class="howto-note">All figures are from a backtest on real SVXY/UVXY prices, no repainting and
-          walk-forward-checked where rules were added. Past performance is not indicative of future results;
-          this is not investment advice.</p>
-      </div>
-    </div>
-
-    <div class="panel" style="margin-top:12px"><div class="ph"><span>About the author &amp; disclaimer</span></div>
-      <div class="pb howto">
-        <h3>How it was built</h3>
-        <p>An educational research project built primarily with <b>Claude Code</b>, on top of the author&rsquo;s
-          own research into VIX term-structure behaviour and volatility ETFs developed over several years. The
-          engine is Python; the dashboard is a single self-contained page, and the whole pipeline updates itself
-          in the cloud. More at
-          <a href="https://github.com/markandrewjenkins" target="_blank" rel="noopener">github.com/markandrewjenkins</a>
-          and the <a href="https://markandrewjenkins.github.io/portfolio/" target="_blank" rel="noopener">portfolio site</a>.</p>
-        <h3>Disclaimer</h3>
-        <p class="howto-note"><b>Not investment advice.</b> Nothing here is a recommendation to buy or sell any
-          security. Backtested and simulated results have inherent limitations, do not represent actual trading,
-          and <b>past performance is not indicative of future results</b>. Short- and long-volatility ETFs are
-          high-risk instruments that can lose most of their value very quickly. Do your own research and consult a
-          licensed professional before trading. The author accepts no liability for any use of this dashboard.</p>
       </div>
     </div>
   </div>
@@ -1392,6 +1389,7 @@ function renderAnalytics(){
     [YELLOW,'Strategy'],[GRAY,'SPY (B&H)'],[CYAN,'TQQQ (B&H)'],[CORAL,'Drawdown'],
   ]);
 
+  _ensureZoom();
   mkChart('eqChart',{
     data:{labels,datasets:[
       {type:'line',label:'Strategy',data:eqVals,borderColor:YELLOW,borderWidth:2.5,pointRadius:0,yAxisID:'y',tension:0.2,fill:false},
@@ -1402,9 +1400,16 @@ function renderAnalytics(){
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{
         callbacks:{label:c=>c.dataset.label==='Drawdown'?' DD: '+c.parsed.y.toFixed(1)+'%':' '+c.dataset.label+': $'+abbrev(c.parsed.y*1000)}
-      }},
+      },
+      // Wheel to zoom, drag to scroll — x-axis only, and clamped to the data so it can
+      // never be panned off into empty space. Double-click restores the full history.
+      zoom:{ pan:{enabled:true,mode:'x'},
+             zoom:{wheel:{enabled:true,speed:0.09},pinch:{enabled:true},mode:'x'},
+             limits:{x:{min:'original',max:'original',minRange:6}} }},
       scales:{
-        x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:13,family:FONT}},grid:{color:GRID}},
+        // offset:false — sit the series flush against both edges (the default pads a
+        // half-category at each end because of the drawdown bar dataset).
+        x:{offset:false,ticks:{color:TICK,maxTicksLimit:12,font:{size:13,family:FONT}},grid:{color:GRID}},
         y:{position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>'$'+abbrev(v*1000)},grid:{color:GRID}},
         y2:{position:'right',reverse:true,min:-90,max:5,ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>Math.round(v)+'%'},grid:{display:false}},
       }
@@ -2408,7 +2413,28 @@ let _syncUntil=0;          // timestamp window: ignore the paired chart's echo u
 let _suppressSync=false;   // hard-disable candle<->daily sync (e.g. across a toggle rebuild)
 let _dailyPendRange=null;  // daily view captured pre-toggle so the rebuild keeps it
 function dailyToEnd(){ if(!dailyChart||!_dailyDates) return; const N=_dailyDates.length,BARS=Math.min(N,90),FUT=6;
+  _xTouched=true;
   try{ dailyChart.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} }
+// chartjs-plugin-zoom ships as UMD; register it once (guarded, so a CDN miss just leaves
+// the equity curve static rather than throwing). Also wires double-click = reset zoom.
+let _zoomReg=false;
+function _ensureZoom(){ if(_zoomReg) return; _zoomReg=true;
+  const p=window.ChartZoom||window.chartjsPluginZoom;
+  if(p&&window.Chart){ try{ Chart.register(p); }catch(_){} }
+  const cv=document.getElementById('eqChart');
+  if(cv&&!cv._dblBound){ cv.addEventListener('dblclick',()=>{ try{ Chart.getChart('eqChart').resetZoom(); }catch(_){} }); cv._dblBound=true; } }
+// Default view for the Daily P&L chart: the whole history, flush to both edges (no
+// right-hand padding — fitContent() leaves a gap, an explicit logical range doesn't).
+function dailyFitAll(){ if(!dailyChart||!_dailyDates) return; const N=_dailyDates.length;
+  try{ dailyChart.timeScale().setVisibleLogicalRange({from:0,to:N-1}); }
+  catch(_){ try{ dailyChart.timeScale().fitContent(); }catch(__){} } }
+// The candle chart opens on the last ~90 bars while the Daily P&L opens on the full
+// history, so the two-way zoom sync must stay dormant until the user actually grabs a
+// chart — otherwise the candle chart's default range immediately overwrites the P&L view.
+let _xTouched=false;
+function _markChartGesture(el){ if(!el||el._gestBound) return;
+  ['mousedown','wheel','touchstart'].forEach(ev=>el.addEventListener(ev,()=>{_xTouched=true;},{passive:true}));
+  el._gestBound=true; }
 function buildDaily(){
   const LC=window.LightweightCharts, el=document.getElementById('daily-lc');
   if(!LC||!el||typeof aEq!=='function') return;
@@ -2438,7 +2464,9 @@ function buildDaily(){
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
     rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.10}},
     leftPriceScale:{visible:true,invertScale:true,borderColor:'#443714',scaleMargins:{top:0.04,bottom:0.04}},
-    timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.3,maxBarSpacing:18},
+    // minBarSpacing must be small enough that all ~3,700 bars fit at any window width
+    // (0.3 px/bar caps the view at ~width/0.3 bars, which hides history on narrow screens).
+    timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.02,maxBarSpacing:18},
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
   dailySeries=dailyChart.addAreaSeries({lineColor:YELLOW,topColor:'rgba(232,185,79,0.25)',bottomColor:'rgba(232,185,79,0.01)',lineWidth:2,priceScaleId:'right',
     priceLineVisible:true,priceLineColor:'#cdbf95',priceLineWidth:1,priceLineStyle:2,
@@ -2480,10 +2508,15 @@ function buildDaily(){
   dailyChart.timeScale().subscribeVisibleLogicalRangeChange(()=>{ const btn=document.getElementById('daily-toend'); if(btn){
     try{const vr=dailyChart.timeScale().getVisibleLogicalRange(); btn.style.display=(vr&&vr.to<_dailyDates.length-1)?'block':'none';}catch(_){} } });
   // sync zoom/scroll with the live candle chart (by time, since datasets differ)
-  dailyChart.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(Date.now()<_syncUntil||_suppressSync||!rng||!sumMain) return;
+  dailyChart.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(!_xTouched||Date.now()<_syncUntil||_suppressSync||!rng||!sumMain) return;
     _syncUntil=Date.now()+150; try{ sumMain.timeScale().setVisibleRange(rng); }catch(_){} });
-  if(_keepRange){ try{dailyChart.timeScale().setVisibleLogicalRange(_keepRange);}catch(_){ dailyChart.timeScale().fitContent(); } }
-  else dailyChart.timeScale().fitContent();
+  _markChartGesture(el);
+  // Restore a carried-over view only when it's meaningful: an instrument-toggle rebuild
+  // (_dailyPendRange), or a view the user actually set. Otherwise this chart always opens
+  // on the full history — a rebuild must never re-apply a stale default range.
+  const _restore = _dailyPendRange || (_xTouched ? _keepRange : null);
+  if(_restore){ try{dailyChart.timeScale().setVisibleLogicalRange(_restore);}catch(_){ dailyFitAll(); } }
+  else dailyFitAll();
 }
 // Fit the floating mini-monitor card to the chart's height so it occupies the same
 // proportion of the chart at any resolution / zoom: scale = boxHeight / contentHeight,
@@ -2581,7 +2614,8 @@ function renderSummary(){
   let _sync=false;
   sumMain.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(r&&!_sync){_sync=true;try{sumPos.timeScale().setVisibleLogicalRange(r);}catch(_){} _sync=false;} _updateToEndBtn(); });
   // sync zoom/scroll to the Daily P&L chart (by time, datasets differ)
-  sumMain.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(Date.now()<_syncUntil||_suppressSync||!rng||!dailyChart) return;
+  _markChartGesture(el);
+  sumMain.timeScale().subscribeVisibleTimeRangeChange(rng=>{ if(!_xTouched||Date.now()<_syncUntil||_suppressSync||!rng||!dailyChart) return;
     // Open a 150ms window in which the daily chart's echo is ignored. The daily has a
     // different bar count and can't represent the candle's future whitespace, so its
     // clamped echo would otherwise snap this chart back (breaking the default view and
