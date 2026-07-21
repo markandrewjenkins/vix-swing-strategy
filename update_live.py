@@ -289,8 +289,12 @@ def main() -> None:
     # Live quotes (Yahoo intraday). Indices (VIX*) are regular-session only, so no
     # pre/post. ETFs use includePrePost so they update from ~4am through after-hours.
     quotes = {}
+    # prepost=True makes yahoo_quote scan the intraday bars for the LATEST print instead of
+    # using regularMarketPrice (which freezes at the 16:15 close). ^VIX carries CBOE's Global
+    # Trading Hours session (bars from ~03:15 ET), so this lets VIX update pre-market.
+    # VIX9D/VIX3M/VVIX/VIX1Y have no extended session (09:30 only) — harmless there.
     for sym in ["^VIX", "^VIX9D", "^VIX3M", "^VVIX", "^VIX1Y", "^MOVE", "^GSPC"]:
-        quotes[sym.lower().lstrip("^")] = yahoo_quote(sym, prepost=False)
+        quotes[sym.lower().lstrip("^")] = yahoo_quote(sym, prepost=True)
     for sym in ["SVXY", "UVXY", "SVIX", "UVIX", "TQQQ", "SQQQ", "SPY"]:
         quotes[sym.lower().lstrip("^")] = yahoo_quote(sym, prepost=True)
     # Re-base VIX-index %change on the authoritative CBOE prior close (Yahoo's
