@@ -402,13 +402,15 @@ tr:hover td { background: #1f1a10 }
 .mkt-left { display:inline-flex; align-items:center; gap:12px; }
 #mkt-status { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 #mkt-dot { display:none; }   /* redundant with the pulsing dot in the top status bar */
+/* Session-timeline segment palette adopted from the QQQ Swing Strategy dashboard:
+   night blue closed segments, gold pre-market, amber-orange regular, dusk-pink after. */
 .mkt-sessbar { position:relative; display:inline-flex; width:170px; height:6px; border-radius:3px; overflow:hidden; background:#2a2415; vertical-align:middle; }
 .mkt-sessbar .seg { height:100%; }
-.mkt-sessbar .c1 { width:16.7%; background:rgba(131,116,72,0.4); }
-.mkt-sessbar .pre { width:22.9%; background:rgba(240,152,47,0.55); }
-.mkt-sessbar .reg { width:27.1%; background:rgba(82,230,189,0.7); }
-.mkt-sessbar .aft { width:16.7%; background:rgba(84,210,239,0.55); }
-.mkt-sessbar .c2 { width:16.6%; background:rgba(131,116,72,0.4); }
+.mkt-sessbar .c1 { width:16.7%; background:rgba(95,127,168,0.45); }
+.mkt-sessbar .pre { width:22.9%; background:rgba(211,163,56,0.6); }
+.mkt-sessbar .reg { width:27.1%; background:rgba(221,138,60,0.75); }
+.mkt-sessbar .aft { width:16.7%; background:rgba(201,105,141,0.6); }
+.mkt-sessbar .c2 { width:16.6%; background:rgba(95,127,168,0.45); }
 .mkt-marker { position:absolute; top:-5px; height:16px; width:2px; background:#ffffff; }
 #mkt-countdown { color:var(--dim); font-weight:400; }
 .mkt-block { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; }
@@ -1011,6 +1013,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 // ── Palette ───────────────────────────────────────────────────────────────
 const YELLOW='#e8b94f', CYAN='#54d2ef', TEAL='#52e6bd', PURPLE='#dba24f';
 const PINK='#e8b94f', CORAL='#f2563a', AMBER='#f0982f', GRAY='#837448', CASHC='#e1b954';
+const TRIMC='#ff6f9c';   // TRIM events (dusk pink, QQQ palette); ADD events stay cyan
 const DIM='#998544';
 const GRID='rgba(224,179,74,0.10)', TICK='#8a784a';
 const FONT="'Saira', sans-serif";
@@ -1435,9 +1438,10 @@ function renderForward(selDate){
   // per-day stats
   const rows=[];
   for(let h=1;h<=FWD_H;h++){ const xs=paths.map(p=>p.arr[h]).sort((a,b)=>a-b);
-    rows.push({h, pos:xs.filter(v=>v>0).length/xs.length,
+    rows.push({h, pos:xs.filter(v=>v>0).length/xs.length, n:xs.length,
       med:_fwdQuant(xs,0.5), mean:xs.reduce((a,v)=>a+v,0)/xs.length,
-      p10:_fwdQuant(xs,0.10), p25:_fwdQuant(xs,0.25), p75:_fwdQuant(xs,0.75), p90:_fwdQuant(xs,0.90)}); }
+      p10:_fwdQuant(xs,0.10), p25:_fwdQuant(xs,0.25), p75:_fwdQuant(xs,0.75), p90:_fwdQuant(xs,0.90),
+      min:xs[0], max:xs[xs.length-1]}); }
   // other side's P(up) per day (for the table's last column)
   const pxo=sv?'uvxy_price':'svxy_price', oName=sv?uvN():((CHART_MODE==='blend')?'SVIX½':svN());
   const oPos=[];
@@ -1486,13 +1490,23 @@ function renderForward(selDate){
   const legend=[[TEAL,'median'],['rgba(84,210,239,0.35)','25–75%'],['rgba(84,210,239,0.15)','10–90%'],['rgba(232,185,79,0.35)','analog paths']];
   if(li<H.length-1-FWD_H && last[pxf]>0){ const act=[0];
     let ok=true; for(let h=1;h<=FWD_H;h++){ const p_=H[li+h][pxf]; if(!(p_>0)){ok=false;break;} act.push((p_/last[pxf]-1)*fac); }
-    if(ok){ dsets.push({label:'What actually happened',data:act,borderColor:'#fdf4d6',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,tension:0});
-            legend.push(['#fdf4d6','actual']); } }
+    if(ok){ dsets.push({label:'Actual result',data:act,borderColor:'#fdf4d6',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,tension:0});
+            legend.push(['#fdf4d6','actual result']); } }
+  const _fp=v=>(v>=0?'+':'')+(v*100).toFixed(2)+'%';
   mkChart('fwdChart',{type:'line',data:{labels,datasets:dsets},
     options:{responsive:true,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{filter:it=>!!it.dataset.label&&!it.dataset.label.startsWith('_'),
-        callbacks:{label:c=>' '+c.dataset.label+': '+(c.parsed.y*100).toFixed(2)+'%'}},
+        callbacks:{label:c=>' '+c.dataset.label+': '+_fp(c.parsed.y),
+          // full analog-distribution readout for the hovered session
+          footer:items=>{ const ix=items.length?items[0].dataIndex:0; if(ix<1) return '';
+            const r=rows[ix-1]; if(!r) return '';
+            return ['— analog distribution —',
+                    'P(up): '+(r.pos*100).toFixed(0)+'%   n='+r.n,
+                    'Max: '+_fp(r.max)+'   p90: '+_fp(r.p90),
+                    'p75: '+_fp(r.p75)+'   median: '+_fp(r.med),
+                    'mean: '+_fp(r.mean)+'   p25: '+_fp(r.p25),
+                    'p10: '+_fp(r.p10)+'   Min: '+_fp(r.min)]; }}},
         // wheel-zoom + drag-pan (x only, clamped to the horizon; double-click resets)
         zoom:{ pan:{enabled:true,mode:'x'},
                zoom:{wheel:{enabled:true,speed:0.09},pinch:{enabled:true},mode:'x'},
@@ -1508,9 +1522,10 @@ function renderForward(selDate){
     return '<b style="color:'+c+'">'+(v*100).toFixed(0)+'%</b>'; };
   const f2=v=>{ const c=v>=0?'var(--teal)':'var(--coral)';
     return '<span style="color:'+c+'">'+(v>=0?'+':'')+(v*100).toFixed(2)+'%</span>'; };
-  let tb='<table style="width:100%;border-collapse:collapse;font-size:0.78rem"><tr style="color:var(--dim);text-align:right">'
-    +'<th style="text-align:left;padding:5px 8px">Session</th><th>P('+iName+' &uarr;)</th><th>Median</th><th>Mean</th>'
-    +'<th>10th pct</th><th>90th pct</th><th>P('+oName+' &uarr;)</th></tr>';
+  const _rth=s=>'<th style="text-align:right">'+s+'</th>';   // th UA default is centred — force right
+  let tb='<table style="width:100%;border-collapse:collapse;font-size:0.78rem"><tr style="color:var(--dim)">'
+    +'<th style="text-align:left;padding:5px 8px">Session</th>'+_rth('P('+iName+' &uarr;)')+_rth('Median')+_rth('Mean')
+    +_rth('10th pct')+_rth('90th pct')+_rth('P('+oName+' &uarr;)')+'</tr>';
   rows.forEach((r,ix)=>{ tb+='<tr style="text-align:right;border-top:1px solid var(--border)">'
     +'<td style="text-align:left;padding:5px 8px;color:var(--dim)">EOD +'+r.h+(r.h===1?' (tomorrow)':'')+'</td>'
     +'<td>'+pc(r.pos)+'</td><td>'+f2(r.med)+'</td><td>'+f2(r.mean)+'</td>'
@@ -1520,8 +1535,8 @@ function renderForward(selDate){
   document.getElementById('fwd-table').innerHTML=tb;
   document.getElementById('fwd-table-title').textContent='Day-by-day odds — cumulative return from today ('+K+' analogs)';
   // ── nearest-analog list ──
-  let an='<table style="width:100%;border-collapse:collapse;font-size:0.76rem"><tr style="color:var(--dim);text-align:right">'
-    +'<th style="text-align:left;padding:5px 8px">Date</th><th>Match</th><th>+1d</th><th>+5d</th><th>+10d</th></tr>';
+  let an='<table style="width:100%;border-collapse:collapse;font-size:0.76rem"><tr style="color:var(--dim)">'
+    +'<th style="text-align:left;padding:5px 8px">Date</th>'+_rth('Match')+_rth('+1d')+_rth('+5d')+_rth('+10d')+'</tr>';
   const dmax=picks[picks.length-1][0]||1;
   paths.slice(0,10).forEach(p=>{ const b=H[p.i];
     an+='<tr style="text-align:right;border-top:1px solid var(--border)">'
@@ -1962,10 +1977,11 @@ function renderTrades(){
   const adjRows=t=>(t.adj||[]).map(ev=>{ const add=ev.action==='ADD';
     const m=tIsSV(t)?svM:uvM; const px=alt?(m&&m[ev.date]!=null?fmtPrice(m[ev.date]):'—'):(ev.price!=null?fmtPrice(ev.price):'—');
     const sz=(ev.size_from!=null?Math.round(ev.size_from*100)+'%':'—')+' → '+(ev.size_to!=null?Math.round(ev.size_to*100)+'%':'—');
-    return `<tr style="background:rgba(84,210,239,0.05)">
+    const AC=add?CYAN:TRIMC, ABG=add?'rgba(84,210,239':'rgba(255,111,156';
+    return `<tr style="background:${ABG},0.05)">
       <td></td>
-      <td><span class="pill" style="background:rgba(84,210,239,0.13);color:${CYAN};border:1px solid rgba(84,210,239,0.35)">${add?'+ ADD':'− TRIM'}</span></td>
-      <td style="text-align:right;color:${CYAN}">${sz}</td>
+      <td><span class="pill" style="background:${ABG},0.13);color:${AC};border:1px solid ${ABG},0.35)">${add?'▲ ADD':'▼ TRIM'}</span></td>
+      <td style="text-align:right;color:${AC}">${sz}</td>
       <td style="color:var(--dim)">${ev.date}</td>
       <td colspan="2" style="color:var(--dim);font-size:0.72rem">${add?'scaled in at −6% open P&L':'trimmed after +5% recovery'}</td>
       <td style="text-align:right">${px}</td>
@@ -2244,7 +2260,7 @@ function renderVIX(){
   });
 
   const l30=DATA.bar_history.slice(-30).reverse();
-  const sc=s=>(s==='ADD_SVXY'||s==='TRIM_SVXY')?CYAN:s.includes('SVXY')?TEAL:s.includes('UVXY')?CORAL:s==='CASH'?'var(--cash)':GRAY;
+  const sc=s=>s==='ADD_SVXY'?CYAN:s==='TRIM_SVXY'?TRIMC:s.includes('SVXY')?TEAL:s.includes('UVXY')?CORAL:s==='CASH'?'var(--cash)':GRAY;
   document.getElementById('bar-log').innerHTML=
     `<thead><tr><th>Date</th><th>Signal</th><th>VIX9D</th><th>VIX1M</th><th>VIX3M</th><th>1M:3M</th><th>Contango</th><th>VDelta</th><th>Open P&L</th><th>SVXY</th><th>UVXY</th></tr></thead><tbody>`+
     l30.map(b=>`<tr>
@@ -2682,10 +2698,12 @@ function displayMarkers(){
       markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?'SVXY':'UVXY')});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
     }
-    // Dynamic-sizing adjustments: ADD (dip-escalation) and TRIM (recovery de-escalation)
+    // Dynamic-sizing adjustments: ADD (dip-escalation, cyan up-arrow) and TRIM
+    // (recovery de-escalation, pink down-arrow)
     (t.adj||[]).forEach(ev=>{ if(alt && (sv?svC:uvC)[ev.date]==null) return;
-      markers.push({time:ev.date,position:mp,color:CYAN,shape:'circle',size:0,
-        text:(ev.action==='ADD'?'+ ':'− ')+(CHART_MODE==='blend'?svSizeName(ev.size_to):Math.round(ev.size_to*100)+'%')}); });
+      const add=ev.action==='ADD';
+      markers.push({time:ev.date,position:mp,color:add?CYAN:TRIMC,shape:add?'arrowUp':'arrowDown',size:0,
+        text:(add?'▲ ':'▼ ')+(CHART_MODE==='blend'?svSizeName(ev.size_to):Math.round(ev.size_to*100)+'%')}); });
     });
   // Currently-OPEN position has no closed-trade row, so the loop above skips its
   // entry. Add the entry arrow explicitly so the chart shows where it was opened.
@@ -2701,8 +2719,9 @@ function displayMarkers(){
     for(let i=_bh.length-1;i>=0 && _bh[i].position===_oty;i--){ const b=_bh[i];
       if(b.signal==='ADD_SVXY'||b.signal==='TRIM_SVXY'){
         if(alt && (sv?svC:uvC)[b.date]==null) continue;
-        markers.push({time:b.date,position:mp,color:CYAN,shape:'circle',size:0,
-          text:(b.signal==='ADD_SVXY'?'+ ':'− ')+(CHART_MODE==='blend'?svSizeName(b.pos_size):Math.round((b.pos_size||1)*100)+'%')}); } }
+        const add=b.signal==='ADD_SVXY';
+        markers.push({time:b.date,position:mp,color:add?CYAN:TRIMC,shape:add?'arrowUp':'arrowDown',size:0,
+          text:(add?'▲ ':'▼ ')+(CHART_MODE==='blend'?svSizeName(b.pos_size):Math.round((b.pos_size||1)*100)+'%')}); } }
   }
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
 }
@@ -2785,8 +2804,9 @@ function buildDaily(){
   aTrades().forEach(t=>{ const sv=tIsSV(t), win=tRet(t)>0, posn=sv?'aboveBar':'belowBar', shp=sv?'arrowDown':'arrowUp';
     mk.push({time:t.entry_date,position:posn,color:WHITE,shape:shp,text:(sv?svN():uvN())});
     mk.push({time:t.exit_date, position:posn,color:win?TEAL:CORAL,shape:shp,text:(tRet(t)>=0?'+':'')+(tRet(t)*100).toFixed(1)+'%'});
-    (t.adj||[]).forEach(ev=>mk.push({time:ev.date,position:posn,color:CYAN,shape:'circle',
-      text:(ev.action==='ADD'?'+':'−')})); });
+    (t.adj||[]).forEach(ev=>{ const add=ev.action==='ADD';
+      mk.push({time:ev.date,position:posn,color:add?CYAN:TRIMC,shape:add?'arrowUp':'arrowDown',
+        text:add?'▲':'▼'}); }); });
   // Current OPEN position has no closed-trade row — add its entry marker too.
   const _ot=_openTradeRow();
   if(_ot){ const sv=tIsSV(_ot), posn=sv?'aboveBar':'belowBar', shp=sv?'arrowDown':'arrowUp';
@@ -3657,9 +3677,9 @@ function renderSignalMonitor(histBar){
   const _isTrim = hist && b.signal==='TRIM_SVXY';
   let _why;
   if(_isAdd){
-    _why = `<b style="color:${CYAN}">position increased</b> &mdash; dip-escalation: open P&L hit &minus;6%, added +&frac12; unit &rarr; <b style="color:${CYAN}">${CHART_MODE==='blend'?'SVIX&frac34;':'150%'}</b>`;
+    _why = `<b style="color:${CYAN}">&#9650; position increased</b> &mdash; dip-escalation: open P&L hit &minus;6%, added +&frac12; unit &rarr; <b style="color:${CYAN}">${CHART_MODE==='blend'?'SVIX&frac34;':'150%'}</b>`;
   } else if(_isTrim){
-    _why = `<b style="color:${CYAN}">position trimmed</b> &mdash; recovered to +5%, add-on leg sold &rarr; back to <b style="color:${CYAN}">${CHART_MODE==='blend'?'SVIX&frac12;':'100%'}</b>`;
+    _why = `<b style="color:${TRIMC}">&#9660; position trimmed</b> &mdash; recovered to +5%, add-on leg sold &rarr; back to <b style="color:${TRIMC}">${CHART_MODE==='blend'?'SVIX&frac12;':'100%'}</b>`;
   } else if(inPos){
     if(_pk==='cash') _why = `holding ${isUV?'long vol':'short vol'} &rarr; <b style="color:var(--cashc)">exit</b> &mdash; ${_firedExits.length>1?_firedExits.length+' exit rules fired':'an exit rule fired'}`;
     else _why = `<b style="color:${isUV?'var(--coral)':'var(--teal)'}">holding ${isUV?'long vol':'short vol'}</b> &mdash; no exit triggered; entry signals don't apply while in a position`;
