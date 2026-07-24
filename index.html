@@ -606,6 +606,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <button class="tab" onclick="switchTab('trades')">Trades Detail</button>
     <button class="tab" onclick="switchTab('risk')">Risk Analysis</button>
     <button class="tab" onclick="switchTab('markets')">Markets &amp; Regime</button>
+    <button class="tab" onclick="switchTab('forward')">Forward-Looking Analysis</button>
     <button class="tab" onclick="switchTab('howto')">About</button>
   </div>
 </div>
@@ -867,6 +868,33 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div class="panel" style="flex:1;display:flex;flex-direction:column"><div class="ph"><span>Performance by VIX1M level (at entry)</span></div>
           <div class="pb" id="regime-vix" style="flex:1"></div></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ══ FORWARD-LOOKING ANALYSIS TAB ═════════════════════════════════ -->
+  <div id="tab-forward" style="display:none">
+    <div class="panel"><div class="ph"><span>Today&rsquo;s signal state &rarr; historical analogs</span></div>
+      <div class="pb">
+        <div id="fwd-state" style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-bottom:10px"></div>
+        <div id="fwd-method" style="color:var(--dim);font-size:0.74rem;line-height:1.55"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <div class="ph"><span id="fwd-chart-title">Next 10 sessions &mdash; what similar days did</span>
+        <div id="fwd-legend" style="display:flex;gap:14px;align-items:center"></div></div>
+      <div class="pb" style="position:relative;height:380px"><canvas id="fwdChart"></canvas></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="panel" style="flex:1.4 1 0"><div class="ph"><span id="fwd-table-title">Day-by-day odds</span></div>
+        <div class="pb" style="overflow-x:auto"><div id="fwd-table"></div></div></div>
+      <div class="panel" style="flex:1 1 0"><div class="ph"><span>Closest historical analogs</span></div>
+        <div class="pb" style="overflow-x:auto"><div id="fwd-analogs"></div></div></div>
+    </div>
+    <div style="margin-top:10px;color:var(--dim);font-size:0.68rem;line-height:1.6;padding:0 4px">
+      Probabilities here are <b>historical frequencies among similar past days</b>, not forecasts.
+      Similarity is measured on end-of-day signals only, the sample is finite, and volatility
+      regimes change &mdash; a 70% historical up-rate can and does produce losing streaks. Nothing
+      on this page is investment advice.
     </div>
   </div>
 
@@ -1258,7 +1286,7 @@ function buildPositionState(){
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
-const TABS=['summary','analytics','trades','risk','markets','howto'];
+const TABS=['summary','analytics','trades','risk','markets','forward','howto'];
 function switchTab(n){
   TABS.forEach(t=>{const el=document.getElementById('tab-'+t); if(el) el.style.display=t===n?'':'none';});
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABS[i]===n));
@@ -1266,6 +1294,7 @@ function switchTab(n){
   if(n==='analytics' && typeof buildDaily==='function') setTimeout(()=>{try{buildDaily();}catch(_){}},40);
   if(n==='risk' && typeof renderRisk==='function') setTimeout(()=>{try{renderRisk();}catch(_){}},40);
   if(n==='markets' && typeof renderMarkets==='function') setTimeout(()=>{try{renderMarkets();}catch(_){}},40);
+  if(n==='forward' && typeof renderForward==='function') setTimeout(()=>{try{renderForward();}catch(_){}},40);
 }
 // Global instrument toggle — switches the whole dashboard SVXY/UVXY <-> SVIX/UVIX
 function setInstr(m){
@@ -1305,6 +1334,132 @@ function render(){
   renderSummary();
 }
 // Re-render all instrument-dependent surfaces when the global toggle flips
+// ── Forward-Looking Analysis: nearest-neighbour analogs of TODAY's signal state ──
+// Finds the K most-similar historical days (same position state, weighted z-distance on
+// the continuous signal-monitor indicators) and shows what the active instrument did over
+// the following 10 sessions: every analog path, the median/quartile fan, and day-by-day
+// P(cumulative return > 0). All computed client-side from bar_history — refreshes with it.
+const FWD_H = 10;                      // horizon in sessions
+const FWD_FEATS = [                    // [bar_history field, weight, label, formatter]
+  ['contango',     1.5, 'Contango',   v=>(v*100).toFixed(1)+'%'],
+  ['vdelta',       1.0, 'VDelta',     v=>v.toFixed(2)],
+  ['vix9d',        1.25,'VIX9D',      v=>v.toFixed(1)],
+  ['vix1m_ma30',   1.0, 'VIX1M 30d',  v=>v.toFixed(1)],
+  ['obv_div',      0.75,'OBV div',    v=>v.toFixed(2)],
+  ['bb_trend',     0.75,'BB Trend',   v=>v.toFixed(2)],
+];
+function _fwdCls(b){ return b.position==='LONG_VOL_SELLER'?'SV':(b.position==='LONG_VOL'?'UV':'CASH'); }
+function _fwdQuant(sorted,q){ if(!sorted.length) return null;
+  const i=(sorted.length-1)*q, lo=Math.floor(i), hi=Math.ceil(i);
+  return sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo); }
+function renderForward(){
+  const H=(DATA&&DATA.bar_history)||[]; if(H.length<300) return;
+  const last=H[H.length-1], curCls=_fwdCls(last);
+  const feats=[...FWD_FEATS];
+  if(curCls!=='CASH') feats.push(['open_pnl_pct',1.5,'Open P&L',v=>(v*100).toFixed(1)+'%']);
+  // z-normalisation over all finite bars
+  const stats={};
+  feats.forEach(([f])=>{ const xs=H.map(b=>b[f]).filter(v=>v!=null&&isFinite(v));
+    const mu=xs.reduce((a,v)=>a+v,0)/xs.length;
+    const sd=Math.sqrt(xs.reduce((a,v)=>a+(v-mu)*(v-mu),0)/xs.length)||1;
+    stats[f]={mu,sd}; });
+  const okBar=b=>feats.every(([f])=>b[f]!=null&&isFinite(b[f]));
+  if(!okBar(last)){ const el=document.getElementById('fwd-state');
+    if(el) el.innerHTML='<span style="color:var(--dim)">Latest bar is missing indicator data — check back after the next refresh.</span>'; return; }
+  // candidate pool: same position class, full features, room for a 10-session path
+  const sv=curCls!=='UV';                               // CASH analyses the short-vol side
+  const pxf=sv?'svxy_price':'uvxy_price';
+  const cands=[];
+  for(let i=0;i<H.length-FWD_H-1;i++){ const b=H[i];
+    if(_fwdCls(b)!==curCls||!okBar(b)) continue;
+    let ok=b[pxf]!=null&&b[pxf]>0;
+    for(let h=1;ok&&h<=FWD_H;h++){ const p_=H[i+h][pxf]; if(p_==null||!(p_>0)) ok=false; }
+    if(!ok) continue;
+    let d2=0; feats.forEach(([f,w])=>{ const z=(b[f]-last[f])/stats[f].sd; d2+=w*z*z; });
+    cands.push([Math.sqrt(d2),i]); }
+  if(cands.length<30){ const el=document.getElementById('fwd-state');
+    if(el) el.innerHTML='<span style="color:var(--dim)">Not enough comparable historical days ('+cands.length+') for a meaningful sample.</span>'; return; }
+  cands.sort((a,b)=>a[0]-b[0]);
+  const K=Math.min(140,Math.max(50,Math.round(cands.length*0.12)));
+  const picks=cands.slice(0,K);
+  // display scaling to the toggled instrument (odds are scale-invariant; magnitudes aren't)
+  const lv=aMode()?altLeverage():null;
+  const fac=lv?(sv?lv.svF*(CHART_MODE==='blend'?0.5:1):lv.uvF):1;
+  const iName=sv?((CHART_MODE==='blend')?'SVIX½':svN()):uvN();
+  // analog cumulative paths
+  const paths=picks.map(([dist,i])=>{ const base=H[i][pxf], arr=[0];
+    for(let h=1;h<=FWD_H;h++) arr.push((H[i+h][pxf]/base-1)*fac);
+    return {dist,i,arr}; });
+  // per-day stats
+  const rows=[];
+  for(let h=1;h<=FWD_H;h++){ const xs=paths.map(p=>p.arr[h]).sort((a,b)=>a-b);
+    rows.push({h, pos:xs.filter(v=>v>0).length/xs.length,
+      med:_fwdQuant(xs,0.5), mean:xs.reduce((a,v)=>a+v,0)/xs.length,
+      p10:_fwdQuant(xs,0.10), p25:_fwdQuant(xs,0.25), p75:_fwdQuant(xs,0.75), p90:_fwdQuant(xs,0.90)}); }
+  // other side's P(up) per day (for the table's last column)
+  const pxo=sv?'uvxy_price':'svxy_price', oName=sv?uvN():((CHART_MODE==='blend')?'SVIX½':svN());
+  const oPos=[];
+  for(let h=1;h<=FWD_H;h++){ let n=0,u=0;
+    picks.forEach(([_,i])=>{ const a=H[i][pxo], b=H[i+h][pxo]; if(a>0&&b>0){n++; if(b>a)u++;} });
+    oPos.push(n?u/n:null); }
+  // ── state chips ──
+  const chip=(k,v)=>'<span style="background:rgba(224,179,74,0.07);border:1px solid var(--border2);border-radius:10px;padding:3px 10px;font-size:0.72rem"><span style="color:var(--dim)">'+k+'</span> <b style="color:var(--yellow)">'+v+'</b></span>';
+  const posName=curCls==='SV'?('in '+iName):curCls==='UV'?('in '+iName):'CASH';
+  let chips=chip('State',posName+' · '+last.date);
+  feats.forEach(([f,w,lab,fmt])=>{ chips+=chip(lab,fmt(last[f])); });
+  document.getElementById('fwd-state').innerHTML=chips;
+  document.getElementById('fwd-method').innerHTML=
+    'Matched <b>'+K+'</b> of '+cands.length+' comparable days (same position state, weighted similarity across the '
+    +'signal-monitor indicators above). Paths below show the toggled instrument (<b>'+iName+'</b>) over the next '
+    +FWD_H+' sessions from each analog day'+(curCls==='CASH'?' — the strategy is in cash, so this reads as "what the short-vol side did from similar setups"':'')+'.';
+  // ── chart: spaghetti + quartile fan + median ──
+  const labels=['Now']; for(let h=1;h<=FWD_H;h++) labels.push('+'+h);
+  const dsets=[];
+  dsets.push({label:'p10–p90',data:[0,...rows.map(r=>r.p90)],borderColor:'rgba(0,0,0,0)',backgroundColor:'rgba(84,210,239,0.07)',pointRadius:0,fill:'+1',tension:0.25});
+  dsets.push({label:'_p10',data:[0,...rows.map(r=>r.p10)],borderColor:'rgba(0,0,0,0)',pointRadius:0,fill:false,tension:0.25});
+  dsets.push({label:'p25–p75',data:[0,...rows.map(r=>r.p75)],borderColor:'rgba(0,0,0,0)',backgroundColor:'rgba(84,210,239,0.15)',pointRadius:0,fill:'+1',tension:0.25});
+  dsets.push({label:'_p25',data:[0,...rows.map(r=>r.p25)],borderColor:'rgba(0,0,0,0)',pointRadius:0,fill:false,tension:0.25});
+  const MAXL=80, step=Math.max(1,Math.floor(paths.length/MAXL));
+  for(let k=0;k<paths.length;k+=step) dsets.push({data:paths[k].arr,borderColor:'rgba(232,185,79,0.06)',borderWidth:1,pointRadius:0,fill:false,tension:0});
+  dsets.push({label:'Median analog',data:[0,...rows.map(r=>r.med)],borderColor:TEAL,borderWidth:2.5,pointRadius:0,fill:false,tension:0.25});
+  mkChart('fwdChart',{type:'line',data:{labels,datasets:dsets},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{filter:it=>!!it.dataset.label&&!it.dataset.label.startsWith('_'),
+        callbacks:{label:c=>' '+c.dataset.label+': '+(c.parsed.y*100).toFixed(2)+'%'}}},
+      scales:{x:{ticks:{color:TICK,font:{size:12,family:FONT}},grid:{color:GRID}},
+              y:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>(v*100).toFixed(0)+'%'},grid:{color:GRID}}}}});
+  document.getElementById('fwd-legend').innerHTML=legHtml([[TEAL,'median'],['rgba(84,210,239,0.35)','25–75%'],['rgba(84,210,239,0.15)','10–90%'],['rgba(232,185,79,0.35)','analog paths']]);
+  document.getElementById('fwd-chart-title').textContent='Next '+FWD_H+' sessions — '+K+' most-similar days ('+iName+')';
+  // ── table ──
+  const pc=v=>{ const c=v>=0.6?'var(--teal)':v>=0.5?'var(--yellow)':'var(--coral)';
+    return '<b style="color:'+c+'">'+(v*100).toFixed(0)+'%</b>'; };
+  const f2=v=>{ const c=v>=0?'var(--teal)':'var(--coral)';
+    return '<span style="color:'+c+'">'+(v>=0?'+':'')+(v*100).toFixed(2)+'%</span>'; };
+  let tb='<table style="width:100%;border-collapse:collapse;font-size:0.78rem"><tr style="color:var(--dim);text-align:right">'
+    +'<th style="text-align:left;padding:5px 8px">Session</th><th>P('+iName+' &uarr;)</th><th>Median</th><th>Mean</th>'
+    +'<th>10th pct</th><th>90th pct</th><th>P('+oName+' &uarr;)</th></tr>';
+  rows.forEach((r,ix)=>{ tb+='<tr style="text-align:right;border-top:1px solid var(--border)">'
+    +'<td style="text-align:left;padding:5px 8px;color:var(--dim)">EOD +'+r.h+(r.h===1?' (tomorrow)':'')+'</td>'
+    +'<td>'+pc(r.pos)+'</td><td>'+f2(r.med)+'</td><td>'+f2(r.mean)+'</td>'
+    +'<td>'+f2(r.p10)+'</td><td>'+f2(r.p90)+'</td>'
+    +'<td>'+(oPos[ix]!=null?pc(oPos[ix]):'<span style="color:var(--namut)">—</span>')+'</td></tr>'; });
+  tb+='</table>';
+  document.getElementById('fwd-table').innerHTML=tb;
+  document.getElementById('fwd-table-title').textContent='Day-by-day odds — cumulative return from today ('+K+' analogs)';
+  // ── nearest-analog list ──
+  let an='<table style="width:100%;border-collapse:collapse;font-size:0.76rem"><tr style="color:var(--dim);text-align:right">'
+    +'<th style="text-align:left;padding:5px 8px">Date</th><th>Match</th><th>+1d</th><th>+5d</th><th>+10d</th></tr>';
+  const dmax=picks[picks.length-1][0]||1;
+  paths.slice(0,10).forEach(p=>{ const b=H[p.i];
+    an+='<tr style="text-align:right;border-top:1px solid var(--border)">'
+      +'<td style="text-align:left;padding:5px 8px">'+b.date+'</td>'
+      +'<td style="color:var(--dim)">'+Math.max(1,Math.round(100*(1-p.dist/dmax)))+'%</td>'
+      +'<td>'+f2(p.arr[1])+'</td><td>'+f2(p.arr[5])+'</td><td>'+f2(p.arr[10])+'</td></tr>'; });
+  an+='</table>';
+  document.getElementById('fwd-analogs').innerHTML=an;
+}
+
 function rerenderActive(){
   renderAnalytics();renderSigPerf();renderSigStats();renderSigDist();renderExitReasons();renderTrades();
   if(window._m){renderMonthly();}
@@ -1316,6 +1471,7 @@ function rerenderActive(){
   if(window._sigMonReady && typeof renderSignalMonitor==='function') renderSignalMonitor();  // monitor chips follow toggle
   const rt=document.getElementById('tab-risk'); if(rt && rt.style.display!=='none' && typeof renderRisk==='function') renderRisk();
   const mt=document.getElementById('tab-markets'); if(mt && mt.style.display!=='none' && typeof renderMarkets==='function') renderMarkets();
+  const ft=document.getElementById('tab-forward'); if(ft && ft.style.display!=='none' && typeof renderForward==='function') renderForward();
 }
 
 // Open-position return in the CURRENT toggle basis. Used by BOTH the header badge and the
