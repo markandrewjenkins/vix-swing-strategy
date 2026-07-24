@@ -127,14 +127,39 @@ def cboe_last(symbol: str) -> tuple[float | None, float | None, str | None]:
 
 
 # ── Yahoo v8 live quote ───────────────────────────────────────────────────────
-def yahoo_quote(symbol: str, prepost: bool = False) -> dict:
-    """Return {price, prev_close, change_pct, time} from the freshest Yahoo quote.
+def _et_bar(ts):
+    """(ET date string, minutes-since-midnight ET) for an epoch timestamp."""
+    dt = (datetime.fromtimestamp(ts, tz=_ET) if _ET
+          else datetime.fromtimestamp(ts, tz=timezone.utc))
+    return dt.strftime("%Y-%m-%d"), dt.hour * 60 + dt.minute
 
-    prepost=True (ETFs) pulls extended-hours bars and uses the LATEST traded price
-    across pre-market / regular / after-hours, so the quote moves from ~4am through
-    after-hours. Indices (VIX*) leave it False — they aren't disseminated pre/post.
-    change_pct is computed here against the prior regular close (reliable for ETFs;
-    VIX indices get re-based against the authoritative CBOE close in main())."""
+
+_RTH_OPEN, _RTH_CLOSE = 9 * 60 + 30, 16 * 60      # 9:30 / 16:00 ET
+
+
+def yahoo_quote(symbol: str, prepost: bool = False) -> dict:
+    """Session-aware quote following the standard market convention (ported from the
+    QQQ Swing Strategy dashboard so both share the same pre/regular/after semantics).
+
+    Built from a 5-day 5-minute series so we know each session's real close:
+      • Regular hours → price = live regular print, % = vs the PRIOR regular close.
+      • After-hours   → price/% stay frozen at today's regular close vs the prior
+                        close (the day's official change); the AH move is a
+                        SEPARATE number measured from *today's* close.
+      • Pre-market    → today hasn't traded regular yet, so price/% show the LAST
+                        COMPLETED session; the pre-market move is the separate
+                        number, measured from yesterday's close. For ^VIX this is
+                        where CBOE's Global Trading Hours prints (from ~3:15am ET)
+                        surface — as a PRE chip, not as the headline.
+
+    Emitted fields:
+      price / change_pct   the headline pair (always internally consistent)
+      prev_close           the regular close the headline % is measured against
+      session              'pre' | 'regular' | 'post' | 'closed'
+      ext_price/ext_change extended-hours move vs its correct baseline
+      asof_date            ET date of the reading shown as `price`
+      time                 ISO timestamp of the freshest print
+    """
     try:
         # Grab a cookie first (Yahoo gates the v8 endpoint behind one).
         try:
@@ -146,34 +171,85 @@ def yahoo_quote(symbol: str, prepost: bool = False) -> dict:
         except Exception:
             cookie = ""
         url = (f"https://query1.finance.yahoo.com/v8/finance/chart/"
-               f"{urllib.parse.quote(symbol)}?range=1d&interval=5m"
+               f"{urllib.parse.quote(symbol)}?range=5d&interval=5m"
                + ("&includePrePost=true" if prepost else ""))
         data = json.loads(_get(url, extra={"Cookie": cookie} if cookie else None))
-        res   = data["chart"]["result"][0]
-        meta  = res["meta"]
-        prev  = meta.get("chartPreviousClose") or meta.get("previousClose")
-        price = meta.get("regularMarketPrice")
-        t     = meta.get("regularMarketTime")
-        if prepost:
-            # Latest non-null close across pre/regular/post bars = current price.
-            ts = res.get("timestamp") or []
-            cl = (((res.get("indicators") or {}).get("quote") or [{}])[0].get("close")) or []
-            for i in range(len(cl) - 1, -1, -1):
-                if cl[i] is not None:
-                    price = cl[i]
-                    t = ts[i] if i < len(ts) else t
-                    break
-        chg = ((price / prev - 1.0) if (price and prev) else None)
+        res  = data["chart"]["result"][0]
+        ts   = res.get("timestamp") or []
+        cl   = (((res.get("indicators") or {}).get("quote") or [{}])[0].get("close")) or []
+
+        # Indices get a 15-minute settle grace: VIX3M/VIX9D publish 09:30-16:15 and
+        # VIX 03:15-16:15, so their post-4pm prints are the closing settle, not
+        # after-hours trading. ETFs genuinely trade from 16:00, so no grace.
+        grace = 15 if symbol.startswith("^") else 0
+        reg_close, pre_last, post_last, reg_time = {}, {}, {}, {}
+        last_t = last_date = last_tod = None
+        for i, c in enumerate(cl):
+            if c is None or i >= len(ts):
+                continue
+            t = ts[i]
+            dstr, tod = _et_bar(t)
+            last_t, last_date, last_tod = t, dstr, tod
+            if _RTH_OPEN <= tod <= _RTH_CLOSE + grace:
+                reg_close[dstr] = c; reg_time[dstr] = t
+            elif tod < _RTH_OPEN:
+                pre_last[dstr] = c
+            else:
+                post_last[dstr] = c
+
+        rdates = sorted(reg_close)
+        if not rdates:
+            raise ValueError("no regular-session bars")
+
+        # Which session are we in, per the freshest print?
+        today = last_date
+        has_reg_today = today in reg_close
+        if last_t is None:
+            session = "closed"
+        elif has_reg_today and _RTH_OPEN <= last_tod <= _RTH_CLOSE + grace:
+            session = "regular"
+        elif last_tod is not None and last_tod < _RTH_OPEN and not has_reg_today:
+            session = "pre"
+        elif last_tod is not None and last_tod > _RTH_CLOSE + grace and has_reg_today:
+            session = "post"
+        else:
+            session = "regular" if has_reg_today else "closed"
+
+        def _chg(a, b):
+            return (a / b - 1.0) if (a and b) else None
+
+        cur_d  = rdates[-1]
+        prev_d = rdates[-2] if len(rdates) >= 2 else None
+        price  = reg_close[cur_d]
+        prev   = reg_close[prev_d] if prev_d else None
+        chg    = _chg(price, prev)
+        asof   = cur_d
+        if session == "post":
+            ext_px = post_last.get(today)
+        elif session == "pre":
+            ext_px = pre_last.get(today)
+        else:
+            ext_px = None
+        ext_chg = _chg(ext_px, price) if ext_px else None
+
+        r6 = lambda v: round(v, 6) if v is not None else None
+        r4 = lambda v: round(v, 4) if v is not None else None
         return {
-            "price": round(price, 4) if price is not None else None,
-            "prev_close": round(prev, 4) if prev is not None else None,
-            "change_pct": round(chg, 6) if chg is not None else None,
-            "time": (datetime.fromtimestamp(t, tz=timezone.utc).isoformat()
-                     if t else None),
+            "price": r4(price), "prev_close": r4(prev), "change_pct": r6(chg),
+            "session": session, "asof_date": asof,
+            "regular_price": r4(price), "regular_change": r6(chg),
+            "ext_price": r4(ext_px), "ext_change": r6(ext_chg),
+            "reg_time": (datetime.fromtimestamp(reg_time.get(asof), tz=timezone.utc).isoformat()
+                         if reg_time.get(asof) else None),
+            "time": (datetime.fromtimestamp(last_t, tz=timezone.utc).isoformat()
+                     if last_t else None),
         }
     except Exception as e:
         print(f"  yahoo {symbol:6s} FAILED: {e}")
-        return {"price": None, "prev_close": None, "change_pct": None, "time": None}
+        return {"price": None, "prev_close": None, "change_pct": None,
+                "session": None, "asof_date": None,
+                "regular_price": None, "regular_change": None,
+                "ext_price": None, "ext_change": None, "reg_time": None, "time": None}
 
 
 # ── Last official position from the (privately generated) backtest ───────────
@@ -203,6 +279,15 @@ def last_official(path: str = "backtest_results.json") -> dict:
             entry_date = start.get("date")
             entry_price = (start.get("svxy_price") if pos == "LONG_VOL_SELLER"
                            else start.get("uvxy_price"))
+            # Dynamic sizing (ADD/TRIM) re-blends the engine's entry basis mid-trade,
+            # so the first-bar price is no longer the position's cost basis. Back the
+            # EFFECTIVE entry out of the engine's own state instead:
+            #   eff_entry = last_close / (1 + open_pnl_pct)
+            # which is exact whatever adjustment history the trade has.
+            _lp = b.get("svxy_price") if pos == "LONG_VOL_SELLER" else b.get("uvxy_price")
+            _op = b.get("open_pnl_pct")
+            if _lp and _op is not None and (1.0 + _op) > 0:
+                entry_price = round(_lp / (1.0 + _op), 4)
         return {
             "date":        b.get("date"),
             "position":    pos,
@@ -211,6 +296,7 @@ def last_official(path: str = "backtest_results.json") -> dict:
             "equity":      b.get("equity"),
             "entry_date":  entry_date,
             "entry_price": entry_price,
+            "pos_size":    b.get("pos_size"),
         }
     except Exception as e:
         print(f"  backtest_results.json read FAILED: {e}")
@@ -306,15 +392,16 @@ def main() -> None:
             q["change_pct"] = round(q["price"] / ref - 1.0, 6)
             q["prev_close"] = round(ref, 4)
 
-    # SPX (^GSPC) is a regular-session-only index, so it freezes pre/post-market. SPY trades
-    # ~4am-8pm, so when SPY is the fresher quote, derive the SPX level from SPY's % move
-    # applied to SPX's prior close (keeps the index level but updates through extended hours).
+    # SPX (^GSPC) is a regular-session-only index. Under the session-aware convention the
+    # headline stays the official regular pair; SPY (trades ~4am-8pm) supplies the
+    # extended-hours move, surfaced as SPX's PRE/AH chip (SPX level scaled by SPY's move).
     g, spy = quotes.get("gspc"), quotes.get("spy")
-    if g and spy and spy.get("change_pct") is not None and g.get("prev_close") \
-       and (not g.get("time") or (spy.get("time") and spy["time"] > g["time"])):
-        g["price"] = round(g["prev_close"] * (1.0 + spy["change_pct"]), 2)
-        g["change_pct"] = spy["change_pct"]
-        g["time"] = spy["time"]
+    if g and spy and spy.get("ext_change") is not None and g.get("price") \
+       and spy.get("session") in ("pre", "post"):
+        g["session"]    = spy["session"]
+        g["ext_change"] = spy["ext_change"]
+        g["ext_price"]  = round(g["price"] * (1.0 + spy["ext_change"]), 2)
+        g["time"]       = spy.get("time") or g.get("time")
 
     # Live values override the EOD term structure for the freshest reading.
     vix_spot = quotes["vix"]["price"]

@@ -363,6 +363,18 @@ tr:hover td { background: #1f1a10 }
 .live-sep { color: var(--border2, #555); font-weight: 300; margin: 0 2px; align-self: center; }
 .live-chg { font-size: 0.62rem; font-weight: 700; color: var(--dim, #909090); }
 .live-chg.up { color: var(--teal, #00e5a0); } .live-chg.down { color: var(--coral, #ff4560); }
+/* Extended-hours (pre-market / after-hours) chip — QQQ-dashboard convention: the
+   headline % stays the authoritative regular-session figure; the PRE/AH move is a
+   separate labelled chip measured from its correct baseline. */
+.live-ext { font-size: 0.56rem; font-weight: 700; letter-spacing: 0.03em; margin-left: 4px;
+  padding: 1px 4px; border-radius: 4px; color: var(--dim, #909090);
+  background: rgba(125,108,174,0.16); white-space: nowrap; }
+.live-ext.up { color: var(--teal, #00e5a0); background: rgba(37,244,176,0.12); }
+.live-ext.down { color: var(--coral, #ff4560); background: rgba(255,90,122,0.13); }
+.live-ext .live-ext-tag { opacity: 0.72; font-weight: 800; margin-right: 3px; }
+/* Market-phase glyph (sun/moon, QQQ convention) next to the Live Chart title. */
+#mkt-ico { display:inline-flex; }
+#mkt-ico svg { width: 15px; height: 15px; display: block; }
 .live-status { display: inline-flex; align-items: baseline; align-self: flex-end; }
 .hdr-metarow { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 3px; }
 .hdr-metarow .hdr-meta { margin-top: 0; }
@@ -594,7 +606,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       <span class="hdr-meta" id="hdr-meta">Loading...</span>
       <span class="hdr-meta" title="NOTE: SVIX/UVIX only launched in 2022, so prior results involving either of these two ETFs are simulated based on SVXY/UVXY trade returns, then leverage-scaled">Toggle Vol ETF Pair:</span>
       <span class="cdl-toggle-group instr-inline" title="NOTE: SVIX/UVIX only launched in 2022, so prior results involving either of these two ETFs are simulated based on SVXY/UVXY trade returns, then leverage-scaled">
-        <button id="instr-blend" class="cdl-seg active" onclick="setInstr('blend')">SVIX&#189; / UVIX <span style="font-weight:400">(primary)</span></button>
+        <button id="instr-blend" class="cdl-seg active" onclick="setInstr('blend')">SVIX Dynamic / UVIX <span style="font-weight:400">(primary)</span></button>
         <button id="instr-real" class="cdl-seg" onclick="setInstr('real')">SVXY / UVXY</button>
         <button id="instr-alt" class="cdl-seg" onclick="setInstr('alt')">SVIX / UVIX</button>
       </span>
@@ -873,16 +885,21 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 
   <!-- ══ FORWARD-LOOKING ANALYSIS TAB ═════════════════════════════════ -->
   <div id="tab-forward" style="display:none">
-    <div class="panel"><div class="ph"><span>Today&rsquo;s signal state &rarr; historical analogs</span></div>
-      <div class="pb">
-        <div id="fwd-state" style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-bottom:10px"></div>
-        <div id="fwd-method" style="color:var(--dim);font-size:0.74rem;line-height:1.55"></div>
+    <div class="row">
+      <div class="panel" style="flex:1 1 0;min-width:230px;display:flex;flex-direction:column">
+        <div class="ph"><span>Signal state</span></div>
+        <div class="pb" style="flex:1">
+          <input type="date" id="fwd-date" onchange="renderForward(this.value)"
+            style="width:100%;background:rgba(20,17,11,0.9);color:var(--yellow);border:1px solid var(--border2);border-radius:8px;padding:5px 8px;font-family:'Saira',sans-serif;font-size:0.78rem;margin-bottom:8px;color-scheme:dark">
+          <div id="fwd-state" style="overflow-x:auto"></div>
+          <div id="fwd-method" style="color:var(--dim);font-size:0.68rem;line-height:1.5;margin-top:8px"></div>
+        </div>
       </div>
-    </div>
-    <div class="panel" style="margin-top:12px">
-      <div class="ph"><span id="fwd-chart-title">Next 10 sessions &mdash; what similar days did</span>
-        <div id="fwd-legend" style="display:flex;gap:14px;align-items:center"></div></div>
-      <div class="pb" style="position:relative;height:380px"><canvas id="fwdChart"></canvas></div>
+      <div class="panel" style="flex:3 1 0">
+        <div class="ph"><span id="fwd-chart-title">Next 10 sessions &mdash; what similar days did</span>
+          <div id="fwd-legend" style="display:flex;gap:14px;align-items:center"></div></div>
+        <div class="pb" style="position:relative;height:400px"><canvas id="fwdChart" style="cursor:grab"></canvas></div>
+      </div>
     </div>
     <div class="row" style="margin-top:12px">
       <div class="panel" style="flex:1.4 1 0"><div class="ph"><span id="fwd-table-title">Day-by-day odds</span></div>
@@ -923,7 +940,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           rule that closed it and where the reading sat versus its threshold. <b>Risk Analysis</b> — Monte Carlo,
           rolling returns, MAE/MFE. <b>Markets &amp; Regime</b> — risk/return versus buy-and-hold and performance
           by market regime. The toggle at the top switches all figures between the SVXY/UVXY pair, the
-          leverage-scaled SVIX/UVIX pair, and the primary <b>SVIX&frac12; / UVIX</b> blend.</p>
+          leverage-scaled SVIX/UVIX pair, and the primary <b>SVIX Dynamic / UVIX</b> strategy (SVIX&frac12; base, scaled up to SVIX&frac34; on dips).</p>
         <h3>Data &amp; updates</h3>
         <p>Quotes and the term structure come from public sources (CBOE end-of-day files, Yahoo intraday, FRED)
           and are <b>delayed</b> (~5&ndash;15&nbsp;min). Everything refreshes automatically in the cloud — live
@@ -948,7 +965,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <h3>The idea</h3>
         <p>This is a VIX <b>term-structure</b> swing strategy. It trades two volatility ETFs: <b>SVXY</b>
           (short volatility, ~&minus;0.5&times; VIX) and <b>UVXY</b> (long volatility, ~1.5&times; VIX). The toggle at
-          the top also shows the leverage-scaled <b>SVIX/UVIX</b> pair and a recommended <b>SVIX&frac12; / UVIX</b> blend.</p>
+          the top also shows the leverage-scaled <b>SVIX/UVIX</b> pair and a recommended <b>SVIX Dynamic / UVIX</b> strategy.</p>
         <h3>When it goes short vol (buys SVXY)</h3>
         <p>When the VIX curve is in <b>contango</b> (longer-dated VIX above near-dated) and the term-structure
           signals align bullish — contango, VDelta, the VIX9D/VIX1M calm zones and the 1M/3M ratio — plus a
@@ -966,9 +983,15 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <p>Signals use the day&rsquo;s close plus the CBOE end-of-day term structure (posts ~5:30&nbsp;PM&nbsp;ET);
           the decision is final then and the trade executes the <b>same day in after-hours</b> (~7&ndash;8&nbsp;PM&nbsp;ET).
           No intraday repaint &mdash; everything is decided on confirmed daily data.</p>
-        <h3>Position sizing</h3>
-        <p>Short-vol is full size (cut to ~&times;0.48 in a high-vol regime); long-vol is sized ~&times;0.43. The
-          headline drawdown is driven by the short-vol &ldquo;grind&rdquo;, not the long-vol trades.</p>
+        <h3>Position sizing — dynamic</h3>
+        <p>The primary <b>SVIX Dynamic / UVIX</b> configuration holds the short-vol leg at <b>SVIX&frac12;</b>
+          (cut to ~&frac14; in a high-vol regime); long-vol is sized ~&times;0.43. Sizing then adapts
+          mid-trade: if an open short-vol position draws down <b>&minus;6%</b> (and the spike isn&rsquo;t
+          still building), the strategy <b>adds half a unit &mdash; SVIX&frac12; &rarr; SVIX&frac34;</b> &mdash;
+          buying the dip that historically mean-reverts; once the blended position recovers to
+          <b>+5%</b> it <b>trims back to SVIX&frac12;</b>, banking the add-on&rsquo;s profit. These ADD/TRIM
+          events are marked on the chart and listed in Trades Detail. The headline drawdown is driven
+          by the short-vol &ldquo;grind&rdquo;, not the long-vol trades.</p>
       </div>
     </div>
   </div>
@@ -1268,6 +1291,17 @@ function aTrades(){ return _blend()&&BLEND_TRADES?BLEND_TRADES : (CHART_MODE==='
 function aEq(){ return _blend()&&BLEND_EQ?BLEND_EQ : (CHART_MODE==='alt'&&ALT_EQ?ALT_EQ:DATA.equity_curve); }
 function svN(){ return aMode()?'SVIX':'SVXY'; }
 function uvN(){ return aMode()?'UVIX':'UVXY'; }
+// Dynamic-sizing display name for the short-vol leg. Engine pos_size 1.0 = SVIX-half in
+// the blend view (= SVXY full in the real view); the dip-escalation raises it to 1.5
+// (= SVIX¾) and the recovery trim returns it to 1.0. Rounds to quarter-steps.
+function svSizeName(ps){
+  const p=(ps==null||!isFinite(ps)||ps<=0)?1:ps;
+  const q=Math.round((CHART_MODE==='blend'?p*0.5:p)*4)/4;      // SVIX units in blend, else native
+  const base=CHART_MODE==='blend'?'SVIX':svN();
+  const G={0.25:'¼',0.5:'½',0.75:'¾'};
+  if(q===1) return base+(CHART_MODE==='blend'?'':'');
+  return G[q]?base+G[q]:base+'×'+q;
+}
 function tIsSV(t){ return t.type==='LONG_VOL_SELLER'; }
 function tInstr(t){ return tIsSV(t)?svN():uvN(); }
 function tRet(t){ return aMode()? t.ret : t.pnl_pct; }
@@ -1352,9 +1386,16 @@ function _fwdCls(b){ return b.position==='LONG_VOL_SELLER'?'SV':(b.position==='L
 function _fwdQuant(sorted,q){ if(!sorted.length) return null;
   const i=(sorted.length-1)*q, lo=Math.floor(i), hi=Math.ceil(i);
   return sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo); }
-function renderForward(){
+function renderForward(selDate){
   const H=(DATA&&DATA.bar_history)||[]; if(H.length<300) return;
-  const last=H[H.length-1], curCls=_fwdCls(last);
+  _ensureZoom();   // registers chartjs-plugin-zoom (shared with the equity curve)
+  // Date selector: analyse any historical day (default = latest). Picking a past day also
+  // overlays what ACTUALLY happened next, so the analog fan can be judged against reality.
+  let li=H.length-1;
+  if(selDate){ for(let i=H.length-1;i>=0;i--){ if(H[i].date<=selDate){ li=i; break; } } }
+  const dEl=document.getElementById('fwd-date');
+  if(dEl){ dEl.min=H[0].date; dEl.max=H[H.length-1].date; if(dEl.value!==H[li].date) dEl.value=H[li].date; }
+  const last=H[li], curCls=_fwdCls(last);
   const feats=[...FWD_FEATS];
   if(curCls!=='CASH') feats.push(['open_pnl_pct',1.5,'Open P&L',v=>(v*100).toFixed(1)+'%']);
   // z-normalisation over all finite bars
@@ -1371,6 +1412,7 @@ function renderForward(){
   const pxf=sv?'svxy_price':'uvxy_price';
   const cands=[];
   for(let i=0;i<H.length-FWD_H-1;i++){ const b=H[i];
+    if(Math.abs(i-li)<=FWD_H) continue;               // exclude the selected day ± horizon (leakage)
     if(_fwdCls(b)!==curCls||!okBar(b)) continue;
     let ok=b[pxf]!=null&&b[pxf]>0;
     for(let h=1;ok&&h<=FWD_H;h++){ const p_=H[i+h][pxf]; if(p_==null||!(p_>0)) ok=false; }
@@ -1402,16 +1444,33 @@ function renderForward(){
   for(let h=1;h<=FWD_H;h++){ let n=0,u=0;
     picks.forEach(([_,i])=>{ const a=H[i][pxo], b=H[i+h][pxo]; if(a>0&&b>0){n++; if(b>a)u++;} });
     oPos.push(n?u/n:null); }
-  // ── state chips ──
-  const chip=(k,v)=>'<span style="background:rgba(224,179,74,0.07);border:1px solid var(--border2);border-radius:10px;padding:3px 10px;font-size:0.72rem"><span style="color:var(--dim)">'+k+'</span> <b style="color:var(--yellow)">'+v+'</b></span>';
-  const posName=curCls==='SV'?('in '+iName):curCls==='UV'?('in '+iName):'CASH';
-  let chips=chip('State',posName+' · '+last.date);
-  feats.forEach(([f,w,lab,fmt])=>{ chips+=chip(lab,fmt(last[f])); });
-  document.getElementById('fwd-state').innerHTML=chips;
+  // ── compact signal-state table (monitor-style: indicator / value, state-coloured) ──
+  const _stC=(good,bad)=>good?'var(--teal)':bad?'var(--coral)':'var(--yellow)';
+  const posName=curCls==='CASH'?'CASH':('in '+(curCls==='SV'?svSizeName(last.pos_size):uvN()));
+  const srows=[['Position', posName, curCls==='UV'?'var(--coral)':curCls==='SV'?'var(--teal)':'var(--cashc)']];
+  feats.forEach(([f,w,lab,fmt])=>{ let c='var(--yellow)';
+    if(f==='contango')    c=_stC(!!last.cont_bull, last[f]<0);
+    if(f==='vdelta')      c=_stC(last[f]>0.32, last[f]<=-2.43);
+    if(f==='vix9d')       c=_stC(!!last.bull_9d, !!last.bear_9d);
+    if(f==='obv_div')     c=_stC(last[f]>=0, last[f]<0&&!!last.price_hi);
+    if(f==='bb_trend')    c=_stC(last[f]>0, last[f]<0);
+    srows.push([lab, fmt(last[f]), c]); });
+  if(last.spike_9d||last.spike_1m) srows.push(['Spike','ACTIVE','var(--teal)']);
+  if(last.crush_9d||last.crush_1m) srows.push(['Crush','ACTIVE','var(--coral)']);
+  if(last.vix_fade)      srows.push(['Spike type','FADED','var(--teal)']);
+  if(last.vix_sustained) srows.push(['Spike type','SUSTAINED','var(--coral)']);
+  if(curCls!=='CASH')    srows.push(['Open P&L',(last.open_pnl_pct*100).toFixed(1)+'%', last.open_pnl_pct>=0?'var(--teal)':'var(--coral)']);
+  document.getElementById('fwd-state').innerHTML=
+    '<table style="width:100%;border-collapse:collapse;font-size:0.74rem">'+
+    srows.map(r=>'<tr style="border-top:1px solid var(--border)">'
+      +'<td style="padding:4px 6px;color:var(--dim)">'+r[0]+'</td>'
+      +'<td style="padding:4px 6px;text-align:right"><b style="color:'+r[2]+'">'+r[1]+'</b></td></tr>').join('')
+    +'</table>';
   document.getElementById('fwd-method').innerHTML=
-    'Matched <b>'+K+'</b> of '+cands.length+' comparable days (same position state, weighted similarity across the '
-    +'signal-monitor indicators above). Paths below show the toggled instrument (<b>'+iName+'</b>) over the next '
-    +FWD_H+' sessions from each analog day'+(curCls==='CASH'?' — the strategy is in cash, so this reads as "what the short-vol side did from similar setups"':'')+'.';
+    'Matched <b>'+K+'</b> of '+cands.length+' comparable days (same position state, weighted similarity on the '
+    +'indicators above). Chart shows <b>'+iName+'</b> over the next '+FWD_H+' sessions from each analog day'
+    +(li<H.length-1-FWD_H?' — the white dashed line is what actually followed the selected day':'')
+    +(curCls==='CASH'?'. Strategy is in cash: read as "what the short-vol side did from similar setups"':'')+'.';
   // ── chart: spaghetti + quartile fan + median ──
   const labels=['Now']; for(let h=1;h<=FWD_H;h++) labels.push('+'+h);
   const dsets=[];
@@ -1422,15 +1481,28 @@ function renderForward(){
   const MAXL=80, step=Math.max(1,Math.floor(paths.length/MAXL));
   for(let k=0;k<paths.length;k+=step) dsets.push({data:paths[k].arr,borderColor:'rgba(232,185,79,0.06)',borderWidth:1,pointRadius:0,fill:false,tension:0});
   dsets.push({label:'Median analog',data:[0,...rows.map(r=>r.med)],borderColor:TEAL,borderWidth:2.5,pointRadius:0,fill:false,tension:0.25});
+  // Selected-day reality check: when the chosen day has FWD_H of history after it,
+  // overlay what the instrument ACTUALLY did (white dashed).
+  const legend=[[TEAL,'median'],['rgba(84,210,239,0.35)','25–75%'],['rgba(84,210,239,0.15)','10–90%'],['rgba(232,185,79,0.35)','analog paths']];
+  if(li<H.length-1-FWD_H && last[pxf]>0){ const act=[0];
+    let ok=true; for(let h=1;h<=FWD_H;h++){ const p_=H[li+h][pxf]; if(!(p_>0)){ok=false;break;} act.push((p_/last[pxf]-1)*fac); }
+    if(ok){ dsets.push({label:'What actually happened',data:act,borderColor:'#fdf4d6',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,tension:0});
+            legend.push(['#fdf4d6','actual']); } }
   mkChart('fwdChart',{type:'line',data:{labels,datasets:dsets},
     options:{responsive:true,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{filter:it=>!!it.dataset.label&&!it.dataset.label.startsWith('_'),
-        callbacks:{label:c=>' '+c.dataset.label+': '+(c.parsed.y*100).toFixed(2)+'%'}}},
+        callbacks:{label:c=>' '+c.dataset.label+': '+(c.parsed.y*100).toFixed(2)+'%'}},
+        // wheel-zoom + drag-pan (x only, clamped to the horizon; double-click resets)
+        zoom:{ pan:{enabled:true,mode:'x'},
+               zoom:{wheel:{enabled:true,speed:0.09},pinch:{enabled:true},mode:'x'},
+               limits:{x:{min:'original',max:'original',minRange:3}} }},
       scales:{x:{ticks:{color:TICK,font:{size:12,family:FONT}},grid:{color:GRID}},
               y:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>(v*100).toFixed(0)+'%'},grid:{color:GRID}}}}});
-  document.getElementById('fwd-legend').innerHTML=legHtml([[TEAL,'median'],['rgba(84,210,239,0.35)','25–75%'],['rgba(84,210,239,0.15)','10–90%'],['rgba(232,185,79,0.35)','analog paths']]);
-  document.getElementById('fwd-chart-title').textContent='Next '+FWD_H+' sessions — '+K+' most-similar days ('+iName+')';
+  const _fc=document.getElementById('fwdChart');
+  if(_fc&&!_fc._dblBound){ _fc.addEventListener('dblclick',()=>{ try{ Chart.getChart('fwdChart').resetZoom(); }catch(_){} }); _fc._dblBound=true; }
+  document.getElementById('fwd-legend').innerHTML=legHtml(legend);
+  document.getElementById('fwd-chart-title').textContent='Next '+FWD_H+' sessions after '+last.date+' — '+K+' most-similar days ('+iName+')';
   // ── table ──
   const pc=v=>{ const c=v>=0.6?'var(--teal)':v>=0.5?'var(--yellow)':'var(--coral)';
     return '<b style="color:'+c+'">'+(v*100).toFixed(0)+'%</b>'; };
@@ -1480,6 +1552,15 @@ function rerenderActive(){
 // fallback), halved for the blend's half-weight SVIX leg.
 function _openPosReturn(L, sv, uv, entryDate, realPnl){
   if(!aMode() || !(sv||uv)) return realPnl;
+  // If the open run contains a dynamic-sizing ADD/TRIM, the position's cost basis is the
+  // engine's BLENDED entry — the raw "SVIX close on entry date" path below would measure
+  // from the wrong price. Use the leverage-scaled engine P&L (already blended) instead.
+  try{ const bh=(DATA&&DATA.bar_history)||[]; let adj=false;
+    for(let i=bh.length-1;i>=0 && bh[i].position && bh[i].position!=='CASH';i--)
+      if(bh[i].signal==='ADD_SVXY'||bh[i].signal==='TRIM_SVXY'){ adj=true; break; }
+    if(adj && realPnl!=null){ const lv=altLeverage(); let a=realPnl*(sv?lv.svF:lv.uvF);
+      if(CHART_MODE==='blend' && sv) a*=0.5; return a; }
+  }catch(_){}
   let alt=null;
   try{ const [svM,uvM]=altCloseMaps(); const ec=(sv?svM:uvM)[entryDate];
     const aq=(L&&L.market&&L.market.quotes)?(sv?L.market.quotes.svix:L.market.quotes.uvix):null;
@@ -1495,8 +1576,10 @@ function updateLivePosition(src){
   const L = src || LIVE; if(!L || !L.official) return;
   const o = L.official, raw = o.position || 'CASH';
   const sv = raw==='LONG_VOL_SELLER', uv = raw==='LONG_VOL';
-  // In the blend view the SVIX (short) leg is held at half weight — label it SVIX½.
-  const name = sv?((CHART_MODE==='blend')?'SVIX½':svN()):uv?uvN():'CASH';
+  // Dynamic sizing: label the short leg by its CURRENT size (SVIX½ base, SVIX¾ after
+  // a dip-escalation, back to SVIX½ after the recovery trim).
+  const _ps=(o&&o.pos_size!=null)?o.pos_size:(((DATA&&DATA.bar_history)||[]).slice(-1)[0]||{}).pos_size;
+  const name = sv?svSizeName(_ps):uv?uvN():'CASH';
   const pcls = sv?'pos-svxy':uv?'pos-uvxy':'pos-cash';
   const posEl=document.getElementById('lv-pos');
   if(posEl){ posEl.textContent=name; posEl.className='live-val '+pcls; }
@@ -1799,7 +1882,7 @@ function renderSigStats(){
 }
 function renderSigDist(){
   const sc=DATA.signal_counts;
-  const sv=(sc['HOLD_SVXY']||0)+(sc['EXIT_SVXY']||0)+(sc['LONG_SVXY']||0);
+  const sv=(sc['HOLD_SVXY']||0)+(sc['EXIT_SVXY']||0)+(sc['LONG_SVXY']||0)+(sc['ADD_SVXY']||0)+(sc['TRIM_SVXY']||0);
   const uv=(sc['HOLD_UVXY']||0)+(sc['EXIT_UVXY']||0)+(sc['LONG_UVXY']||0);
   const ca=sc['CASH']||0;
   mkChart('sigDistChart',{type:'doughnut',
@@ -1842,11 +1925,19 @@ function _openTradeRow(){
   const eqArr=aEq(), eqNow=eqArr.length?eqArr[eqArr.length-1].equity:0;
   const eqMap={}; eqArr.forEach(x=>eqMap[x.date]=x.equity); const eqEntry=eqMap[eb.date]||eqNow;
   const pl=eqEntry*ret;   // dollars consistent with the shown %
+  // ADD/TRIM events inside the open run (engine exports them as bar signals + pos_size)
+  const adj=[];
+  for(let k=i;k<bh.length;k++){ const bb=bh[k];
+    if(bb.signal==='ADD_SVXY'||bb.signal==='TRIM_SVXY')
+      adj.push({date:bb.date, action:bb.signal==='ADD_SVXY'?'ADD':'TRIM',
+                price:sv?bb.svxy_price:bb.uvxy_price,
+                size_from:(k>i?bh[k-1].pos_size:null), size_to:bb.pos_size}); }
   return { _open:true, type:lp, entry_date:eb.date, exit_date:lb.date, _curDate:lb.date, _curAltPx,
     days:(bh.length-1-i), entry_price:sv?eb.svxy_price:eb.uvxy_price,
     exit_price:(_curRealPx!=null?_curRealPx:(sv?lb.svxy_price:lb.uvxy_price)),
     ret, pnl:pl, pnl_pct:ret, pnl_dollar:pl, equity_after:eqEntry+pl,
-    pos_size: sv?(eb.high_vol_regime?0.475:1.0):0.43 };
+    pos_size:(lb.pos_size!=null&&lb.pos_size>0)?lb.pos_size:(sv?(eb.high_vol_regime?0.475:1.0):0.43),
+    adj:(adj.length?adj:null) };
 }
 function renderTrades(){
   if(!DATA)return;
@@ -1866,6 +1957,20 @@ function renderTrades(){
   const ot=_openTradeRow();
   if(ot && (filt==='ALL' || (filt==='SV'&&tIsSV(ot)) || (filt==='UV'&&!tIsSV(ot)))) tr.unshift(ot);
   const szT=t=>Math.round((t.pos_size!=null?t.pos_size:1)*100)+'%';
+  // Dynamic-sizing sub-rows: one indented row per mid-trade ADD/TRIM, shown under its
+  // parent trade so adjustments read as first-class events without breaking trade math.
+  const adjRows=t=>(t.adj||[]).map(ev=>{ const add=ev.action==='ADD';
+    const m=tIsSV(t)?svM:uvM; const px=alt?(m&&m[ev.date]!=null?fmtPrice(m[ev.date]):'—'):(ev.price!=null?fmtPrice(ev.price):'—');
+    const sz=(ev.size_from!=null?Math.round(ev.size_from*100)+'%':'—')+' → '+(ev.size_to!=null?Math.round(ev.size_to*100)+'%':'—');
+    return `<tr style="background:rgba(84,210,239,0.05)">
+      <td></td>
+      <td><span class="pill" style="background:rgba(84,210,239,0.13);color:${CYAN};border:1px solid rgba(84,210,239,0.35)">${add?'+ ADD':'− TRIM'}</span></td>
+      <td style="text-align:right;color:${CYAN}">${sz}</td>
+      <td style="color:var(--dim)">${ev.date}</td>
+      <td colspan="2" style="color:var(--dim);font-size:0.72rem">${add?'scaled in at −6% open P&L':'trimmed after +5% recovery'}</td>
+      <td style="text-align:right">${px}</td>
+      <td colspan="6" style="color:var(--dim);font-size:0.72rem">${add?'dip-escalation — position raised; entry basis re-blended':'de-escalation — add-on leg banked; base position retained'}</td>
+    </tr>`; }).join('');
   document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>{const r=tRet(t),p=tPnl(t);
     if(t._open){ return `<tr style="background:rgba(232,185,79,0.07)">
       <td style="color:var(--dim)">${tr.length-i}</td>
@@ -1879,7 +1984,7 @@ function renderTrades(){
       <td style="text-align:right;color:${p>0?TEAL:CORAL}">${p>0?'+':''}${fmtK(Math.abs(p)*Math.sign(p))}</td>
       <td><span style="color:var(--namut)">N/A</span></td>
       <td>${_hatchExrBar()}</td>
-      <td style="text-align:right">${fmtK(t.equity_after)}</td></tr>`; }
+      <td style="text-align:right">${fmtK(t.equity_after)}</td></tr>`+adjRows(t); }
     const m=exitReasonMeta(t);return `<tr>
     <td style="color:var(--dim)">${tr.length-i}</td>
     <td>${pill(t)}</td>
@@ -1893,21 +1998,22 @@ function renderTrades(){
     <td><span class="eb ${ebClass(t.exit_reason)}" title="${m.desc.replace(/"/g,'&quot;')}">${m.name}</span></td>
     <td>${m.bar}</td>
     <td style="text-align:right">${fmtK(t.equity_after)}</td>
-  </tr>`}).join('');
+  </tr>`+adjRows(t)}).join('');
 }
 
 // Download the current (instrument-aware) trade list as CSV.
 function exportTradesCsv(){
   const alt=aMode(); const [svM,uvM]=alt?altCloseMaps():[null,null];
   const px=(t,d)=>{ if(!alt) return d; const m=tIsSV(t)?svM:uvM; const v=m&&m[d]; return v!=null?v.toFixed(2):''; };
-  const rows=[['instrument','size_pct','entry_date','exit_date','days','entry_price','exit_price','return_pct','pnl_usd','exit_reason','equity_after']];
+  const rows=[['instrument','size_pct','entry_date','exit_date','days','entry_price','exit_price','return_pct','pnl_usd','exit_reason','equity_after','adjustments']];
   aTrades().forEach(t=>rows.push([ tInstr(t), Math.round((t.pos_size!=null?t.pos_size:1)*100)+'%', t.entry_date, t.exit_date, t.days,
     alt?px(t,t.entry_date):(t.entry_price??''), alt?px(t,t.exit_date):(t.exit_price??''),
-    (tRet(t)*100).toFixed(2)+'%', Math.round(tPnl(t)), t.exit_reason, Math.round(t.equity_after) ]));
+    (tRet(t)*100).toFixed(2)+'%', Math.round(tPnl(t)), t.exit_reason, Math.round(t.equity_after),
+    (t.adj||[]).map(ev=>ev.action+' '+ev.date+' @'+ev.price+' '+Math.round((ev.size_from||0)*100)+'%->'+Math.round((ev.size_to||0)*100)+'%').join('; ') ]));
   const csv=rows.map(r=>r.map(x=>{const s=String(x); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download='vix_strategy_trades_'+(alt?(CHART_MODE==='blend'?'svix-half-uvix':'svix-uvix'):'svxy-uvxy')+'.csv';
+  a.download='vix_strategy_trades_'+(alt?(CHART_MODE==='blend'?'svix-dynamic-uvix':'svix-uvix'):'svxy-uvxy')+'.csv';
   document.body.appendChild(a); a.click(); a.remove();
 }
 // ══ RISK ANALYSIS ═══════════════════════════════════════════════════════════
@@ -2010,7 +2116,7 @@ function renderMarkets(){
   add('SVXY buy & hold', bh(typeof OHLC!=='undefined'?OHLC:null), TEAL, 'triangle');
   // SVIX buy & hold — uses the pre-2022 synthetic extension so it spans the same period.
   add('SVIX buy & hold', bh(altCandlesFull()), PURPLE, 'rect');
-  pts.push({name:'◆ This strategy ('+(aMode()?(CHART_MODE==='blend'?'SVIX½/UVIX':'SVIX/UVIX'):'SVXY/UVXY')+')', x:+(s.max_drawdown*100).toFixed(1), y:+(s.cagr*100).toFixed(1), color:YELLOW, shape:'rectRot', big:true});
+  pts.push({name:'◆ This strategy ('+(aMode()?(CHART_MODE==='blend'?'SVIX Dyn/UVIX':'SVIX/UVIX'):'SVXY/UVXY')+')', x:+(s.max_drawdown*100).toFixed(1), y:+(s.cagr*100).toFixed(1), color:YELLOW, shape:'rectRot', big:true});
   // Subtle red→green diagonal wash: bottom-left (deep DD, low CAGR) = worse, top-right = better.
   const rgBg={id:'rgbg',beforeDatasetsDraw(ch){const a=ch.chartArea;if(!a)return;const ctx=ch.ctx;
     const g=ctx.createLinearGradient(a.left,a.bottom,a.right,a.top);
@@ -2138,7 +2244,7 @@ function renderVIX(){
   });
 
   const l30=DATA.bar_history.slice(-30).reverse();
-  const sc=s=>s.includes('SVXY')?TEAL:s.includes('UVXY')?CORAL:s==='CASH'?'var(--cash)':GRAY;
+  const sc=s=>(s==='ADD_SVXY'||s==='TRIM_SVXY')?CYAN:s.includes('SVXY')?TEAL:s.includes('UVXY')?CORAL:s==='CASH'?'var(--cash)':GRAY;
   document.getElementById('bar-log').innerHTML=
     `<thead><tr><th>Date</th><th>Signal</th><th>VIX9D</th><th>VIX1M</th><th>VIX3M</th><th>1M:3M</th><th>Contango</th><th>VDelta</th><th>Open P&L</th><th>SVXY</th><th>UVXY</th></tr></thead><tbody>`+
     l30.map(b=>`<tr>
@@ -2362,15 +2468,37 @@ async function loadLive(){
     const mq = q.move||{}; vx('move', mq.price, mq.change_pct, _fresh(_qt(mq)), _qt(mq), 'move');
 
     // ── Tradeable tickers: price + % change ─────────────────────────────
+    // Extended-hours chip (QQQ-dashboard convention): the headline % is always the
+    // authoritative regular daily change; a pre-market / after-hours print shows as
+    // a separate labelled PRE/AH chip (matching Google/broker/TradingView).
+    const setExt = (id,x,isPrice) => {
+      const ce=document.getElementById('lv-'+id+'-c'); const item=ce&&ce.closest('.live-item');
+      if(!item) return; let ext=item.querySelector('.live-ext');
+      const sess=x&&x.session; const emov=x&&x.ext_change;
+      const show=(sess==='pre'||sess==='post')&&emov!=null;
+      if(!show){ if(ext) ext.remove(); return; }
+      if(!ext){ ext=document.createElement('span'); ext.className='live-ext'; item.appendChild(ext); }
+      const tag=sess==='pre'?'PRE':'AH';
+      const px=x.ext_price!=null?(isPrice?price(x.ext_price):(+x.ext_price).toFixed(2)):'';
+      ext.innerHTML='<span class="live-ext-tag">'+tag+'</span>'+px+' '+signed(emov*100,1,'%');
+      ext.className='live-ext '+clsOf(emov);
+      _setTip(id, _tip('etf', _fresh(x.time), x.time)+' · '+(sess==='pre'?'pre-market':'after-hours')+' move vs '+(sess==='pre'?'prior close':'today’s close'));
+    };
     const tk = (id,key) => {
       const x=q[key]||{}; const c=clsOf(x.change_pct); const fr=_fresh(x.time); const dull=!fr;
       setVal('lv-'+id, price(x.price), c, dull);
       const ce=document.getElementById('lv-'+id+'-c');
       if(ce){ ce.textContent = x.change_pct!=null ? signed(x.change_pct*100,1,'%') : ''; ce.className='live-chg '+c+(dull?' dull':''); }
       _setTip(id, _tip('etf', fr, x.time));
+      setExt(id, x, true);
     };
     tk('svxy','svxy'); tk('uvxy','uvxy'); tk('svix','svix'); tk('uvix','uvix');
     tk('tqqq','tqqq'); tk('sqqq','sqqq'); tk('spx','gspc');
+    // Vol indices get the same PRE chip where the index actually publishes outside
+    // regular hours (VIX does via CBOE Global Trading Hours from ~3:15am ET; VIX9D/
+    // VIX3M/VVIX are regular-hours only so no chip ever shows for them).
+    setExt('vix1m', q.vix, false); setExt('vix9d', q.vix9d, false); setExt('vix3m', q.vix3m, false);
+    setExt('spx', q.gspc, true);
 
     // ── Feed freshness: live vs paused ──────────────────────────────────
     const gen = L.generated_utc ? new Date(L.generated_utc) : null;
@@ -2383,14 +2511,16 @@ async function loadLive(){
     const live = regular && fresh;
     // Match the live dot + status text to the embedded market-status bar's colour,
     // and keep it pulsing through any market phase (pre-market / regular / after).
-    const phaseColor = regular?TEAL : premkt?AMBER : settle?CYAN : GRAY;
+    // Phase palette adopted from the QQQ Swing Strategy dashboard:
+    // regular amber-orange, pre-market gold, after-hours dusk pink, closed night blue.
+    const phaseColor = regular?'#dd8a3c' : premkt?'#d3a338' : settle?'#c9698d' : '#5f7fa8';
     const phaseActive = regular||premkt||settle;
     strip.classList.toggle('stale', !phaseActive);   // grey, non-pulsing only when fully closed
     const dot=document.querySelector('#live-strip .live-dot');
     if(dot){ dot.style.background=phaseColor; dot.style.boxShadow = phaseActive ? '0 0 6px '+phaseColor : 'none'; }
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
-    // Badge colour: LIVE teal, DELAYED/PRE-MARKET amber, AFTER HOURS cyan, else grey.
-    const feedColor = live ? TEAL : (regular||premkt) ? AMBER : settle ? CYAN : GRAY;
+    // Badge colour follows the same QQQ phase palette.
+    const feedColor = live ? '#dd8a3c' : (regular||premkt) ? '#d3a338' : settle ? '#c9698d' : '#5f7fa8';
     if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=feedColor; }
     // After-hours: has the CBOE EOD term structure for TODAY actually posted (curve
     // dated today, not merely a 5:30 refresh attempt)? If so, record + show the ACTUAL
@@ -2480,15 +2610,46 @@ function _isMktHoliday(){ return _MKT_HOLIDAYS.has(_etDate()); }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
 function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'&&!_isMktHoliday(); if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'Regular hours end',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'Market closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
+// Market-phase glyphs + colours adopted from the QQQ Swing Strategy dashboard:
+//   pre = sun half-risen above the horizon; open = full sun;
+//   after = sun sinking below the horizon; closed = crescent moon.
+function _mktSVG(kind){
+  const s='<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">';
+  if(kind==='open') return s
+    +'<circle cx="10" cy="10" r="4.2" fill="currentColor"/>'
+    +'<g stroke="currentColor" stroke-width="1.6" stroke-linecap="round">'
+    +'<line x1="10" y1="1.6" x2="10" y2="3.7"/><line x1="10" y1="16.3" x2="10" y2="18.4"/>'
+    +'<line x1="1.6" y1="10" x2="3.7" y2="10"/><line x1="16.3" y1="10" x2="18.4" y2="10"/>'
+    +'<line x1="4.2" y1="4.2" x2="5.7" y2="5.7"/><line x1="14.3" y1="14.3" x2="15.8" y2="15.8"/>'
+    +'<line x1="15.8" y1="4.2" x2="14.3" y2="5.7"/><line x1="5.7" y1="14.3" x2="4.2" y2="15.8"/></g></svg>';
+  if(kind==='pre') return s
+    +'<path d="M5.8 14.5 a4.2 4.2 0 0 1 8.4 0 Z" fill="currentColor"/>'
+    +'<g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none">'
+    +'<line x1="1.7" y1="14.5" x2="18.3" y2="14.5"/><line x1="10" y1="2.2" x2="10" y2="4.3"/>'
+    +'<line x1="3.9" y1="6.6" x2="5.3" y2="7.9"/><line x1="16.1" y1="6.6" x2="14.7" y2="7.9"/></g></svg>';
+  if(kind==='after') return s   // mirrored horizontally = sun setting on the other side
+    +'<g transform="translate(20,0) scale(-1,1)">'
+    +'<path d="M5.8 8.5 a4.2 4.2 0 0 0 8.4 0 Z" fill="currentColor"/>'
+    +'<g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none">'
+    +'<line x1="1.7" y1="8.5" x2="18.3" y2="8.5"/><line x1="10" y1="15.7" x2="10" y2="17.8"/>'
+    +'<line x1="3.9" y1="14.4" x2="5.3" y2="13.1"/><line x1="16.1" y1="14.4" x2="14.7" y2="13.1"/></g></g></svg>';
+  return s
+    +'<path d="M13.6 4.1 a6.4 6.4 0 1 0 0.2 11.8 A5 5 0 0 1 13.6 4.1 Z" fill="currentColor"/></svg>';
+}
 function updateMarket(){
-  const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'&&!_isMktHoliday(); let label,color,sep;
+  const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'&&!_isMktHoliday(); let label,color,sep,kind;
   const DASH='\u00a0-\u00a0', GAP='\u00a0\u00a0';   // snug gap for closed/pre, dash for open/after
-  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=TEAL; sep=GAP; }
-  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=AMBER; sep=GAP; }
-  else if(isWk&&dec>=16&&dec<20){ label='After hours'; color=CYAN; sep=GAP; }
-  else { label='Market closed'; color=GRAY; sep=GAP; }
+  // QQQ dusk palette: sunrise gold \u2192 daylight orange \u2192 sunset ember \u2192 night blue
+  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color='#ffb347'; kind='open'; sep=GAP; }
+  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color='#f0cc4a'; kind='pre'; sep=GAP; }
+  else if(isWk&&dec>=16&&dec<20){ label='After hours'; color='#d1481a'; kind='after'; sep=GAP; }
+  else { label='Market closed'; color='#a7c0e8'; kind='closed'; sep=GAP; }
   const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker'), cd=document.getElementById('mkt-countdown');
-  if(dot) dot.style.background=color;
+  // Sun/moon glyph replaces the plain dot (same slot, same spacing).
+  let ico=document.getElementById('mkt-ico');
+  if(!ico && dot && dot.parentNode){ ico=document.createElement('span'); ico.id='mkt-ico';
+    dot.parentNode.insertBefore(ico, dot); dot.style.display='none'; }
+  if(ico){ ico.innerHTML=_mktSVG(kind); ico.style.color=color; }
   if(lab){ lab.textContent=label; lab.style.color=color; }   // match the phase colour
   if(mk){ mk.style.display = isWk ? '' : 'none'; mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
   if(cd){ const np=_nextPhase(); cd.textContent=sep+np.verb+' in '+_fmtDur(np.secs); }
@@ -2520,7 +2681,12 @@ function displayMarkers(){
       const win=t.pnl_pct>=0;
       markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?'SVXY':'UVXY')});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
-    } });
+    }
+    // Dynamic-sizing adjustments: ADD (dip-escalation) and TRIM (recovery de-escalation)
+    (t.adj||[]).forEach(ev=>{ if(alt && (sv?svC:uvC)[ev.date]==null) return;
+      markers.push({time:ev.date,position:mp,color:CYAN,shape:'circle',size:0,
+        text:(ev.action==='ADD'?'+ ':'− ')+(CHART_MODE==='blend'?svSizeName(ev.size_to):Math.round(ev.size_to*100)+'%')}); });
+    });
   // Currently-OPEN position has no closed-trade row, so the loop above skips its
   // entry. Add the entry arrow explicitly so the chart shows where it was opened.
   const _bh=DATA.bar_history||[]; let _oty=null,_ostart=null;
@@ -2531,6 +2697,12 @@ function displayMarkers(){
     const ok = !alt || ((sv?svC:uvC)[_ostart]!=null);   // alt needs a real SVIX/UVIX candle
     if(ok) markers.push({time:_ostart,position:mp,color:ENTRY,shape:'arrowUp',size:0,
       text:'▲ '+(alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'))});
+    // ADD/TRIM bars inside the OPEN run (no closed-trade row carries them yet)
+    for(let i=_bh.length-1;i>=0 && _bh[i].position===_oty;i--){ const b=_bh[i];
+      if(b.signal==='ADD_SVXY'||b.signal==='TRIM_SVXY'){
+        if(alt && (sv?svC:uvC)[b.date]==null) continue;
+        markers.push({time:b.date,position:mp,color:CYAN,shape:'circle',size:0,
+          text:(b.signal==='ADD_SVXY'?'+ ':'− ')+(CHART_MODE==='blend'?svSizeName(b.pos_size):Math.round((b.pos_size||1)*100)+'%')}); } }
   }
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
 }
@@ -2612,7 +2784,9 @@ function buildDaily(){
   const WHITE='#fdf4d6'; const mk=[];
   aTrades().forEach(t=>{ const sv=tIsSV(t), win=tRet(t)>0, posn=sv?'aboveBar':'belowBar', shp=sv?'arrowDown':'arrowUp';
     mk.push({time:t.entry_date,position:posn,color:WHITE,shape:shp,text:(sv?svN():uvN())});
-    mk.push({time:t.exit_date, position:posn,color:win?TEAL:CORAL,shape:shp,text:(tRet(t)>=0?'+':'')+(tRet(t)*100).toFixed(1)+'%'}); });
+    mk.push({time:t.exit_date, position:posn,color:win?TEAL:CORAL,shape:shp,text:(tRet(t)>=0?'+':'')+(tRet(t)*100).toFixed(1)+'%'});
+    (t.adj||[]).forEach(ev=>mk.push({time:ev.date,position:posn,color:CYAN,shape:'circle',
+      text:(ev.action==='ADD'?'+':'−')})); });
   // Current OPEN position has no closed-trade row — add its entry marker too.
   const _ot=_openTradeRow();
   if(_ot){ const sv=tIsSV(_ot), posn=sv?'aboveBar':'belowBar', shp=sv?'arrowDown':'arrowUp';
@@ -2985,7 +3159,9 @@ function renderSignalMonitor(histBar){
   //   from the signal label — no off-by-one against the next calendar bar.
   const _sigMap = { LONG_SVXY:['CASH','LONG_VOL_SELLER'], LONG_UVXY:['CASH','LONG_VOL'],
                     EXIT_SVXY:['LONG_VOL_SELLER','CASH'], EXIT_UVXY:['LONG_VOL','CASH'],
-                    HOLD_SVXY:['LONG_VOL_SELLER','LONG_VOL_SELLER'], HOLD_UVXY:['LONG_VOL','LONG_VOL'] };
+                    HOLD_SVXY:['LONG_VOL_SELLER','LONG_VOL_SELLER'], HOLD_UVXY:['LONG_VOL','LONG_VOL'],
+                    // dynamic sizing: position adjusted mid-trade, still short-vol both sides
+                    ADD_SVXY:['LONG_VOL_SELLER','LONG_VOL_SELLER'], TRIM_SVXY:['LONG_VOL_SELLER','LONG_VOL_SELLER'] };
   const _sigPair = (hist && b.signal && _sigMap[b.signal]) ? _sigMap[b.signal] : ['CASH','CASH'];
   const projHist = _sigPair[1];   // position the bar's decision puts us in at next open
   const curPos = hist ? _sigPair[0] : (L&&L.official?L.official.position:null);
@@ -3476,8 +3652,15 @@ function renderSignalMonitor(histBar){
   // All exit rules that fired this bar (any single one closes the position; several can
   // fire together). Listed in the exit explanation so multi-trigger exits are explicit.
   const _firedExits = [0,1,2,3,4,5,6].filter(i=>exState(i)==='exit').map(i=>exitRules[i][0]);
+  // Dynamic-sizing bars: the day's decision was an intra-trade size ADJUSTMENT.
+  const _isAdd  = hist && b.signal==='ADD_SVXY';
+  const _isTrim = hist && b.signal==='TRIM_SVXY';
   let _why;
-  if(inPos){
+  if(_isAdd){
+    _why = `<b style="color:${CYAN}">position increased</b> &mdash; dip-escalation: open P&L hit &minus;6%, added +&frac12; unit &rarr; <b style="color:${CYAN}">${CHART_MODE==='blend'?'SVIX&frac34;':'150%'}</b>`;
+  } else if(_isTrim){
+    _why = `<b style="color:${CYAN}">position trimmed</b> &mdash; recovered to +5%, add-on leg sold &rarr; back to <b style="color:${CYAN}">${CHART_MODE==='blend'?'SVIX&frac12;':'100%'}</b>`;
+  } else if(inPos){
     if(_pk==='cash') _why = `holding ${isUV?'long vol':'short vol'} &rarr; <b style="color:var(--cashc)">exit</b> &mdash; ${_firedExits.length>1?_firedExits.length+' exit rules fired':'an exit rule fired'}`;
     else _why = `<b style="color:${isUV?'var(--coral)':'var(--teal)'}">holding ${isUV?'long vol':'short vol'}</b> &mdash; no exit triggered; entry signals don't apply while in a position`;
   } else if(_pk==='sv') _why = svxy6===6 ? `all 6 short-vol signals aligned &rarr; <b style="color:var(--teal)">SVXY</b>` : `spike-fade entry &rarr; <b style="color:var(--teal)">SVXY</b> (buy the vol dip)`;
@@ -3489,7 +3672,11 @@ function renderSignalMonitor(histBar){
   // ── Plain-language explanation (tightened to ~4 lines, ~equal length; multi-exit aware).
   //    Always reconciles with the actual decision. ──
   let explain;
-  if(inPos && _pk==='cash'){
+  if(_isAdd){
+    explain=`<b>Scaling in.</b> The open short-vol position drew down to &minus;6% without an exit firing — historically these dips mean-revert (10-day forward return +3.5&ndash;5.2%, positive 72&ndash;81% of the time), so the strategy adds half a unit at the low and re-blends its entry basis. One add per trade, skipped if the spike is still building.`;
+  } else if(_isTrim){
+    explain=`<b>Trimming back.</b> The blended position recovered to +5%, so the dip add-on is sold and its profit banked — exposure returns to the base size while the original position keeps running. This is the risk-control half of the dynamic-sizing pair.`;
+  } else if(inPos && _pk==='cash'){
     const exTxt = _firedExits.length>1 ? ('the <b>'+_firedExits.join('</b> + <b>')+'</b> exit rules fired together') : ('the <b>'+(_firedExits[0]||'an exit')+'</b> rule fired');
     explain=`<b>Exiting ${_instTxt}</b> tonight in after-hours: ${exTxt}. Seven exit checks run each evening; any one closes the whole position at the same-day after-hours print. Entry signals are context-only while in a trade.`;
   } else if(inPos){
