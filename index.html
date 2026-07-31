@@ -590,6 +590,17 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 /* Equity curve is wheel-zoomable and drag-pannable — show the grab affordance. */
 #eqChart { cursor:grab; }
 #eqChart:active { cursor:grabbing; }
+/* Drawdown-stats card: headline max-DD on the left, six recovery chips in a
+   3x2 grid on the right, all in one card (mirrors the QQQ Swing Strategy layout). */
+.kpi.kpi-wide { flex: 1 1 450px; display:flex; align-items:stretch; gap:12px; }
+.kpi.kpi-wide .dd-left { flex:0 0 auto; display:flex; flex-direction:column; justify-content:center;
+  padding-right:12px; border-right:1px solid var(--border); }
+.dd-grid { flex:1; display:grid; grid-template-columns:repeat(3,1fr); grid-auto-rows:1fr; gap:5px; }
+.kpi-inset { display:flex; flex-direction:column; justify-content:center; gap:2px; padding:5px 8px;
+  border-radius:5px; background:rgba(224,179,74,0.07); border:1px solid var(--border); cursor:help; }
+.kpi-inset .ki-l { font-size:0.62rem; letter-spacing:0.02em; text-transform:uppercase; color:var(--dim);
+  line-height:1.14; }
+.kpi-inset .ki-v { font-family:'Saira', sans-serif; font-weight:700; color:var(--yellow); line-height:1.1; }
 /* Persistent small-print disclaimer shown at the bottom of every tab. */
 .page-disclaimer { max-width:1180px; margin:20px auto 14px; padding:10px 16px 0;
   color:var(--dim); font-size:0.66rem; line-height:1.6;
@@ -648,13 +659,11 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         </span>
       </div>
       <div class="live-row">
+        <span class="live-item"><span class="live-lbl">SPX</span><span class="live-val" id="lv-spx">—</span><span class="live-chg" id="lv-spx-c"></span></span>
         <span class="live-item"><span class="live-lbl">SVXY</span><span class="live-val" id="lv-svxy">—</span><span class="live-chg" id="lv-svxy-c"></span></span>
         <span class="live-item"><span class="live-lbl">UVXY</span><span class="live-val" id="lv-uvxy">—</span><span class="live-chg" id="lv-uvxy-c"></span></span>
         <span class="live-item"><span class="live-lbl">SVIX</span><span class="live-val" id="lv-svix">—</span><span class="live-chg" id="lv-svix-c"></span></span>
         <span class="live-item"><span class="live-lbl">UVIX</span><span class="live-val" id="lv-uvix">—</span><span class="live-chg" id="lv-uvix-c"></span></span>
-        <span class="live-item"><span class="live-lbl">TQQQ</span><span class="live-val" id="lv-tqqq">—</span><span class="live-chg" id="lv-tqqq-c"></span></span>
-        <span class="live-item"><span class="live-lbl">SQQQ</span><span class="live-val" id="lv-sqqq">—</span><span class="live-chg" id="lv-sqqq-c"></span></span>
-        <span class="live-item"><span class="live-lbl">SPX</span><span class="live-val" id="lv-spx">—</span><span class="live-chg" id="lv-spx-c"></span></span>
       </div>
     </div>
   </div>
@@ -892,7 +901,14 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div class="ph"><span>Signal state</span></div>
         <div class="pb" style="flex:1">
           <input type="date" id="fwd-date" onchange="renderForward(this.value)"
-            style="width:100%;background:rgba(20,17,11,0.9);color:var(--yellow);border:1px solid var(--border2);border-radius:8px;padding:5px 8px;font-family:'Saira',sans-serif;font-size:0.78rem;margin-bottom:8px;color-scheme:dark">
+            style="width:100%;background:rgba(20,17,11,0.9);color:var(--yellow);border:1px solid var(--border2);border-radius:8px;padding:5px 8px;font-family:'Saira',sans-serif;font-size:0.78rem;margin-bottom:6px;color-scheme:dark">
+          <select id="fwd-tight" onchange="renderForward(document.getElementById('fwd-date').value)"
+            title="How similar a past day must be to count as an analog. Tighter = more relevant matches but a smaller sample."
+            style="width:100%;background:rgba(20,17,11,0.9);color:var(--yellow);border:1px solid var(--border2);border-radius:8px;padding:5px 8px;font-family:'Saira',sans-serif;font-size:0.76rem;margin-bottom:8px;color-scheme:dark">
+            <option value="loose">Match: loose (widest sample)</option>
+            <option value="balanced" selected>Match: balanced</option>
+            <option value="tight">Match: tight (closest only)</option>
+          </select>
           <div id="fwd-state" style="overflow-x:auto"></div>
           <div id="fwd-method" style="color:var(--dim);font-size:0.68rem;line-height:1.5;margin-top:8px"></div>
         </div>
@@ -1050,6 +1066,37 @@ function altCloseMaps(){
     (ALT_SVIX||[]).forEach(a=>{_altSvMap[a[0]]=a[4];}); (ALT_UVIX||[]).forEach(a=>{_altUvMap[a[0]]=a[4];});
     _altMapRef=ALT_SVIX; }
   return [_altSvMap, _altUvMap];
+}
+// Close maps EXTENDED with synthetic pre-launch history. SVIX/UVIX only exist from 2022,
+// but the strategy is backtested from 2011 — so trades before the launch had no alt price
+// and were silently dropped from the chart. Here we walk the underlying ETF's daily
+// returns backwards from each fund's first real close, leverage-scaled and floored at
+// -95%/day (a leveraged ETF cannot cross zero), exactly as altCandlesFull() does for the
+// SVIX candles. Values before 2022 are SIMULATED, and labelled as such in the UI.
+let _altFullMaps=null, _altFullMapsRef=null;
+function altCloseMapsFull(){
+  const bh=(DATA&&DATA.bar_history)||[];
+  if(_altFullMapsRef===ALT_SVIX && _altFullMaps && bh.length) return _altFullMaps;
+  const [svReal,uvReal]=altCloseMaps();
+  const lv=altLeverage();
+  const build=(real,priceKey,fac)=>{
+    const out=Object.assign({},real);
+    if(!bh.length) return out;
+    const dates=bh.map(b=>b.date), px=bh.map(b=>b[priceKey]);
+    let firstReal=-1;
+    for(let i=0;i<dates.length;i++){ if(real[dates[i]]!=null){ firstReal=i; break; } }
+    if(firstReal<=0) return out;                       // no real data, or it starts at bar 0
+    let cur=real[dates[firstReal]];
+    for(let i=firstReal;i>0;i--){                      // walk backwards to the start
+      const p0=px[i-1], p1=px[i];
+      if(p0>0&&p1>0){ const r=Math.max(-0.95,fac*(p1/p0-1)); cur=(1+r)!==0?cur/(1+r):cur; }
+      if(out[dates[i-1]]==null) out[dates[i-1]]=+cur.toFixed(4);
+    }
+    return out;
+  };
+  _altFullMaps=[build(svReal,'svxy_price',lv.svF||2.0), build(uvReal,'uvxy_price',lv.uvF||1.5)];
+  _altFullMapsRef=ALT_SVIX;
+  return _altFullMaps;
 }
 // Leverage factor SVIX/SVXY and UVIX/UVXY, calibrated as the median ratio of the
 // real ETF trade return to the SVXY/UVXY trade return over the 2022+ overlap.
@@ -1398,7 +1445,24 @@ function renderForward(selDate){
   if(selDate){ for(let i=H.length-1;i>=0;i--){ if(H[i].date<=selDate){ li=i; break; } } }
   const dEl=document.getElementById('fwd-date');
   if(dEl){ dEl.min=H[0].date; dEl.max=H[H.length-1].date; if(dEl.value!==H[li].date) dEl.value=H[li].date; }
-  const last=H[li], curCls=_fwdCls(last);
+  let last=H[li], curCls=_fwdCls(last);
+  // INTRADAY re-evaluation. On the latest bar, rebuild the term-structure features from
+  // the live quotes so the analog set shifts through the session and only firms up in the
+  // evening when the engine publishes the confirmed bar — the same cadence as the rest of
+  // the strategy. Path-dependent features (30d VIX mean, OBV, BB trend) still come from
+  // the last published bar; they can't be recomputed client-side.
+  let _liveQ=false;
+  if(!selDate && li===H.length-1 && typeof LIVE==='object' && LIVE && LIVE.market){
+    const m=LIVE.market, q=m.quotes||{}, cv=m.curve||{};
+    const pick=(...v)=>{ for(const x of v){ if(x!=null&&isFinite(x)) return +x; } return null; };
+    const v9=pick(m.vix9d_used, q.vix9d&&q.vix9d.price, cv.vix9d);
+    const v1=pick(m.vix1m_used, q.vix&&q.vix.price,    cv.vix1m);
+    const v3=pick(m.vix3m_used, q.vix3m&&q.vix3m.price, cv.vix3m);
+    if(v9!=null&&v1!=null&&v3!=null&&v1>0){
+      last=Object.assign({},last,{vix9d:v9, contango:v3/v1-1, vdelta:v1-v9});
+      _liveQ=true;
+    }
+  }
   const feats=[...FWD_FEATS];
   if(curCls!=='CASH') feats.push(['open_pnl_pct',1.5,'Open P&L',v=>(v*100).toFixed(1)+'%']);
   // z-normalisation over all finite bars
@@ -1425,8 +1489,18 @@ function renderForward(selDate){
   if(cands.length<30){ const el=document.getElementById('fwd-state');
     if(el) el.innerHTML='<span style="color:var(--dim)">Not enough comparable historical days ('+cands.length+') for a meaningful sample.</span>'; return; }
   cands.sort((a,b)=>a[0]-b[0]);
-  const K=Math.min(140,Math.max(50,Math.round(cands.length*0.12)));
-  const picks=cands.slice(0,K);
+  // Match tightness. "Loose" keeps the old wide net; "tight" restricts to genuinely
+  // close neighbours (small K AND a hard distance ceiling), which sharpens the
+  // distribution at the cost of sample size. The readout reports the resulting n so
+  // the statistical weight is never hidden.
+  const TIGHT={loose:{frac:0.12,max:140,dcap:Infinity},
+               balanced:{frac:0.05,max:80,dcap:1.6},
+               tight:{frac:0.02,max:40,dcap:1.0}};
+  const _tsel=(document.getElementById('fwd-tight')||{}).value||'balanced';
+  const TS=TIGHT[_tsel]||TIGHT.balanced;
+  let picks=cands.slice(0,Math.min(TS.max,Math.max(25,Math.round(cands.length*TS.frac))));
+  if(isFinite(TS.dcap)) { const f=picks.filter(p=>p[0]<=TS.dcap); if(f.length>=25) picks=f; }
+  const K=picks.length;
   // display scaling to the toggled instrument (odds are scale-invariant; magnitudes aren't)
   const lv=aMode()?altLeverage():null;
   const fac=lv?(sv?lv.svF*(CHART_MODE==='blend'?0.5:1):lv.uvF):1;
@@ -1438,8 +1512,10 @@ function renderForward(selDate){
   // per-day stats
   const rows=[];
   for(let h=1;h<=FWD_H;h++){ const xs=paths.map(p=>p.arr[h]).sort((a,b)=>a-b);
+    const mean=xs.reduce((a,v)=>a+v,0)/xs.length;
+    const sd=Math.sqrt(xs.reduce((a,v)=>a+(v-mean)*(v-mean),0)/Math.max(1,xs.length-1));
     rows.push({h, pos:xs.filter(v=>v>0).length/xs.length, n:xs.length,
-      med:_fwdQuant(xs,0.5), mean:xs.reduce((a,v)=>a+v,0)/xs.length,
+      med:_fwdQuant(xs,0.5), mean, sd, se:sd/Math.sqrt(xs.length),
       p10:_fwdQuant(xs,0.10), p25:_fwdQuant(xs,0.25), p75:_fwdQuant(xs,0.75), p90:_fwdQuant(xs,0.90),
       min:xs[0], max:xs[xs.length-1]}); }
   // other side's P(up) per day (for the table's last column)
@@ -1470,11 +1546,15 @@ function renderForward(selDate){
       +'<td style="padding:4px 6px;color:var(--dim)">'+r[0]+'</td>'
       +'<td style="padding:4px 6px;text-align:right"><b style="color:'+r[2]+'">'+r[1]+'</b></td></tr>').join('')
     +'</table>';
+  const _sd1=rows[0]?(rows[0].sd*100).toFixed(2):'—';
   document.getElementById('fwd-method').innerHTML=
     'Matched <b>'+K+'</b> of '+cands.length+' comparable days (same position state, weighted similarity on the '
-    +'indicators above). Chart shows <b>'+iName+'</b> over the next '+FWD_H+' sessions from each analog day'
-    +(li<H.length-1-FWD_H?' — the white dashed line is what actually followed the selected day':'')
-    +(curCls==='CASH'?'. Strategy is in cash: read as "what the short-vol side did from similar setups"':'')+'.';
+    +'indicators above; brighter paths = closer matches). History runs from 2011 — pre-2022 analogs use the '
+    +'SVXY/UVXY record the strategy actually traded, leverage-scaled for display. Tomorrow&rsquo;s spread: '
+    +'<b>&sigma; '+_sd1+'pp</b>.'
+    +(_liveQ?' <b style="color:var(--teal)">Live</b>: term structure is re-read from intraday quotes, so this shifts through the session and firms up after the close.':'')
+    +(li<H.length-1-FWD_H?' The white dashed line is what actually followed the selected day.':'')
+    +(curCls==='CASH'?' Strategy is in cash: read as &ldquo;what the short-vol side did from similar setups&rdquo;.':'');
   // ── chart: spaghetti + quartile fan + median ──
   const labels=['Now']; for(let h=1;h<=FWD_H;h++) labels.push('+'+h);
   const dsets=[];
@@ -1482,8 +1562,16 @@ function renderForward(selDate){
   dsets.push({label:'_p10',data:[0,...rows.map(r=>r.p10)],borderColor:'rgba(0,0,0,0)',pointRadius:0,fill:false,tension:0.25});
   dsets.push({label:'p25–p75',data:[0,...rows.map(r=>r.p75)],borderColor:'rgba(0,0,0,0)',backgroundColor:'rgba(84,210,239,0.15)',pointRadius:0,fill:'+1',tension:0.25});
   dsets.push({label:'_p25',data:[0,...rows.map(r=>r.p25)],borderColor:'rgba(0,0,0,0)',pointRadius:0,fill:false,tension:0.25});
+  // Analog paths shaded BY SIMILARITY: the closest matches are drawn brightest and
+  // thickest, the marginal ones fade out — so the eye weights the most relevant
+  // outcomes instead of reading every path as equally likely.
   const MAXL=80, step=Math.max(1,Math.floor(paths.length/MAXL));
-  for(let k=0;k<paths.length;k+=step) dsets.push({data:paths[k].arr,borderColor:'rgba(232,185,79,0.06)',borderWidth:1,pointRadius:0,fill:false,tension:0});
+  const dMin=paths[0].dist, dMax=paths[paths.length-1].dist, dRng=(dMax-dMin)||1;
+  for(let k=0;k<paths.length;k+=step){
+    const rel=1-(paths[k].dist-dMin)/dRng;            // 1 = closest analog, 0 = loosest
+    const op=(0.05+0.34*Math.pow(rel,1.6)).toFixed(3);
+    dsets.push({data:paths[k].arr,borderColor:`rgba(232,185,79,${op})`,
+      borderWidth:rel>0.75?1.6:1,pointRadius:0,fill:false,tension:0}); }
   dsets.push({label:'Median analog',data:[0,...rows.map(r=>r.med)],borderColor:TEAL,borderWidth:2.5,pointRadius:0,fill:false,tension:0.25});
   // Selected-day reality check: when the chosen day has FWD_H of history after it,
   // overlay what the instrument ACTUALLY did (white dashed).
@@ -1501,12 +1589,14 @@ function renderForward(selDate){
           // full analog-distribution readout for the hovered session
           footer:items=>{ const ix=items.length?items[0].dataIndex:0; if(ix<1) return '';
             const r=rows[ix-1]; if(!r) return '';
-            return ['— analog distribution —',
-                    'P(up): '+(r.pos*100).toFixed(0)+'%   n='+r.n,
+            return ['— analog distribution (n='+r.n+') —',
+                    'P(up): '+(r.pos*100).toFixed(0)+'%',
                     'Max: '+_fp(r.max)+'   p90: '+_fp(r.p90),
                     'p75: '+_fp(r.p75)+'   median: '+_fp(r.med),
                     'mean: '+_fp(r.mean)+'   p25: '+_fp(r.p25),
-                    'p10: '+_fp(r.p10)+'   Min: '+_fp(r.min)]; }}},
+                    'p10: '+_fp(r.p10)+'   Min: '+_fp(r.min),
+                    'std dev: '+(r.sd*100).toFixed(2)+'pp   ±1σ: '+_fp(r.mean-r.sd)+' to '+_fp(r.mean+r.sd),
+                    '95% CI of mean: '+_fp(r.mean-1.96*r.se)+' to '+_fp(r.mean+1.96*r.se)]; }}},
         // wheel-zoom + drag-pan (x only, clamped to the horizon; double-click resets)
         zoom:{ pan:{enabled:true,mode:'x'},
                zoom:{wheel:{enabled:true,speed:0.09},pinch:{enabled:true},mode:'x'},
@@ -1525,10 +1615,11 @@ function renderForward(selDate){
   const _rth=s=>'<th style="text-align:right">'+s+'</th>';   // th UA default is centred — force right
   let tb='<table style="width:100%;border-collapse:collapse;font-size:0.78rem"><tr style="color:var(--dim)">'
     +'<th style="text-align:left;padding:5px 8px">Session</th>'+_rth('P('+iName+' &uarr;)')+_rth('Median')+_rth('Mean')
-    +_rth('10th pct')+_rth('90th pct')+_rth('P('+oName+' &uarr;)')+'</tr>';
+    +_rth('Std dev')+_rth('10th pct')+_rth('90th pct')+_rth('P('+oName+' &uarr;)')+'</tr>';
   rows.forEach((r,ix)=>{ tb+='<tr style="text-align:right;border-top:1px solid var(--border)">'
     +'<td style="text-align:left;padding:5px 8px;color:var(--dim)">EOD +'+r.h+(r.h===1?' (tomorrow)':'')+'</td>'
     +'<td>'+pc(r.pos)+'</td><td>'+f2(r.med)+'</td><td>'+f2(r.mean)+'</td>'
+    +'<td style="color:var(--dim)">'+(r.sd*100).toFixed(2)+'pp</td>'
     +'<td>'+f2(r.p10)+'</td><td>'+f2(r.p90)+'</td>'
     +'<td>'+(oPos[ix]!=null?pc(oPos[ix]):'<span style="color:var(--namut)">—</span>')+'</td></tr>'; });
   tb+='</table>';
@@ -1609,13 +1700,50 @@ function updateLivePosition(src){
 }
 
 // ══ ANALYTICS ══════════════════════════════════════════════════════════════
+
+// ── Drawdown-recovery profile, computed from the displayed equity curve ────────
+// An episode runs peak -> trough -> back to a NEW high. "Recovery" is measured from
+// the trough to that new high (the QQQ dashboard's convention). Depth threshold keeps
+// noise out; ongoing (unrecovered) episodes are excluded from the timing averages but
+// still counted, so a live drawdown can never flatter the numbers.
+function ddRecovery(minDepth){
+  const ec=aEq(); const TD=21;            // ~trading days per month
+  const thr=minDepth==null?0.10:minDepth;
+  const eps=[]; let peak=null,peakI=0,tr=null,trI=0,inDD=false;
+  ec.forEach((b,i)=>{ const v=b.equity;
+    if(peak==null||v>=peak){ if(inDD){ eps.push({depth:tr/peak-1,rec:i-trI,dur:i-peakI,done:true}); inDD=false; }
+      peak=v; peakI=i; }
+    else { if(!inDD){ inDD=true; tr=v; trI=i; } else if(v<tr){ tr=v; trI=i; } } });
+  if(inDD) eps.push({depth:tr/peak-1,rec:ec.length-1-trI,dur:ec.length-1-peakI,done:false});
+  const deep=eps.filter(e=>e.depth<=-thr);
+  const done=deep.filter(e=>e.done);
+  const recs=done.map(e=>e.rec).sort((a,b)=>a-b);
+  const med=a=>a.length?(a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2):null;
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const d30=done.filter(e=>e.depth<=-0.30).map(e=>e.rec).sort((a,b)=>a-b);
+  const pct=k=>recs.length?recs.filter(v=>v<=k).length/recs.length*100:null;
+  return { n_episodes:deep.length, n_deep:d30.length, ongoing:deep.length-done.length,
+    avg_recovery_m:avg(recs)==null?null:avg(recs)/TD, median_recovery_m:med(recs)==null?null:med(recs)/TD,
+    deep_median_recovery_m:med(d30)==null?null:med(d30)/TD,
+    max_recovery_m:recs.length?recs[recs.length-1]/TD:null,
+    pct_recovered_3m:pct(63), pct_recovered_6m:pct(126), thr:thr };
+}
 function renderAnalytics(){
   const s=aStats();
 
   // KPI strip
   const kpis=[
     {l:'Total P&L',    v:fmtK(s.final_equity-DATA.meta.start_capital), sub:fmtPct(s.total_return,2)+' total return', c:s.total_return>=0?'pos':'neg'},
-    {l:'Max drawdown', v:fmtPct(s.max_drawdown,1), sub:'Peak-to-trough', c:'neg'},
+    {l:'Max drawdown', v:fmtPct(s.max_drawdown,1), sub:'Peak-to-trough', c:'neg', wide:true,
+     insets:(()=>{ const R=ddRecovery(0.10);
+       const _m=v=>v==null?'N/A':(v<1?(v*21).toFixed(0)+'d':v.toFixed(1)+'mo');
+       const _p=v=>v==null?'N/A':v.toFixed(0)+'%';
+       return [['Avg. recovery',_m(R.avg_recovery_m),'Average time from a drawdown trough back to a new all-time high, across all '+R.n_episodes+' drawdowns deeper than 10%'],
+               ['Median recovery',_m(R.median_recovery_m),'The typical (median) trough-to-new-high time - half of drawdowns recover faster than this'],
+               ['Median Recov. (DD>30%)',_m(R.deep_median_recovery_m),'Median recovery time for just the '+R.n_deep+' deepest drawdowns (those exceeding 30%)'],
+               ['% healed < 3 mo',_p(R.pct_recovered_3m),'Share of recovered drawdowns that reached a new high within three months'],
+               ['% healed < 6 mo',_p(R.pct_recovered_6m),'Share of recovered drawdowns that reached a new high within six months'],
+               ['Slowest recovery',_m(R.max_recovery_m),'The single worst case: longest trough-to-new-high stretch in the record'+(R.ongoing?' ('+R.ongoing+' drawdown still open, excluded)':'')]]; })()},
     {l:'Win rate',     v:(s.win_rate*100).toFixed(1)+'%', sub:aTrades().filter(t=>tRet(t)>0).length+' wins / '+s.total_trades+' trades', c:s.win_rate>=0.5?'pos':'neg'},
     {l:'Profit factor',v:parseFloat(s.profit_factor).toFixed(2)+'×', sub:'Gross wins ÷ gross losses', c:s.profit_factor>=1.5?'pos':s.profit_factor>=1?'neu':'neg'},
     {l:'CAGR',         v:fmtPct(s.cagr,2), sub:'Annualised compound return', c:s.cagr>=0?'pos':'neg'},
@@ -1625,7 +1753,12 @@ function renderAnalytics(){
     {l:'Alpha vs SPY', v:fmtPct(s.total_return-s.spy_return,2), sub:'Strategy return minus SPY', c:s.total_return>=s.spy_return?'pos':'neg'},
   ];
   document.getElementById('kpi-strip').innerHTML=kpis.map(k=>
-    `<div class="kpi"><div class="kpi-label">${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.sub}</div></div>`
+    k.insets
+    ? `<div class="kpi kpi-wide"><div class="dd-left"><div class="kpi-label">${k.l}</div>`
+      +`<div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.sub}</div></div>`
+      +`<div class="dd-grid">`+k.insets.map(([lab,val,tip])=>
+        `<div class="kpi-inset" title="${tip.replace(/"/g,'&quot;')}"><span class="ki-l">${lab}</span><span class="ki-v">${val}</span></div>`).join('')+`</div></div>`
+    : `<div class="kpi"><div class="kpi-label">${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.sub}</div></div>`
   ).join('');
 
   // Equity curve vs benchmarks (SPY & TQQQ buy-and-hold) + drawdown
@@ -1983,9 +2116,11 @@ function renderTrades(){
       <td><span class="pill" style="background:${ABG},0.13);color:${AC};border:1px solid ${ABG},0.35)">${add?'▲ ADD':'▼ TRIM'}</span></td>
       <td style="text-align:right;color:${AC}">${sz}</td>
       <td style="color:var(--dim)">${ev.date}</td>
-      <td colspan="2" style="color:var(--dim);font-size:0.72rem">${add?'scaled in at −6% open P&L':'trimmed after +5% recovery'}</td>
+      <td colspan="3"></td>
       <td style="text-align:right">${px}</td>
-      <td colspan="6" style="color:var(--dim);font-size:0.72rem">${add?'dip-escalation — position raised; entry basis re-blended':'de-escalation — add-on leg banked; base position retained'}</td>
+      <td colspan="6" style="color:var(--dim);font-size:0.72rem">${add
+        ?'Scaled in at −6% open P&L — dip-escalation; entry basis re-blended'
+        :'Trimmed after +5% recovery — add-on leg banked; base position retained'}</td>
     </tr>`; }).join('');
   document.getElementById('trade-tbody').innerHTML=tr.map((t,i)=>{const r=tRet(t),p=tPnl(t);
     if(t._open){ return `<tr style="background:rgba(232,185,79,0.07)">
@@ -2076,21 +2211,67 @@ function renderRisk(){
   ];
   const rk=document.getElementById('risk-kpis');
   if(rk) rk.innerHTML=kp.map(k=>`<div class="kpi"><div class="kpi-label">${k.l}</div><div class="kpi-val ${k.c}">${k.v}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
-  // ── Rolling 12-month return (252 trading days) from the equity curve ──
-  const ec=aEq(); const W=252; const rl=[], rlab=[];
-  for(let i=W;i<ec.length;i++){ const a=ec[i-W].equity, b=ec[i].equity; if(a>0){ rl.push(+((b/a-1)*100).toFixed(1)); rlab.push(ec[i].date); } }
-  const rstep=Math.max(1,Math.floor(rl.length/150));
-  mkChart('rollChart',{ type:'line', data:{ labels:rlab.filter((_,i)=>i%rstep===0),
-    datasets:[{label:'Rolling 12-mo return',data:rl.filter((_,i)=>i%rstep===0),borderColor:TEAL,borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(82,230,189,0.08)'}]},
-    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(c.parsed.y>=0?'+':'')+c.parsed.y+'%'}}},
-      scales:{x:{ticks:{color:TICK,maxTicksLimit:10,font:{size:12,family:FONT}},grid:{color:GRID}},
+  // ── Rolling 12-month return, sampled MONTHLY ──
+  // One point per completed calendar month (the month's last trading day), compared with
+  // the same point 12 months earlier — so each reading is a true year-over-year return
+  // labelled YYYY-MM. The current, partial month is excluded.
+  const ec=aEq();
+  const _mEnd={};                                   // YYYY-MM -> index of that month's last bar
+  ec.forEach((b,i)=>{ _mEnd[b.date.slice(0,7)]=i; });
+  const _nowM=(ec.length?ec[ec.length-1].date:'').slice(0,7);
+  const _months=Object.keys(_mEnd).sort().filter(m=>m<_nowM);   // completed months only
+  const rl=[], rlab=[];
+  _months.forEach(m=>{
+    const [y,mo]=m.split('-').map(Number);
+    const py=mo===12?y:y-1, pm=mo===12?12:mo;       // same month, one year back
+    const prev=`${py}-${String(pm).padStart(2,'0')}`;
+    if(_mEnd[prev]==null) return;
+    const a=ec[_mEnd[prev]].equity, b=ec[_mEnd[m]].equity;
+    if(a>0){ rl.push(+((b/a-1)*100).toFixed(1)); rlab.push(m); }
+  });
+  // Colour the line/fill by sign so losing years read red, winning years teal.
+  const _rollSeg=(ctx,pos,neg)=>{ const a=ctx.p0.parsed.y, b=ctx.p1.parsed.y; return (a<0||b<0)?neg:pos; };
+  mkChart('rollChart',{ type:'line', data:{ labels:rlab,
+    datasets:[{label:'Rolling 12-mo return',data:rl,borderWidth:1.5,pointRadius:0,fill:true,
+      borderColor:TEAL,
+      segment:{borderColor:c=>_rollSeg(c,TEAL,CORAL)},
+      backgroundColor:ctx=>{ const {ctx:cx,chartArea:ca,scales:sc}=ctx.chart; if(!ca) return 'rgba(82,230,189,0.08)';
+        const zy=sc.y.getPixelForValue(0);
+        const t=Math.min(1,Math.max(0,(zy-ca.top)/(ca.bottom-ca.top)));
+        const g=cx.createLinearGradient(0,ca.top,0,ca.bottom);
+        g.addColorStop(0,'rgba(82,230,189,0.14)'); g.addColorStop(Math.max(0,t-0.001),'rgba(82,230,189,0.14)');
+        g.addColorStop(Math.min(1,t),'rgba(242,86,58,0.16)'); g.addColorStop(1,'rgba(242,86,58,0.16)');
+        return g; }}]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        title:c=>c[0].label,
+        label:c=>' '+(c.parsed.y>=0?'+':'')+c.parsed.y+'% (12 months to '+c.label+')'}}},
+      scales:{x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:12,family:FONT}},grid:{color:GRID}},
         y:{ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>v+'%'},grid:{color:GRID}}}} });
   // ── Trade-return distribution histogram ──
   const lo=Math.min(...rets), hi=Math.max(...rets); const NB=24; const w=(hi-lo)/NB||1;
   const bins=Array(NB).fill(0); rets.forEach(r=>{ let k=Math.min(NB-1,Math.floor((r-lo)/w)); bins[k]++; });
   const blab=bins.map((_,i)=>((lo+(i+0.5)*w)*100).toFixed(0)+'%');
   const bcol=bins.map((_,i)=>(lo+(i+0.5)*w)>=0?'rgba(82,230,189,0.7)':'rgba(242,86,58,0.7)');
+  // Mean trade return, drawn as a white dotted vertical rule. Its x-position is
+  // interpolated across the bin axis (a category scale), so it lands at the true
+  // average rather than snapping to a bin edge.
+  const _avgRet=rets.reduce((a,v)=>a+v,0)/(rets.length||1);
+  const _avgPlugin={ id:'avgLine', afterDatasetsDraw(ch){
+    const xs=ch.scales.x, ya=ch.chartArea; if(!xs||!ya) return;
+    const fpos=(_avgRet-lo)/w-0.5;                       // bin-space position of the mean
+    if(!isFinite(fpos)) return;
+    const i0=Math.max(0,Math.min(NB-1,Math.floor(fpos))), i1=Math.max(0,Math.min(NB-1,i0+1));
+    const x=xs.getPixelForTick(i0)+(xs.getPixelForTick(i1)-xs.getPixelForTick(i0))*(fpos-i0);
+    if(x<ya.left-1||x>ya.right+1) return;
+    const c=ch.ctx; c.save(); c.beginPath(); c.setLineDash([4,4]);
+    c.strokeStyle='#ffffff'; c.lineWidth=1.5;
+    c.moveTo(x,ya.top); c.lineTo(x,ya.bottom); c.stroke();
+    c.setLineDash([]); c.fillStyle='#ffffff'; c.font="11px 'Saira', sans-serif"; c.textAlign='center';
+    c.fillText('avg '+(_avgRet>=0?'+':'')+(_avgRet*100).toFixed(1)+'%', x, ya.top+10);
+    c.restore(); } };
   mkChart('distChart',{ type:'bar', data:{ labels:blab, datasets:[{data:bins,backgroundColor:bcol,borderWidth:0}]},
+    plugins:[_avgPlugin],
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:c=>'~'+c[0].label+' return',label:c=>' '+c.parsed.y+' trades'}}},
       scales:{x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:11,family:FONT}},grid:{display:false}},
         y:{ticks:{color:TICK,font:{size:12,family:FONT}},grid:{color:GRID},title:{display:true,text:'# trades',color:TICK}}}} });
@@ -2407,7 +2588,7 @@ function _fallbackQuotes(){
   [['vix9d',cv.vix9d??(b&&b.vix9d)],['vix1m',cv.vix1m??(b&&b.vix1m)],['vix3m',cv.vix3m??(b&&b.vix3m)],
    ['vix1y',cv.vix1y],['vvix',cv.vvix],['move',(q.move&&q.move.price)??(b&&b.move)]]
     .forEach(([id,v])=>{ const t=n2(v); if(t!=null) fill(id,t); });
-  ['svxy','uvxy','svix','uvix','tqqq','sqqq'].forEach(k=>{ const t=pr(q[k]&&q[k].price); if(t!=null) fill(k,t); });
+  ['svxy','uvxy','svix','uvix'].forEach(k=>{ const t=pr(q[k]&&q[k].price); if(t!=null) fill(k,t); });
   { const t=pr(q.gspc&&q.gspc.price); if(t!=null) fill('spx',t); }
   if(window.OHLC&&OHLC.length){ const t=pr(OHLC[OHLC.length-1][4]); if(t!=null) fill('svxy',t); }
 }
@@ -2508,8 +2689,7 @@ async function loadLive(){
       _setTip(id, _tip('etf', fr, x.time));
       setExt(id, x, true);
     };
-    tk('svxy','svxy'); tk('uvxy','uvxy'); tk('svix','svix'); tk('uvix','uvix');
-    tk('tqqq','tqqq'); tk('sqqq','sqqq'); tk('spx','gspc');
+    tk('spx','gspc'); tk('svxy','svxy'); tk('uvxy','uvxy'); tk('svix','svix'); tk('uvix','uvix');
     // Vol indices get the same PRE chip where the index actually publishes outside
     // regular hours (VIX does via CBOE Global Trading Hours from ~3:15am ET; VIX9D/
     // VIX3M/VVIX are regular-hours only so no chip ever shows for them).
@@ -2560,6 +2740,13 @@ async function loadLive(){
     try{ localStorage.setItem('lastLive', JSON.stringify(L)); }catch(_){}   // cache for offline fallback
     updateMarket();
     if(window._sigMonReady){ const pd=window._pinnedDate; if(pd&&window._barByDate&&window._barByDate[pd]) renderSignalMonitor(window._barByDate[pd]); else renderSignalMonitor(); }
+    // Forward-Looking Analysis re-evaluates on each live poll so its odds shift intraday
+    // (only when its tab is open, and only in live mode — a picked historical date sticks).
+    { const ft=document.getElementById('tab-forward');
+      if(ft && ft.style.display!=='none' && typeof renderForward==='function'){
+        const dsel=document.getElementById('fwd-date');
+        const lastBar=((DATA&&DATA.bar_history)||[]).slice(-1)[0];
+        if(!dsel || !lastBar || dsel.value===lastBar.date){ try{ renderForward(); }catch(_){} } } }
     // Refresh candle history from svxy_ohlc.json (Action keeps it current incl. the forming day)
     if(candleSeries && sumMain){
       try{
@@ -2667,6 +2854,11 @@ function updateMarket(){
     dot.parentNode.insertBefore(ico, dot); dot.style.display='none'; }
   if(ico){ ico.innerHTML=_mktSVG(kind); ico.style.color=color; }
   if(lab){ lab.textContent=label; lab.style.color=color; }   // match the phase colour
+  // Feed badge on the far right of the status bar shares the same phase colour so the
+  // two market-state readouts never disagree visually.
+  const _fb=document.getElementById('lv-feed'); if(_fb) _fb.style.color=color;
+  const _fd=document.querySelector('#live-strip .live-dot');
+  if(_fd){ _fd.style.background=color; _fd.style.boxShadow='0 0 6px '+color; }
   if(mk){ mk.style.display = isWk ? '' : 'none'; mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
   if(cd){ const np=_nextPhase(); cd.textContent=sep+np.verb+' in '+_fmtDur(np.secs); }
   const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
@@ -2683,19 +2875,23 @@ function displayCandles(){
 }
 function displayMarkers(){
   const alt=aMode(); const markers=[];
+  // Use the synthetic-extended maps so pre-2022 trades still get markers (the candles
+  // themselves are already synthesised back to 2011 by altCandlesFull()).
   let svC={}, uvC={};
-  if(alt){ (ALT_SVIX||[]).forEach(a=>svC[a[0]]=a[4]); (ALT_UVIX||[]).forEach(a=>uvC[a[0]]=a[4]); }
+  if(alt){ const m=altCloseMapsFull(); svC=m[0]; uvC=m[1]; }
   const ENTRY='#fff3c8';   // luminous pale gold — pops against the deeper gold candles without looking stark white
   DATA.trades.forEach(t=>{ const sv=t.type==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     if(alt){
       const map=sv?svC:uvC; const e=map[t.entry_date], x=map[t.exit_date];
-      if(e==null||x==null) return;            // no real SVIX/UVIX candle for this trade (pre-2022)
-      const pct=altTradePct(t); const nm=sv?'SVIX':'UVIX'; const win=pct>=0;  // leverage-scaled real return
+      if(e==null||x==null) return;            // still no price (shouldn't happen post-extension)
+      const pct=altTradePct(t); const win=pct>=0;  // leverage-scaled real return
+      // Label the short leg by the size actually held (SVIX½ base, SVIX¾ after a dip-add)
+      const nm=sv?svSizeName(t.pos_size):'UVIX';
       markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+nm});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(pct*100).toFixed(1)+'%'});
     } else {
       const win=t.pnl_pct>=0;
-      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?'SVXY':'UVXY')});
+      markers.push({time:t.entry_date,position:mp,color:ENTRY,shape:'arrowUp',size:0,text:'▲ '+(sv?svSizeName(t.pos_size):'UVXY')});
       markers.push({time:t.exit_date,position:mp,color:win?TEAL:CORAL,shape:'arrowDown',size:0,text:(win?'+':'')+(t.pnl_pct*100).toFixed(1)+'%'});
     }
     // Dynamic-sizing adjustments: ADD (dip-escalation, cyan up-arrow) and TRIM
@@ -2712,9 +2908,10 @@ function displayMarkers(){
   const _lastEx=DATA.trades.length?DATA.trades[DATA.trades.length-1].exit_date:'';
   if(_oty && _ostart && _ostart>_lastEx){
     const sv=_oty==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
-    const ok = !alt || ((sv?svC:uvC)[_ostart]!=null);   // alt needs a real SVIX/UVIX candle
+    const ok = !alt || ((sv?svC:uvC)[_ostart]!=null);   // alt needs a (real or synthetic) close
+    const _osz=(_bh[_bh.length-1]||{}).pos_size;
     if(ok) markers.push({time:_ostart,position:mp,color:ENTRY,shape:'arrowUp',size:0,
-      text:'▲ '+(alt?(sv?'SVIX':'UVIX'):(sv?'SVXY':'UVXY'))});
+      text:'▲ '+(sv?svSizeName(_osz):uvN())});
     // ADD/TRIM bars inside the OPEN run (no closed-trade row carries them yet)
     for(let i=_bh.length-1;i>=0 && _bh[i].position===_oty;i--){ const b=_bh[i];
       if(b.signal==='ADD_SVXY'||b.signal==='TRIM_SVXY'){
@@ -2802,7 +2999,7 @@ function buildDaily(){
   // markers: entries WHITE, exits teal/red by P&L; SVXY above the line, UVXY below
   const WHITE='#fdf4d6'; const mk=[];
   aTrades().forEach(t=>{ const sv=tIsSV(t), win=tRet(t)>0, posn=sv?'aboveBar':'belowBar', shp=sv?'arrowDown':'arrowUp';
-    mk.push({time:t.entry_date,position:posn,color:WHITE,shape:shp,text:(sv?svN():uvN())});
+    mk.push({time:t.entry_date,position:posn,color:WHITE,shape:shp,text:(sv?svSizeName(t.pos_size):uvN())});
     mk.push({time:t.exit_date, position:posn,color:win?TEAL:CORAL,shape:shp,text:(tRet(t)>=0?'+':'')+(tRet(t)*100).toFixed(1)+'%'});
     (t.adj||[]).forEach(ev=>{ const add=ev.action==='ADD';
       mk.push({time:ev.date,position:posn,color:add?CYAN:TRIMC,shape:add?'arrowUp':'arrowDown',
@@ -2810,7 +3007,7 @@ function buildDaily(){
   // Current OPEN position has no closed-trade row — add its entry marker too.
   const _ot=_openTradeRow();
   if(_ot){ const sv=tIsSV(_ot), posn=sv?'aboveBar':'belowBar', shp=sv?'arrowDown':'arrowUp';
-    mk.push({time:_ot.entry_date,position:posn,color:WHITE,shape:shp,text:(sv?svN():uvN())+' (open)'}); }
+    mk.push({time:_ot.entry_date,position:posn,color:WHITE,shape:shp,text:(sv?svSizeName(_ot.pos_size):uvN())+' (open)'}); }
   mk.sort((a,b)=>a.time<b.time?-1:1);
   // preserve the current view across rebuilds (toggle / tab-switch) instead of snapping back
   let _keepRange=_dailyPendRange||null; if(dailyChart){ if(!_keepRange){ try{_keepRange=dailyChart.timeScale().getVisibleLogicalRange();}catch(_){} } try{dailyChart.remove();}catch(_){} dailyChart=null; }
@@ -2999,15 +3196,18 @@ function renderSummary(){
     if(!time || !sd){ info.innerHTML='Hover the chart for details'; return; }
     const alt = aMode();
     const d=time, pos=posByDate[d]||'CASH', pnReal=posNameOf(pos);
-    const pn = alt ? (pnReal==='SVXY'?'SVIX':pnReal==='UVXY'?'UVIX':pnReal) : pnReal;
+    // Size-aware position label (SVIX½ base / SVIX¾ after a dip-add) from that bar's pos_size
+    const _bsz=(window._barByDate&&window._barByDate[d])?window._barByDate[d].pos_size:null;
+    const pn = pnReal==='SVXY' ? svSizeName(_bsz)
+             : alt ? (pnReal==='UVXY'?'UVIX':pnReal) : pnReal;
     const pcls=pnReal==='SVXY'?'sig-svxy':pnReal==='UVXY'?'sig-uvxy':'sig-cash';
     let html=`<b>${d}</b> &nbsp; O ${sd.open.toFixed(2)} &middot; H ${sd.high.toFixed(2)} &middot; L ${sd.low.toFixed(2)} &middot; C ${sd.close.toFixed(2)}`
             +` &nbsp;|&nbsp; Position: <b class="${pcls}">${pn}</b>`;
     const evs=evByDate[d];
     if(evs){
-      const [svM, uvM] = alt ? altCloseMaps() : [null, null];
+      const [svM, uvM] = alt ? altCloseMapsFull() : [null, null];
       evs.forEach(e=>{ const t=e.t;
-        const inm = alt ? (e.sv?'SVIX':'UVIX') : (e.sv?'SVXY':'UVXY');
+        const inm = e.sv ? svSizeName(t.pos_size) : (alt?'UVIX':'UVXY');
         if(e.kind==='ENTER'){
           const ep = alt ? (e.sv?svM:uvM)[t.entry_date] : t.entry_price;
           if(ep!=null) html+=` &nbsp;|&nbsp; <b>Enter ${inm}</b> @ $${ep.toFixed(2)}`;
@@ -3465,7 +3665,13 @@ function renderSignalMonitor(histBar){
   let proj;
   // Position chips follow the SVXY/UVXY↔SVIX/UVIX toggle.
   const kindOf = s => (s==='SVXY'||s==='SVIX')?'sv':(s==='UVXY'||s==='UVIX')?'uv':'cash';
-  const chip = s => { const k=kindOf(s); const nm=k==='sv'?svN():k==='uv'?uvN():'Cash';
+  // Size-aware chip: the short-vol leg shows the size actually held (SVIX½ base,
+  // SVIX¾ after a dip-escalation). History uses the displayed bar's own pos_size;
+  // live uses the official pos_size from the last published bar.
+  const _psNow = hist ? b.pos_size
+                      : ((L&&L.official&&L.official.pos_size!=null) ? L.official.pos_size
+                         : (((DATA&&DATA.bar_history)||[]).slice(-1)[0]||{}).pos_size);
+  const chip = s => { const k=kindOf(s); const nm=k==='sv'?svSizeName(_psNow):k==='uv'?uvN():'Cash';
     const cls=k==='sv'?'sig-svxy':k==='uv'?'sig-uvxy':'sig-cash';
     const d=k==='sv'?' &middot; short vol':k==='uv'?' &middot; long vol':''; return `<b class="${cls}">${nm}${d}</b>`; };
   const posInstr = p => p==='LONG_VOL_SELLER'?'SVXY':p==='LONG_VOL'?'UVXY':'CASH';
@@ -3825,9 +4031,19 @@ function renderSignalMonitor(histBar){
     ['UVXY entry gate','Long-vol blocked when VIX9D is in the 41–46 exhaustion zone, or MOVE/VIX ≤ 2.','','Clear → UVXY entry allowed',
       _gated?'Blocked':'Clear', gFull(sGate), 'NA'],
   ];
+  // Two INDEPENDENT sizing mechanisms, shown separately so they don't get conflated:
+  //  1. regime scaling — fixed AT ENTRY (high-vol regime cuts the short leg to ×0.48)
+  //  2. dynamic sizing — changes DURING the trade (dip-escalation ADD / recovery TRIM)
+  // The live size is the engine's own pos_size, which already includes both.
+  const _dsz = _psNow;
+  const _dscState = (_dsz==null||!isFinite(_dsz)||_dsz<=0) ? 'Flat'
+                  : (_dsz>1.05 ? 'Escalated' : 'Base');
   const compSize=[
-    ['Position sizing','Short-vol size is cut to ×0.48 in a high-vol regime (30-day VIX average > 31.3); long-vol is always sized ×0.43','Normal → full SVXY size','High-vol → SVXY ×0.48',
+    ['Position sizing (at entry)','Short-vol size is cut to ×0.48 in a high-vol regime (30-day VIX average > 31.3); long-vol is always sized ×0.43. Fixed when the trade opens.','Normal → full SVXY size','High-vol → SVXY ×0.48',
       b.high_vol_regime?'High-vol':'Normal', gFull(sSize), 'NA'],
+    ['Dynamic sizing (in trade)','Separate from the entry sizing above: while a short-vol trade is open, an ADD fires at −6% open P&amp;L (+½ unit, once per trade, never on a sustained-spike day) and a TRIM returns to base once the blended position recovers to +5%. Current size shown is the engine’s own pos_size.',
+      'Base → '+(CHART_MODE==='blend'?'SVIX½':'full size'), 'Escalated → '+(CHART_MODE==='blend'?'SVIX¾':'×1.5'),
+      (inPos? _dscState+' · '+svSizeName(_dsz) : 'Flat'), null, 'NA'],
   ];
   const sizeDivider='<tr class="sig-divider"><td colspan="6">Position Sizing - scales the trade rather than triggering it</td></tr>';
   // Routine entry rows dull when superseded by an override or held back by a blocker
