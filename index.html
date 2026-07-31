@@ -752,8 +752,8 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
         <div style="position:relative;width:100%;height:360px">
           <div id="daily-lock" style="position:absolute;top:8px;left:10px;z-index:6;display:none;background:rgba(20,17,11,0.9);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-size:0.66rem;letter-spacing:0.02em;pointer-events:none"></div>
           <div id="daily-lc" style="position:relative;width:100%;height:100%"></div>
-          <button id="daily-toend" title="Jump to latest" onclick="dailyToEnd()" style="position:absolute;bottom:40px;right:78px;z-index:6;display:none;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
-          <button id="daily-reset" title="Reset zoom to the full history" onclick="dailyFitAll()" style="position:absolute;bottom:40px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer;right:170px">&#8634; Reset zoom</button>
+          <button id="daily-toend" title="Jump to latest" onclick="dailyToEnd()" style="position:absolute;bottom:40px;right:14px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer;display:none">Latest &#8594;</button>
+          <button id="daily-reset" title="Reset zoom to the full history" onclick="dailyFitAll()" style="position:absolute;top:10px;right:12px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">&#8634; Reset zoom</button>
         </div>
       </div>
     </div>
@@ -766,8 +766,8 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       </div>
       <div class="pb" style="position:relative;height:320px">
         <canvas id="eqChart"></canvas>
-        <button id="eq-reset" title="Reset zoom to the full history" onclick="eqResetZoom()" style="position:absolute;bottom:40px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer;right:96px">&#8634; Reset zoom</button>
-        <button id="eq-toend" title="Jump to the most recent bars" onclick="eqToEnd()" style="position:absolute;bottom:40px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer;right:14px">Latest &#8594;</button>
+        <button id="eq-reset" title="Reset zoom to the full history" onclick="eqResetZoom()" style="position:absolute;top:10px;right:12px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">&#8634; Reset zoom</button>
+        <button id="eq-toend" title="Jump to the most recent bars" onclick="eqToEnd()" style="position:absolute;bottom:40px;right:14px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
       </div>
     </div>
 
@@ -789,14 +789,13 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       </div>
     </div>
 
-    <!-- Risk-adjusted metrics, then per-signal distribution / performance / exit reasons -->
+    <!-- Four equal quadrants on one line, same total width as the 3-panel row above.
+         flex-basis:0 + min-width:0 keeps them exactly even regardless of content width. -->
     <div class="row" style="margin-top:12px">
-      <div class="panel" style="flex:1 1 0"><div class="ph"><span>Risk-adjusted metrics</span></div><div class="pb" id="risk-metrics"></div></div>
-      <div class="panel" style="flex:1 1 0"><div class="ph"><span>Signal distribution</span></div><div class="pb" style="position:relative;height:210px"><canvas id="sigDistChart"></canvas></div></div>
-    </div>
-    <div class="row" style="margin-top:12px">
-      <div class="panel" style="flex:1 1 0"><div class="ph"><span>Per-signal performance</span></div><div class="pb" id="sig-perf"></div></div>
-      <div class="panel" style="flex:1 1 0"><div class="ph"><span>Exit reasons</span></div><div class="pb" id="exit-reasons"></div></div>
+      <div class="panel" style="flex:1 1 0;min-width:0"><div class="ph"><span>Risk-adjusted metrics</span></div><div class="pb" id="risk-metrics"></div></div>
+      <div class="panel" style="flex:1 1 0;min-width:0"><div class="ph"><span>Signal distribution</span></div><div class="pb" style="position:relative;height:210px"><canvas id="sigDistChart"></canvas></div></div>
+      <div class="panel" style="flex:1 1 0;min-width:0"><div class="ph"><span>Per-signal performance</span></div><div class="pb" id="sig-perf"></div></div>
+      <div class="panel" style="flex:1 1 0;min-width:0"><div class="ph"><span>Exit reasons</span></div><div class="pb" id="exit-reasons"></div></div>
     </div>
 
     <!-- Detailed per-signal trade statistics (TradingView-style) -->
@@ -911,9 +910,19 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       </div>
     </div>
     <div class="row" style="margin-top:12px">
-      <div class="panel" style="flex:1.4 1 0"><div class="ph"><span id="fwd-table-title">Day-by-day odds</span></div>
+      <div class="panel" style="flex:1.35 1 0;min-width:0"><div class="ph"><span id="fwd-table-title">Day-by-day odds</span></div>
         <div class="pb" style="overflow-x:auto"><div id="fwd-table"></div></div></div>
-      <div class="panel" style="flex:1 1 0"><div class="ph"><span>Closest historical analogs</span></div>
+      <div class="panel" style="flex:1.15 1 0;min-width:0">
+        <div class="ph"><span id="fwd-dist-title">Outcome distribution</span>
+          <select id="fwd-h" onchange="renderForward(document.getElementById('fwd-date').value)"
+            style="background:rgba(20,17,11,0.9);color:var(--yellow);border:1px solid var(--border2);border-radius:8px;padding:2px 6px;font-family:'Saira',sans-serif;font-size:0.7rem;color-scheme:dark">
+            <option value="1" selected>+1 session</option><option value="2">+2</option>
+            <option value="3">+3</option><option value="5">+5</option><option value="10">+10</option>
+          </select></div>
+        <div class="pb" style="position:relative;height:220px"><canvas id="fwdDistChart"></canvas></div>
+        <div id="fwd-dist-note" style="padding:0 12px 12px;color:var(--dim);font-size:0.68rem;line-height:1.5"></div>
+      </div>
+      <div class="panel" style="flex:0.9 1 0;min-width:0"><div class="ph"><span>Closest historical analogs</span></div>
         <div class="pb" style="overflow-x:auto"><div id="fwd-analogs"></div></div></div>
     </div>
     <div style="margin-top:10px;color:var(--dim);font-size:0.68rem;line-height:1.6;padding:0 4px">
@@ -1609,10 +1618,21 @@ function renderForward(selDate){
     return '<b style="color:'+c+'">'+(v*100).toFixed(0)+'%</b>'; };
   const f2=v=>{ const c=v>=0?'var(--teal)':'var(--coral)';
     return '<span style="color:'+c+'">'+(v>=0?'+':'')+(v*100).toFixed(2)+'%</span>'; };
-  const _rth=s=>'<th style="text-align:right">'+s+'</th>';   // th UA default is centred — force right
+  // th defaults to centred; force right and hang an explanation off each header.
+  const _rth=(s,tip)=>'<th style="text-align:right'+(tip?';cursor:help':'')+'"'
+    +(tip?' title="'+tip.replace(/"/g,'&quot;')+'"':'')+'>'+s+'</th>';
+  const _tipUp=n=>'Share of the matched analog days on which '+n+' finished HIGHER than it started, '
+    +'measured on the cumulative move from the selected day to that session.';
   let tb='<table style="width:100%;border-collapse:collapse;font-size:0.78rem"><tr style="color:var(--dim)">'
-    +'<th style="text-align:left;padding:5px 8px">Session</th>'+_rth('P('+iName+' &uarr;)')+_rth('Median')+_rth('Mean')
-    +_rth('Std dev')+_rth('10th pct')+_rth('90th pct')+_rth('P('+oName+' &uarr;)')+'</tr>';
+    +'<th style="text-align:left;padding:5px 8px">Session</th>'
+    +_rth('P('+iName+' &uarr;)', _tipUp(iName)+' This is the leg the strategy trades.')
+    +_rth('Median','Middle analog outcome - half did better, half worse.')
+    +_rth('Mean','Average analog outcome; outliers move it more than the median.')
+    +_rth('Std dev','Spread of the analog outcomes (1 standard deviation, percentage points).')
+    +_rth('10th pct','Only 10% of analogs did worse than this - rough downside case.')
+    +_rth('90th pct','Only 10% of analogs did better than this - rough upside case.')
+    +_rth('P('+oName+' &uarr;)', _tipUp(oName)+' The OPPOSITE leg, for contrast: short-vol and long-vol usually move against each other, but both can fall together because both decay.')
+    +'</tr>';
   rows.forEach((r,ix)=>{ tb+='<tr style="text-align:right;border-top:1px solid var(--border)">'
     +'<td style="text-align:left;padding:5px 8px;color:var(--dim)">EOD +'+r.h+(r.h===1?' (tomorrow)':'')+'</td>'
     +'<td>'+pc(r.pos)+'</td><td>'+f2(r.med)+'</td><td>'+f2(r.mean)+'</td>'
@@ -1622,6 +1642,66 @@ function renderForward(selDate){
   tb+='</table>';
   document.getElementById('fwd-table').innerHTML=tb;
   document.getElementById('fwd-table-title').textContent='Day-by-day odds — cumulative return from today ('+K+' analogs)';
+  // ── outcome distribution ("what shape is the bet?") ────────────────────────
+  // Histogram of where the analogs actually landed at the chosen horizon, split at
+  // break-even, with a normal curve of the same mean/sd drawn over it. The gap between
+  // the bars and that curve is the point: vol returns are fat-tailed and skewed, so a
+  // bell curve understates how often the extreme outcomes show up — which is exactly
+  // what matters when pricing a short-dated option.
+  (function(){
+    const hSel=document.getElementById('fwd-h'); if(!hSel) return;
+    const hh=Math.min(FWD_H,Math.max(1,parseInt(hSel.value,10)||1));
+    const xs=paths.map(p=>p.arr[hh]).filter(v=>isFinite(v)).sort((a,b)=>a-b);
+    if(xs.length<10) return;
+    const r=rows[hh-1];
+    const lo=xs[0], hi=xs[xs.length-1], NB=Math.min(22,Math.max(9,Math.round(Math.sqrt(xs.length)*1.5)));
+    const wd=((hi-lo)||1e-6)/NB;
+    const bins=new Array(NB).fill(0);
+    xs.forEach(v=>{ bins[Math.min(NB-1,Math.max(0,Math.floor((v-lo)/wd)))]++; });
+    const centers=bins.map((_,i)=>lo+(i+0.5)*wd);
+    const labels=centers.map(c=>(c*100).toFixed(c>=0.1||c<=-0.1?0:1)+'%');
+    const barCols=centers.map(c=>c>=0?'rgba(82,230,189,0.62)':'rgba(242,86,58,0.62)');
+    // Normal density with the sample's mean/sd, scaled to the histogram's counts.
+    const norm=centers.map(c=>{ const z=(c-r.mean)/(r.sd||1e-9);
+      return xs.length*wd*Math.exp(-0.5*z*z)/((r.sd||1e-9)*Math.sqrt(2*Math.PI)); });
+    const zeroIdx=(0-lo)/wd-0.5;                    // break-even in bin space
+    const zeroLine={ id:'fwdZero', afterDatasetsDraw(ch){
+      const x=ch.scales.x, a=ch.chartArea; if(!x||!a) return;
+      const i0=Math.max(0,Math.min(NB-1,Math.floor(zeroIdx))), i1=Math.max(0,Math.min(NB-1,i0+1));
+      const px=x.getPixelForTick(i0)+(x.getPixelForTick(i1)-x.getPixelForTick(i0))*(zeroIdx-i0);
+      if(px<a.left||px>a.right) return;
+      const c=ch.ctx; c.save(); c.setLineDash([4,4]); c.strokeStyle='#ffffff'; c.lineWidth=1.5;
+      c.beginPath(); c.moveTo(px,a.top); c.lineTo(px,a.bottom); c.stroke();
+      c.setLineDash([]); c.fillStyle='#ffffff'; c.font="10px 'Saira', sans-serif"; c.textAlign='center';
+      c.fillText('break-even', px, a.top+9); c.restore(); } };
+    mkChart('fwdDistChart',{ data:{ labels, datasets:[
+        {type:'bar',label:'Analog outcomes',data:bins,backgroundColor:barCols,borderWidth:0,order:2},
+        {type:'line',label:'Normal curve (same mean/σ)',data:norm,borderColor:'rgba(219,162,79,0.95)',
+         borderWidth:1.8,pointRadius:0,fill:false,tension:0.35,order:1}]},
+      plugins:[zeroLine],
+      options:{responsive:true,maintainAspectRatio:false,animation:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{
+          title:c=>'~'+c[0].label+' move',
+          label:c=>c.datasetIndex===0?(' '+c.parsed.y+' of '+xs.length+' analogs'):
+                                      (' normal curve: '+c.parsed.y.toFixed(1))}}},
+        scales:{x:{ticks:{color:TICK,maxTicksLimit:8,font:{size:10,family:FONT}},grid:{display:false}},
+                y:{ticks:{color:TICK,font:{size:10,family:FONT}},grid:{color:GRID},
+                   title:{display:true,text:'# analogs',color:TICK,font:{size:10}}}}} });
+    // Skew/kurtosis quantify what the eye sees vs the bell curve.
+    const m3=xs.reduce((a,v)=>a+Math.pow((v-r.mean)/(r.sd||1e-9),3),0)/xs.length;
+    const m4=xs.reduce((a,v)=>a+Math.pow((v-r.mean)/(r.sd||1e-9),4),0)/xs.length-3;
+    const _f=v=>(v>=0?'+':'')+(v*100).toFixed(2)+'%';
+    document.getElementById('fwd-dist-title').textContent='Outcome distribution — '+iName;
+    document.getElementById('fwd-dist-note').innerHTML=
+      '<b>'+(r.pos*100).toFixed(0)+'%</b> of '+xs.length+' analogs finished above break-even at +'+hh+'. '
+      +'Mean '+_f(r.mean)+' · median '+_f(r.med)+' · &sigma; '+(r.sd*100).toFixed(2)+'pp. '
+      +'Skew '+m3.toFixed(2)+' · excess kurtosis '+m4.toFixed(2)+' — '
+      +(Math.abs(m3)<0.3&&Math.abs(m4)<1 ? 'close to normal, so the bell curve is a fair guide.'
+        : (m4>1 ? 'fatter tails than normal: big moves are more likely than the bell curve implies.'
+                : 'skewed, so the bell curve mis-prices one side.'))
+      +' Bars are the real outcomes; the gold line is a normal curve of the same mean and &sigma;.';
+  })();
+
   // ── nearest-analog list ──
   let an='<table style="width:100%;border-collapse:collapse;font-size:0.76rem"><tr style="color:var(--dim)">'
     +'<th style="text-align:left;padding:5px 8px">Date</th>'+_rth('Match')+_rth('+1d')+_rth('+5d')+_rth('+10d')+'</tr>';
@@ -1936,9 +2016,9 @@ function renderSigPerf(){
     {l:uvN(),pill:'pill-uvxy',cnt:s.uvxy_trades,wr:(s.uvxy_win_rate*100).toFixed(0)+'%',avg:fmtPct(s.uvxy_avg_return),pnl:fmtK(s.uvxy_total_pnl),col:CORAL},
   ];
   document.getElementById('sig-perf').innerHTML=rows.map(r=>
-    `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
-      <span class="pill ${r.pill}">${r.l}</span>
-      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px">
+    `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <span class="pill ${r.pill}" style="flex:0 0 auto">${r.l}</span>
+      <div style="flex:1;min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(56px,1fr));gap:4px">
         <div><div style="font-size:0.68rem;color:var(--dim)">Trades</div><div style="font-family:'Saira', sans-serif;font-size:0.9rem;color:var(--white)">${r.cnt}</div></div>
         <div><div style="font-size:0.68rem;color:var(--dim)">Win rate</div><div style="font-family:'Saira', sans-serif;font-size:0.9rem;color:${parseFloat(r.wr)>=50?TEAL:CORAL}">${r.wr}</div></div>
         <div><div style="font-size:0.68rem;color:var(--dim)">Avg return</div><div style="font-family:'Saira', sans-serif;font-size:0.9rem;color:${r.avg.startsWith('+')?TEAL:CORAL}">${r.avg}</div></div>
