@@ -1,22 +1,22 @@
 {
   "meta": {
-    "generated": "2026-08-04T03:54:48.881679",
+    "generated": "2026-08-04T23:53:55.509380",
     "start_capital": 100000.0,
     "start_date": "2011-12-02",
-    "end_date": "2026-08-03",
-    "trading_days": 3718,
+    "end_date": "2026-08-04",
+    "trading_days": 3719,
     "instruments": "SVXY / UVXY"
   },
   "summary": {
-    "total_return": 228.92691,
-    "cagr": 0.445655,
-    "sharpe": 1.173,
-    "sortino": 1.1343,
-    "calmar": 1.0092,
+    "total_return": 228.334935,
+    "cagr": 0.445259,
+    "sharpe": 1.1724,
+    "sortino": 1.1338,
+    "calmar": 1.0083,
     "max_drawdown": -0.441608,
     "max_dd_duration": 163,
-    "final_equity": 22992691.04,
-    "spy_return": 5.061845,
+    "final_equity": 22933493.45,
+    "spy_return": 5.171134,
     "total_trades": 139,
     "win_rate": 0.6259,
     "profit_factor": 2.347,
@@ -35,7 +35,7 @@
     "svxy_total_pnl": 16052907.11,
     "uvxy_total_pnl": 6429342.21,
     "cash_days": 1158,
-    "cash_pct": 0.3115,
+    "cash_pct": 0.3114,
     "max_consec_wins": 7,
     "max_consec_losses": 4,
     "expected_payoff": 161742.8
@@ -22348,6 +22348,12 @@
       "equity": 22992691.04,
       "drawdown": -4.2053,
       "runup": 24457.5444
+    },
+    {
+      "date": "2026-08-04",
+      "equity": 22933493.45,
+      "drawdown": -4.452,
+      "runup": 24394.3179
     }
   ],
   "spy_curve": [
@@ -37222,6 +37228,10 @@
     {
       "date": "2026-08-03",
       "equity": 606815.62
+    },
+    {
+      "date": "2026-08-04",
+      "equity": 617755.9
     }
   ],
   "trades": [
@@ -40200,13 +40210,13 @@
     },
     {
       "month": "2026-08",
-      "ret": 0.003445
+      "ret": 0.000861
     }
   ],
   "condition_counts": {
-    "bull_9d": 2416,
-    "bull_1m": 3136,
-    "bull_ratio": 2795,
+    "bull_9d": 2417,
+    "bull_1m": 3137,
+    "bull_ratio": 2796,
     "bear_9d": 1302,
     "bear_1m": 582,
     "bear_ratio": 57,
@@ -40218,7 +40228,7 @@
   "signal_counts": {
     "CASH": 1158,
     "LONG_SVXY": 121,
-    "HOLD_SVXY": 2250,
+    "HOLD_SVXY": 2251,
     "ADD_SVXY": 18,
     "TRIM_SVXY": 6,
     "EXIT_SVXY": 120,
@@ -196366,7 +196376,7 @@
       "vix_sustained": false,
       "neg_vol": false,
       "cont_bull": true,
-      "obv_div": 0.64,
+      "obv_div": 0.641,
       "price_hi": true,
       "bear_roll": 0.0,
       "mv_hi": false,
@@ -196391,8 +196401,8 @@
       "contango": 0.1936,
       "vdelta": 2.58,
       "ratio_1m_3m": 0.8378,
-      "move": 80.48,
-      "move_vix_ratio": 5.07,
+      "move": null,
+      "move_vix_ratio": null,
       "bull_9d": true,
       "bull_1m": true,
       "bull_ratio": true,
@@ -196408,7 +196418,7 @@
       "vix_sustained": false,
       "neg_vol": false,
       "cont_bull": true,
-      "obv_div": 0.92,
+      "obv_div": 0.922,
       "price_hi": true,
       "bear_roll": 0.0,
       "mv_hi": false,
@@ -196419,6 +196429,48 @@
       "vix1m_ma30": 17.28,
       "svxy_price": 58.26,
       "uvxy_price": 22.93,
+      "pos_size": 1.0
+    },
+    {
+      "date": "2026-08-04",
+      "position": "LONG_VOL_SELLER",
+      "equity": 22933493.45,
+      "open_pnl_pct": 0.015554,
+      "signal": "HOLD_SVXY",
+      "vix1m": 15.86,
+      "vix9d": 15.04,
+      "vix3m": 19.34,
+      "contango": 0.2194,
+      "vdelta": 0.82,
+      "ratio_1m_3m": 0.8201,
+      "move": 77.56,
+      "move_vix_ratio": 4.89,
+      "bull_9d": true,
+      "bull_1m": true,
+      "bull_ratio": true,
+      "bear_9d": false,
+      "bear_1m": false,
+      "bear_ratio": false,
+      "spike_9d": false,
+      "spike_1m": false,
+      "crush_9d": false,
+      "crush_1m": false,
+      "bb_buy": true,
+      "vix_fade": false,
+      "vix_sustained": false,
+      "neg_vol": false,
+      "cont_bull": true,
+      "obv_div": 0.832,
+      "price_hi": true,
+      "bear_roll": 0.0,
+      "mv_hi": false,
+      "mv_lo": false,
+      "pc_bull": false,
+      "high_vol_regime": false,
+      "bb_trend": 2.4963,
+      "vix1m_ma30": 17.16,
+      "svxy_price": 58.11,
+      "uvxy_price": 23.18,
       "pos_size": 1.0
     }
   ]
