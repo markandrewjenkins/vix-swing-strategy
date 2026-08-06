@@ -402,15 +402,17 @@ tr:hover td { background: #1f1a10 }
 .mkt-left { display:inline-flex; align-items:center; gap:12px; }
 #mkt-status { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 #mkt-dot { display:none; }   /* redundant with the pulsing dot in the top status bar */
-/* Session-timeline segment palette adopted from the QQQ Swing Strategy dashboard:
-   night blue closed segments, gold pre-market, amber-orange regular, dusk-pink after. */
+/* Session-timeline palette. Fills are SOLID (no alpha) so the colour the user sees is
+   exactly the specified hex - an rgba fill blends with the track behind it and renders
+   as something else. The phase label + sun/moon glyph reuse the same values via
+   MKT_COLORS in the script, so bar and text can never drift apart. */
 .mkt-sessbar { position:relative; display:inline-flex; width:170px; height:6px; border-radius:3px; overflow:hidden; background:#2a2415; vertical-align:middle; }
 .mkt-sessbar .seg { height:100%; }
-.mkt-sessbar .c1 { width:16.7%; background:rgba(95,127,168,0.45); }
-.mkt-sessbar .pre { width:22.9%; background:rgba(211,163,56,0.6); }
-.mkt-sessbar .reg { width:27.1%; background:rgba(221,138,60,0.75); }
-.mkt-sessbar .aft { width:16.7%; background:rgba(201,105,141,0.6); }
-.mkt-sessbar .c2 { width:16.6%; background:rgba(95,127,168,0.45); }
+.mkt-sessbar .c1 { width:16.7%; background:#ACC0E7; }   /* market closed */
+.mkt-sessbar .pre { width:22.9%; background:#D0B570; }  /* pre-market    */
+.mkt-sessbar .reg { width:27.1%; background:#D49B5F; }  /* market open   */
+.mkt-sessbar .aft { width:16.7%; background:#C892A0; }  /* after hours   */
+.mkt-sessbar .c2 { width:16.6%; background:#ACC0E7; }   /* market closed */
 .mkt-marker { position:absolute; top:-5px; height:16px; width:2px; background:#ffffff; }
 #mkt-countdown { color:var(--dim); font-weight:400; }
 .mkt-block { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; }
@@ -444,8 +446,11 @@ tr:hover td { background: #1f1a10 }
 .howto p { margin:0 0 6px; }
 .howto b { color:#fdf4d6; }
 .howto .howto-note { color:var(--dim); font-size:0.8rem; margin-top:14px; border-top:1px solid var(--border); padding-top:10px; }
-.howto a { color:var(--yellow); font-weight:600; text-decoration:none; }
-.howto a:hover { text-decoration:underline; }
+/* Links are underlined by DEFAULT (not only on hover) so they're identifiable without
+   relying on colour alone; hover just thickens the rule. */
+a { text-decoration:underline; text-underline-offset:2px; }
+.howto a { color:var(--yellow); font-weight:600; text-decoration:underline; text-underline-offset:2px; }
+.howto a:hover { text-decoration-thickness:2px; }
 /* Exit-reason legend under the trades table */
 .exit-legend { display:flex; flex-wrap:wrap; gap:6px 18px; padding:12px 4px 2px; font-size:0.72rem; color:var(--dim); border-top:1px solid var(--border); margin-top:10px; }
 .exit-legend .el-title { color:var(--yellow); font-weight:600; }
@@ -2780,15 +2785,12 @@ async function loadLive(){
     // and keep it pulsing through any market phase (pre-market / regular / after).
     // Phase palette adopted from the QQQ Swing Strategy dashboard:
     // regular amber-orange, pre-market gold, after-hours dusk pink, closed night blue.
-    const phaseColor = regular?'#dd8a3c' : premkt?'#d3a338' : settle?'#c9698d' : '#5f7fa8';
     const phaseActive = regular||premkt||settle;
     strip.classList.toggle('stale', !phaseActive);   // grey, non-pulsing only when fully closed
-    const dot=document.querySelector('#live-strip .live-dot');
-    if(dot){ dot.style.background=phaseColor; dot.style.boxShadow = phaseActive ? '0 0 6px '+phaseColor : 'none'; }
     const feed=document.getElementById('lv-feed'), note=document.getElementById('lv-feed-note'), delay=document.getElementById('lv-delay');
-    // Badge colour follows the same QQQ phase palette.
-    const feedColor = live ? '#dd8a3c' : (regular||premkt) ? '#d3a338' : settle ? '#c9698d' : '#5f7fa8';
-    if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; feed.style.color=feedColor; }
+    // Text only. updateMarket() owns the badge/dot COLOUR - it ticks every second and
+    // would overwrite anything set here, so a second writer would just flicker.
+    if(feed){ feed.textContent = live ? 'LIVE' : regular ? 'DELAYED' : settle ? 'AFTER HOURS' : premkt ? 'PRE-MARKET' : 'OFFLINE'; }
     // After-hours: has the CBOE EOD term structure for TODAY actually posted (curve
     // dated today, not merely a 5:30 refresh attempt)? If so, record + show the ACTUAL
     // ET time the today-dated curve first arrived — that's the last data feeding the
@@ -2883,6 +2885,8 @@ function _isMktHoliday(){ return _MKT_HOLIDAYS.has(_etDate()); }
 function _fmtDur(s){ if(s<0)s=0; const h=Math.floor(s/3600); const m=Math.floor((s%3600)/60); return h>0?(h+'h '+m+'m'):(m+'m'); }
 function _nextPhase(){ const {wd,sod}=_etNow(); const PRE=14400,OPEN=34200,CLOSE=57600,AFT=72000,DAY=86400; const isWk=wd!=='Sat'&&wd!=='Sun'&&!_isMktHoliday(); if(isWk&&sod>=PRE&&sod<OPEN) return {verb:'Market opens',secs:OPEN-sod}; if(isWk&&sod>=OPEN&&sod<CLOSE) return {verb:'Regular hours end',secs:CLOSE-sod}; if(isWk&&sod>=CLOSE&&sod<AFT) return {verb:'Market closes',secs:AFT-sod}; const idx={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[wd]; const toFour=(sod<PRE)?(PRE-sod):(DAY-sod+PRE); const land=(sod<PRE)?idx:((idx+1)%7); let extra=0; if(land===6)extra=2; else if(land===0)extra=1; return {verb:'Pre-market opens',secs:toFour+extra*DAY}; }
 function toEtClock(iso){ if(!iso) return '\u2014'; try{ return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }catch(_){ return '\u2014'; } }
+// Market-phase palette - mirrors .mkt-sessbar .c1/.pre/.reg/.aft in the stylesheet.
+const MKT_COLORS={ pre:'#D0B570', open:'#D49B5F', after:'#C892A0', closed:'#ACC0E7' };
 // Market-phase glyphs + colours adopted from the QQQ Swing Strategy dashboard:
 //   pre = sun half-risen above the horizon; open = full sun;
 //   after = sun sinking below the horizon; closed = crescent moon.
@@ -2912,11 +2916,12 @@ function _mktSVG(kind){
 function updateMarket(){
   const {wd,sod}=_etNow(); const dec=sod/3600; const isWk=wd!=='Sat'&&wd!=='Sun'&&!_isMktHoliday(); let label,color,sep,kind;
   const DASH='\u00a0-\u00a0', GAP='\u00a0\u00a0';   // snug gap for closed/pre, dash for open/after
-  // QQQ dusk palette: sunrise gold \u2192 daylight orange \u2192 sunset ember \u2192 night blue
-  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color='#ffb347'; kind='open'; sep=GAP; }
-  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color='#f0cc4a'; kind='pre'; sep=GAP; }
-  else if(isWk&&dec>=16&&dec<20){ label='After hours'; color='#d1481a'; kind='after'; sep=GAP; }
-  else { label='Market closed'; color='#a7c0e8'; kind='closed'; sep=GAP; }
+  // Phase palette comes from MKT_COLORS, the same values the timeline segments use in
+  // CSS, so the label, the glyph and the matching bar segment always agree.
+  if(isWk&&dec>=9.5&&dec<16){ label='Market open'; color=MKT_COLORS.open; kind='open'; sep=GAP; }
+  else if(isWk&&dec>=4&&dec<9.5){ label='Pre-market'; color=MKT_COLORS.pre; kind='pre'; sep=GAP; }
+  else if(isWk&&dec>=16&&dec<20){ label='After hours'; color=MKT_COLORS.after; kind='after'; sep=GAP; }
+  else { label='Market closed'; color=MKT_COLORS.closed; kind='closed'; sep=GAP; }
   const dot=document.getElementById('mkt-dot'), lab=document.getElementById('mkt-label'), mk=document.getElementById('mkt-marker'), cd=document.getElementById('mkt-countdown');
   // Sun/moon glyph replaces the plain dot (same slot, same spacing).
   let ico=document.getElementById('mkt-ico');
@@ -2924,11 +2929,25 @@ function updateMarket(){
     dot.parentNode.insertBefore(ico, dot); dot.style.display='none'; }
   if(ico){ ico.innerHTML=_mktSVG(kind); ico.style.color=color; }
   if(lab){ lab.textContent=label; lab.style.color=color; }   // match the phase colour
-  // Feed badge on the far right of the status bar shares the same phase colour so the
-  // two market-state readouts never disagree visually.
+  // Feed badge ("LIVE"/"PRE-MARKET"/"OFFLINE") beside "Data as of" in the top status bar
+  // takes the same phase colour, so the two market-state readouts never disagree.
   const _fb=document.getElementById('lv-feed'); if(_fb) _fb.style.color=color;
+  // The dot only lights and pulses while a session is actually running; when the feed
+  // reads OFFLINE it is an unlit outline. Applied inline rather than via the .stale
+  // class because these inline styles would otherwise win over it.
+  const _liveDot = kind!=='closed';
+  // Own the .stale class here too: loadLive only polls every 60s, so at a session
+  // boundary it could still be asserting "stale" (which kills the pulse) for up to a
+  // minute after this 1s tick has already lit the dot.
+  const _strip=document.getElementById('live-strip');
+  if(_strip) _strip.classList.toggle('stale', !_liveDot);
   const _fd=document.querySelector('#live-strip .live-dot');
-  if(_fd){ _fd.style.background=color; _fd.style.boxShadow='0 0 6px '+color; }
+  if(_fd){ _fd.style.background=_liveDot?color:'transparent';
+           _fd.style.border=_liveDot?'0':('1px solid '+color);
+           _fd.style.boxSizing='border-box';
+           _fd.style.boxShadow=_liveDot?('0 0 6px '+color):'none';
+           _fd.style.animation=_liveDot?'':'none';
+           _fd.style.opacity=_liveDot?'':'0.6'; }
   if(mk){ mk.style.display = isWk ? '' : 'none'; mk.style.left=Math.max(0,Math.min(100,dec/24*100))+'%'; }
   if(cd){ const np=_nextPhase(); cd.textContent=sep+np.verb+' in '+_fmtDur(np.secs); }
   const row=document.getElementById('mkt-row'); if(row){ try{ row.title='Now: '+new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,hour:'2-digit',minute:'2-digit'}).format(new Date())+' ET'; }catch(_){} }
