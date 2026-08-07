@@ -15,10 +15,21 @@ on:
     - cron: "35 21,22,23 * * 1-5"
   workflow_dispatch: {}   # manual runs + external trigger (cron-job.org etc.)
 
-# Avoid overlapping runs piling up if one is delayed.
+# Serialise runs, but NEVER cancel one that is already in flight.
+#
+# With cancel-in-progress:true this silently broke the intraday feed: the external
+# 5-minute ping killed each run before it could finish. During market hours the job
+# takes 3-6 min (slower upstream fetches, busier runners) which is LONGER than the
+# ping interval, so runs were cancelled seconds before committing - 49 of 100 runs on
+# 2026-08-06 were cancelled, including 12/12 in the 17:00 ET hour (an 86-minute gap in
+# the data). In the evening the same job takes ~35s, finishes, and looks perfectly fine.
+#
+# cancel-in-progress:false is safe from pile-ups: GitHub keeps at most ONE pending run
+# per concurrency group and supersedes any older pending one, so the steady state is
+# 1 running + 1 queued, never a backlog.
 concurrency:
   group: update-live
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -26,6 +37,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 8        # a hung upstream fetch must not block the queued run
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,9 +46,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip                     # reuse the wheel cache instead of re-resolving
+          cache-dependency-path: .github/workflows/requirements.txt
 
       - name: Install dependencies
-        run: pip install --quiet pandas
+        run: pip install --quiet -r .github/workflows/requirements.txt
 
       - name: Refresh data
         run: |
@@ -51,7 +65,13 @@ jobs:
           git add live_status.json svxy_ohlc.json svix_ohlc.json uvix_ohlc.json tqqq_ohlc.json vix_intraday_log.csv
           if ! git diff --cached --quiet; then
             git commit -m "chore: refresh live data [skip ci]"
-            git push
+            # Retry around a concurrent push (the private engine repo also pushes here).
+            for i in 1 2 3; do
+              git push && break
+              echo "push rejected - rebasing on origin/main (attempt $i)"
+              git pull --rebase --autostash origin main || true
+              sleep 3
+            done
           else
             echo "No data changes — nothing to commit."
           fi
