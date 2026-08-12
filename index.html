@@ -2899,21 +2899,16 @@ function _mktSVG(kind){
     +'<line x1="1.6" y1="10" x2="3.7" y2="10"/><line x1="16.3" y1="10" x2="18.4" y2="10"/>'
     +'<line x1="4.2" y1="4.2" x2="5.7" y2="5.7"/><line x1="14.3" y1="14.3" x2="15.8" y2="15.8"/>'
     +'<line x1="15.8" y1="4.2" x2="14.3" y2="5.7"/><line x1="5.7" y1="14.3" x2="4.2" y2="15.8"/></g></svg>';
-  // pre / after are a deliberate PAIR: identical half-sun sitting on the horizon,
-  // distinguished only by an arrow — rising for pre-market, setting for after-hours.
+  // Pre-market and after-hours share one half-sun on the horizon — the phase COLOUR
+  // (#D0B570 vs #C892A0) is what distinguishes them, so no extra arrow is needed.
   // (The old 'after' glyph put the dome BELOW the horizon with its rays pointing down,
   // i.e. a vertically-mirrored sun that read as upside-down. The scale(-1,1) transform
   // it carried only mirrors left-right, so it never undid that inversion.)
-  const _sun=(arrow)=> s
+  if(kind==='pre' || kind==='after') return s
     +'<path d="M5.8 14.5 a4.2 4.2 0 0 1 8.4 0 Z" fill="currentColor"/>'
-    +'<g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none">'
-    +'<line x1="1.7" y1="14.5" x2="18.3" y2="14.5"/>'          // horizon
-    +'<line x1="3.6" y1="7.6" x2="5.0" y2="8.9"/>'             // side rays
-    +'<line x1="16.4" y1="7.6" x2="15.0" y2="8.9"/>'
-    +arrow+'</g></svg>';
-  //  rising: stem with the chevron at the TOP        setting: chevron at the BOTTOM
-  if(kind==='pre')   return _sun('<path d="M10 6.0 V2.0 M8.4 3.6 L10 2.0 L11.6 3.6"/>');
-  if(kind==='after') return _sun('<path d="M10 2.0 V6.0 M8.4 4.4 L10 6.0 L11.6 4.4"/>');
+    +'<g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none">'
+    +'<line x1="1.7" y1="14.5" x2="18.3" y2="14.5"/><line x1="10" y1="2.2" x2="10" y2="4.3"/>'
+    +'<line x1="3.9" y1="6.6" x2="5.3" y2="7.9"/><line x1="16.1" y1="6.6" x2="14.7" y2="7.9"/></g></svg>';
   return s
     +'<path d="M13.6 4.1 a6.4 6.4 0 1 0 0.2 11.8 A5 5 0 0 1 13.6 4.1 Z" fill="currentColor"/></svg>';
 }
