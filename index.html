@@ -2820,21 +2820,32 @@ async function loadLive(){
         const dsel=document.getElementById('fwd-date');
         const lastBar=((DATA&&DATA.bar_history)||[]).slice(-1)[0];
         if(!dsel || !lastBar || dsel.value===lastBar.date){ try{ renderForward(); }catch(_){} } } }
-    // Refresh candle history from svxy_ohlc.json (Action keeps it current incl. the forming day)
+    // Refresh candle history from the OHLC files the Action keeps current (incl. the
+    // forming day). This has to reload whichever series actually DRIVES the current view:
+    // in the SVIX/UVIX and blend views displayCandles() renders altCandlesFull(), which is
+    // built from svix_ohlc.json — so polling only svxy_ohlc.json (as this did) left the
+    // on-screen bars frozen at page load while the top-bar quotes kept ticking. The alt
+    // files were fetched once in load() and never again, so only a manual reload moved the
+    // candles. Reassigning ALT_SVIX/ALT_UVIX to NEW array objects also invalidates the
+    // identity-keyed memos in altCandlesFull() / altCloseMaps() / altCloseMapsFull().
     if(candleSeries && sumMain){
       try{
-        const ro=await fetch('svxy_ohlc.json?v='+Date.now());
-        if(ro.ok){
-          const arr=await ro.json();
-          const ln=arr[arr.length-1], lo=(OHLC&&OHLC.length)?OHLC[OHLC.length-1]:null;
-          const changed=!lo||arr.length!==OHLC.length||ln[0]!==lo[0]||ln[4]!==lo[4];
-          if(changed){
-            OHLC=arr; CANDLES=displayCandles(); rebuildChartMaps(); updateHdrMeta();
-            const vr=sumMain.timeScale().getVisibleLogicalRange();
-            candleSeries.setData(CANDLES);
-            if(MARKERS) candleSeries.setMarkers(MARKERS);
-            if(vr) sumMain.timeScale().setVisibleLogicalRange(vr);
-          }
+        const _tail=a=>(a&&a.length)?(a.length+'|'+a[a.length-1][0]+'|'+a[a.length-1][4]):'';
+        const _sig=()=>_tail(OHLC)+';'+_tail(ALT_SVIX)+';'+_tail(ALT_UVIX);
+        const before=_sig();
+        const _grab=f=>fetch(f+'?v='+Date.now()).then(r=>r.ok?r.json():null).catch(()=>null);
+        const jobs=[_grab('svxy_ohlc.json').then(a=>{ if(a&&a.length) OHLC=a; })];
+        if(aMode()){   // only pay for the alt files when they are the ones on screen
+          jobs.push(_grab('svix_ohlc.json').then(a=>{ if(a&&a.length) ALT_SVIX=a; }));
+          jobs.push(_grab('uvix_ohlc.json').then(a=>{ if(a&&a.length) ALT_UVIX=a; }));
+        }
+        await Promise.all(jobs);
+        if(_sig()!==before){
+          CANDLES=displayCandles(); rebuildChartMaps(); updateHdrMeta();
+          const vr=sumMain.timeScale().getVisibleLogicalRange();
+          candleSeries.setData(CANDLES);
+          MARKERS=displayMarkers(); candleSeries.setMarkers(MARKERS);
+          if(vr) sumMain.timeScale().setVisibleLogicalRange(vr);
         }
       }catch(_){}
     }
