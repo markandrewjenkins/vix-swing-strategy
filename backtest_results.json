@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated": "2026-08-29T03:57:41.246348",
+    "generated": "2026-08-29T07:23:35.932851",
     "start_capital": 100000.0,
     "start_date": "2011-12-02",
     "end_date": "2026-08-28",
@@ -8,15 +8,15 @@
     "instruments": "SVXY / UVXY"
   },
   "summary": {
-    "total_return": 245.857681,
-    "cagr": 0.449879,
-    "sharpe": 1.1827,
-    "sortino": 1.1433,
-    "calmar": 1.0187,
+    "total_return": 247.436313,
+    "cagr": 0.450502,
+    "sharpe": 1.1838,
+    "sortino": 1.1441,
+    "calmar": 1.0201,
     "max_drawdown": -0.441608,
     "max_dd_duration": 163,
-    "final_equity": 24685768.08,
-    "spy_return": 5.155292,
+    "final_equity": 24843631.31,
+    "spy_return": 5.169293,
     "total_trades": 139,
     "win_rate": 0.6259,
     "profit_factor": 2.347,
@@ -22459,9 +22459,9 @@
     },
     {
       "date": "2026-08-28",
-      "equity": 24685768.08,
-      "drawdown": -0.6354,
-      "runup": 26265.8501
+      "equity": 24843631.31,
+      "drawdown": 0.0,
+      "runup": 26434.4573
     }
   ],
   "spy_curve": [
@@ -37411,7 +37411,7 @@
     },
     {
       "date": "2026-08-28",
-      "equity": 616170.09
+      "equity": 617571.66
     }
   ],
   "trades": [
@@ -40390,7 +40390,7 @@
     },
     {
       "month": "2026-08",
-      "ret": 0.077334
+      "ret": 0.084223
     }
   ],
   "condition_counts": {
@@ -197370,8 +197370,8 @@
     {
       "date": "2026-08-28",
       "position": "LONG_VOL_SELLER",
-      "equity": 24685768.08,
-      "open_pnl_pct": 0.093149,
+      "equity": 24843631.31,
+      "open_pnl_pct": 0.10014,
       "signal": "HOLD_SVXY",
       "vix1m": 14.43,
       "vix9d": 11.22,
@@ -197379,8 +197379,8 @@
       "contango": 0.2114,
       "vdelta": 3.21,
       "ratio_1m_3m": 0.8255,
-      "move": 70.97,
-      "move_vix_ratio": 4.92,
+      "move": 69.86,
+      "move_vix_ratio": 4.84,
       "bull_9d": false,
       "bull_1m": true,
       "bull_ratio": true,
@@ -197396,17 +197396,17 @@
       "vix_sustained": false,
       "neg_vol": false,
       "cont_bull": true,
-      "obv_div": 0.519,
+      "obv_div": 0.782,
       "price_hi": true,
       "bear_roll": 1.0,
       "mv_hi": false,
       "mv_lo": false,
       "pc_bull": false,
       "high_vol_regime": false,
-      "bb_trend": 3.0266,
+      "bb_trend": 2.9629,
       "vix1m_ma30": 16.17,
-      "svxy_price": 62.55,
-      "uvxy_price": 18.45,
+      "svxy_price": 62.95,
+      "uvxy_price": 18.15,
       "pos_size": 1.0
     }
   ]
