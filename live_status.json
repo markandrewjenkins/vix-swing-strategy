@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-03T04:50:45+00:00",
+  "generated_utc": "2026-09-03T08:00:26+00:00",
   "market": {
     "vix_spot": 15.23,
     "vix1m_used": 15.23,
@@ -37,14 +37,14 @@
         "price": 15.23,
         "prev_close": 15.2,
         "change_pct": 0.001974,
-        "session": "regular",
+        "session": "pre",
         "asof_date": "2026-09-02",
         "regular_price": 15.23,
         "regular_change": -0.067361,
-        "ext_price": null,
-        "ext_change": null,
+        "ext_price": 15.17,
+        "ext_change": -0.00394,
         "reg_time": "2026-09-02T20:10:00+00:00",
-        "time": "2026-09-02T20:10:00+00:00"
+        "time": "2026-09-03T07:45:16+00:00"
       },
       "vix9d": {
         "price": 12.57,
@@ -99,16 +99,16 @@
         "time": "2026-09-02T20:15:00+00:00"
       },
       "move": {
-        "price": 77.8754,
+        "price": 79.71,
         "prev_close": 77.88,
-        "change_pct": -5.9e-05,
+        "change_pct": 0.023498,
         "session": "post",
         "asof_date": "2026-09-02",
-        "regular_price": 77.8754,
-        "regular_change": -5.9e-05,
+        "regular_price": 79.71,
+        "regular_change": 0.023498,
         "ext_price": 79.7133,
-        "ext_change": 0.023601,
-        "reg_time": "2026-09-02T19:30:00+00:00",
+        "ext_change": 4.1e-05,
+        "reg_time": "2026-09-02T20:00:00+00:00",
         "time": "2026-09-02T20:30:00+00:00"
       },
       "gspc": {
@@ -122,7 +122,7 @@
         "ext_price": 7666.3,
         "ext_change": -3.9e-05,
         "reg_time": "2026-09-02T20:15:00+00:00",
-        "time": "2026-09-02T23:59:58+00:00"
+        "time": "2026-09-02T23:55:00+00:00"
       },
       "svxy": {
         "price": 63.03,
@@ -135,7 +135,7 @@
         "ext_price": 63.11,
         "ext_change": 0.001269,
         "reg_time": "2026-09-02T20:00:00+00:00",
-        "time": "2026-09-02T23:48:58+00:00"
+        "time": "2026-09-02T23:45:00+00:00"
       },
       "uvxy": {
         "price": 17.97,
@@ -148,7 +148,7 @@
         "ext_price": 18.0338,
         "ext_change": 0.00355,
         "reg_time": "2026-09-02T20:00:00+00:00",
-        "time": "2026-09-02T23:59:45+00:00"
+        "time": "2026-09-02T23:55:00+00:00"
       },
       "svix": {
         "price": 28.21,
@@ -161,7 +161,7 @@
         "ext_price": 28.21,
         "ext_change": 0.0,
         "reg_time": "2026-09-02T20:00:00+00:00",
-        "time": "2026-09-02T23:45:46+00:00"
+        "time": "2026-09-02T23:45:00+00:00"
       },
       "uvix": {
         "price": 39.1,
@@ -174,7 +174,7 @@
         "ext_price": 39.3299,
         "ext_change": 0.00588,
         "reg_time": "2026-09-02T20:00:00+00:00",
-        "time": "2026-09-02T23:58:50+00:00"
+        "time": "2026-09-02T23:55:00+00:00"
       },
       "tqqq": {
         "price": 69.6404,
@@ -187,7 +187,7 @@
         "ext_price": 69.69,
         "ext_change": 0.000712,
         "reg_time": "2026-09-02T20:00:00+00:00",
-        "time": "2026-09-02T23:59:59+00:00"
+        "time": "2026-09-02T23:55:00+00:00"
       },
       "sqqq": {
         "price": 39.7,
@@ -200,7 +200,7 @@
         "ext_price": 39.68,
         "ext_change": -0.000504,
         "reg_time": "2026-09-02T20:00:00+00:00",
-        "time": "2026-09-02T23:59:57+00:00"
+        "time": "2026-09-02T23:55:00+00:00"
       },
       "spy": {
         "price": 765.4,
@@ -213,7 +213,7 @@
         "ext_price": 765.37,
         "ext_change": -3.9e-05,
         "reg_time": "2026-09-02T20:00:00+00:00",
-        "time": "2026-09-02T23:59:58+00:00"
+        "time": "2026-09-02T23:55:00+00:00"
       }
     }
   },
@@ -222,7 +222,7 @@
     "backend_slope": 0.148336,
     "vdelta": 2.66,
     "ratio_1m_3m": 0.859,
-    "move_vix_ratio": 5.11,
+    "move_vix_ratio": 5.23,
     "regime": "contango"
   },
   "signal_timing": {
@@ -257,8 +257,8 @@
       "expected": "Live VIX1M \u00f7 VIX3M (both Yahoo intraday)."
     },
     "move_vix_ratio": {
-      "value": 5.1133,
-      "changed_utc": "2026-09-02T20:30:28+00:00",
+      "value": 5.2337,
+      "changed_utc": "2026-09-03T08:00:26+00:00",
       "cadence": "live",
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
@@ -269,7 +269,7 @@
     "position": "LONG_VOL_SELLER",
     "signal": "HOLD_SVXY",
     "open_pnl": 0.101538,
-    "equity": 24508172.32,
+    "equity": 24875203.05,
     "entry_date": "2026-07-30",
     "entry_price": 57.22,
     "pos_size": 1.0,
