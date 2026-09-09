@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-09T21:25:26+00:00",
+  "generated_utc": "2026-09-09T21:30:32+00:00",
   "market": {
     "vix_spot": 16.46,
     "vix1m_used": 16.46,
@@ -132,10 +132,10 @@
         "asof_date": "2026-09-09",
         "regular_price": 62.6,
         "regular_change": -0.006507,
-        "ext_price": 62.63,
-        "ext_change": 0.000479,
+        "ext_price": 62.54,
+        "ext_change": -0.000958,
         "reg_time": "2026-09-09T20:00:00+00:00",
-        "time": "2026-09-09T21:05:01+00:00"
+        "time": "2026-09-09T21:08:17+00:00"
       },
       "uvxy": {
         "price": 18.39,
@@ -161,7 +161,7 @@
         "ext_price": 27.9,
         "ext_change": 0.003958,
         "reg_time": "2026-09-09T20:00:00+00:00",
-        "time": "2026-09-09T20:30:00+00:00"
+        "time": "2026-09-09T21:05:01+00:00"
       },
       "uvix": {
         "price": 40.2,
@@ -174,7 +174,7 @@
         "ext_price": 40.2845,
         "ext_change": 0.002102,
         "reg_time": "2026-09-09T20:00:00+00:00",
-        "time": "2026-09-09T21:08:32+00:00"
+        "time": "2026-09-09T21:05:00+00:00"
       },
       "tqqq": {
         "price": 71.42,
@@ -184,10 +184,10 @@
         "asof_date": "2026-09-09",
         "regular_price": 71.42,
         "regular_change": -0.007905,
-        "ext_price": 71.48,
-        "ext_change": 0.00084,
+        "ext_price": 71.4819,
+        "ext_change": 0.000867,
         "reg_time": "2026-09-09T20:00:00+00:00",
-        "time": "2026-09-09T21:25:13+00:00"
+        "time": "2026-09-09T21:30:23+00:00"
       },
       "sqqq": {
         "price": 38.7,
@@ -200,7 +200,7 @@
         "ext_price": 38.65,
         "ext_change": -0.001292,
         "reg_time": "2026-09-09T20:00:00+00:00",
-        "time": "2026-09-09T21:25:25+00:00"
+        "time": "2026-09-09T21:30:00+00:00"
       },
       "spy": {
         "price": 762.28,
@@ -263,7 +263,7 @@
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
   },
-  "cboe_refreshed": false,
+  "cboe_refreshed": true,
   "official": {
     "date": "2026-09-08",
     "position": "LONG_VOL_SELLER",
