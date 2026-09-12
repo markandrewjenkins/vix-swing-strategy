@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-12T00:45:36+00:00",
+  "generated_utc": "2026-09-12T00:50:24+00:00",
   "market": {
     "vix_spot": 15.84,
     "vix1m_used": 15.84,
@@ -265,14 +265,15 @@
   },
   "cboe_refreshed": true,
   "official": {
-    "date": "2026-09-10",
-    "position": "CASH",
-    "signal": "CASH",
-    "open_pnl": 0.0,
+    "date": "2026-09-11",
+    "position": "LONG_VOL_SELLER",
+    "signal": "LONG_SVXY",
+    "open_pnl": 0.022609,
     "equity": 24705500.61,
-    "entry_date": null,
-    "entry_price": null,
-    "pos_size": 0.0
+    "entry_date": "2026-09-11",
+    "entry_price": 61.48,
+    "pos_size": 1.0,
+    "open_pnl_live": true
   },
   "note": "Term structure is CBOE end-of-day (re-fetched only after the ~5:30pm ET post; cached intraday). VIX spot & ETF quotes are Yahoo intraday (~15-min delayed). Live signals refresh ~every 5 min so you can see where the EOD reading is heading; signals finalize at the ~7pm ET evaluation and trade the next open."
 }
