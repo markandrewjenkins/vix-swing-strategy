@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated": "2026-09-15T01:03:29.733592",
+    "generated": "2026-09-15T05:22:16.909620",
     "start_capital": 100000.0,
     "start_date": "2011-12-02",
     "end_date": "2026-09-14",
@@ -8,15 +8,15 @@
     "instruments": "SVXY / UVXY"
   },
   "summary": {
-    "total_return": 246.055006,
-    "cagr": 0.448377,
-    "sharpe": 1.1809,
-    "sortino": 1.1418,
-    "calmar": 1.0153,
+    "total_return": 244.994176,
+    "cagr": 0.447958,
+    "sharpe": 1.1801,
+    "sortino": 1.1414,
+    "calmar": 1.0144,
     "max_drawdown": -0.441608,
     "max_dd_duration": 163,
-    "final_equity": 24705500.61,
-    "spy_return": 5.114809,
+    "final_equity": 24599417.65,
+    "spy_return": 5.087527,
     "total_trades": 140,
     "win_rate": 0.6286,
     "profit_factor": 2.3405,
@@ -22525,9 +22525,9 @@
     },
     {
       "date": "2026-09-14",
-      "equity": 24705500.61,
-      "drawdown": -1.7268,
-      "runup": 26286.9256
+      "equity": 24599417.65,
+      "drawdown": -2.1488,
+      "runup": 26173.6228
     }
   ],
   "spy_curve": [
@@ -37521,7 +37521,7 @@
     },
     {
       "date": "2026-09-14",
-      "equity": 612117.55
+      "equity": 609386.51
     }
   ],
   "trades": [
@@ -40519,7 +40519,7 @@
     },
     {
       "month": "2026-09",
-      "ret": -0.006665
+      "ret": -0.01093
     }
   ],
   "condition_counts": {
@@ -197961,8 +197961,8 @@
     {
       "date": "2026-09-14",
       "position": "LONG_VOL_SELLER",
-      "equity": 24705500.61,
-      "open_pnl_pct": 0.0,
+      "equity": 24599417.65,
+      "open_pnl_pct": -0.004294,
       "signal": "HOLD_SVXY",
       "vix1m": 17.1,
       "vix9d": 16.91,
@@ -197987,17 +197987,17 @@
       "vix_sustained": false,
       "neg_vol": true,
       "cont_bull": false,
-      "obv_div": -0.484,
+      "obv_div": -0.686,
       "price_hi": true,
       "bear_roll": 0.0,
       "mv_hi": false,
       "mv_lo": false,
       "pc_bull": false,
       "high_vol_regime": false,
-      "bb_trend": 4.8169,
+      "bb_trend": 4.8023,
       "vix1m_ma30": 15.42,
-      "svxy_price": 62.88,
-      "uvxy_price": 18.02,
+      "svxy_price": 62.61,
+      "uvxy_price": 18.23,
       "pos_size": 1.0
     }
   ]
