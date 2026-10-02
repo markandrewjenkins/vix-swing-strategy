@@ -657,7 +657,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
   </div>
   <div id="tab-analytics" style="display:none">
     <div class="kpi-grid" id="kpi-strip"></div>
-    <div style="font-size:0.72rem;color:var(--dim);margin:6px 2px 0;line-height:1.5"><b>Hypothetical backtest</b> from a $100k start, before trading costs, slippage and taxes. Dollar figures compound without any capacity limit &mdash; real position sizes in these ETFs would be capped by liquidity long before these levels, so read the percentages, not the dollars.</div>
+    <div style="font-size:0.72rem;color:var(--dim);margin:6px 2px 0;line-height:1.5"><b>Hypothetical, in-sample backtest</b> from a $100k start, before trading costs, slippage and taxes. Growth multiples assume no capacity limit &mdash; real position sizes in these ETFs would be capped by liquidity well before the later figures.</div>
     
     <div class="panel" style="margin-top:12px">
       <div class="ph"><span>Daily P&amp;L (mark-to-market)</span></div>
@@ -733,6 +733,9 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
           <th style="text-align:right;cursor:help" title="Split-adjusted ETF price. UVXY/UVIX have had many reverse splits, so their early prices look very large; the return is what matters.">Entry $</th><th style="text-align:right;cursor:help" title="Split-adjusted ETF price. UVXY/UVIX have had many reverse splits, so their early prices look very large; the return is what matters.">Exit $</th><th style="text-align:right">Return</th><th style="text-align:right" title="The trade's effect on the whole portfolio (its P&amp;L as a share of the account when it opened, so position size is included)">Portfolio</th><th>Exit reason</th><th>vs threshold</th><th style="text-align:right" title="Account value after the trade, as a multiple of the starting account">Growth</th>
         </tr></thead><tbody id="trade-tbody"></tbody></table>
       </div>
+      <div style="margin:6px 2px 0;color:var(--dim);font-size:0.7rem;line-height:1.5">Prices are split-adjusted to today&rsquo;s
+        share basis. UVXY and UVIX have reverse-split many times, so their early trades show very large adjusted prices &mdash;
+        the percentage returns are what matter.</div>
       <div class="exit-legend">
         <span class="el-title">Exit reasons:</span>
         <span><b>Take Profit</b> — unrealised gain hit the profit target</span>
@@ -1619,7 +1622,7 @@ function ddRecovery(minDepth){
 function renderAnalytics(){
   const s=aStats();
   const kpis=[
-    {l:'Growth',       v:fmtX(s.final_equity/DATA.meta.start_capital), sub:fmtPct(s.total_return,0)+' total return', c:s.total_return>=0?'pos':'neg'},
+    {l:'Growth',       v:fmtX(s.final_equity/DATA.meta.start_capital), sub:fmtPct(s.total_return,0)+' total · in-sample backtest', c:s.total_return>=0?'pos':'neg'},
     {l:'Max drawdown', v:fmtPct(s.max_drawdown,1), sub:'Peak-to-trough', c:'neg', wide:true,
      insets:(()=>{ const R=ddRecovery(0.10);
        const _m=v=>v==null?'N/A':(v<1?(v*21).toFixed(0)+'d':v.toFixed(1)+'mo');
@@ -1632,7 +1635,7 @@ function renderAnalytics(){
                ['Slowest recovery',_m(R.max_recovery_m),'The single worst case: longest trough-to-new-high stretch in the record'+(R.ongoing?' ('+R.ongoing+' drawdown still open, excluded)':'')]]; })()},
     {l:'Win rate',     v:(s.win_rate*100).toFixed(1)+'%', sub:aTrades().filter(t=>tRet(t)>0).length+' wins / '+s.total_trades+' trades', c:s.win_rate>=0.5?'pos':'neg'},
     {l:'Profit factor',v:parseFloat(s.profit_factor).toFixed(2)+'×', sub:'Gross wins ÷ gross losses', c:s.profit_factor>=1.5?'pos':s.profit_factor>=1?'neu':'neg'},
-    {l:'CAGR',         v:fmtPct(s.cagr,2), sub:'Annualised compound return', c:s.cagr>=0?'pos':'neg'},
+    {l:'CAGR',         v:fmtPct(s.cagr,2), sub:'Annualised · in-sample backtest', c:s.cagr>=0?'pos':'neg'},
     {l:'Sharpe ratio', v:fmtNum(s.sharpe,2), sub:'Return per unit of total vol', c:s.sharpe>=1?'pos':s.sharpe>=0?'neu':'neg'},
     {l:'Sortino ratio',v:fmtNum(s.sortino,2), sub:'Return per unit of downside vol', c:s.sortino>=1?'pos':s.sortino>=0?'neu':'neg'},
     {l:'Calmar ratio', v:fmtNum(s.calmar,2), sub:'CAGR ÷ |max drawdown|', c:s.calmar>=1?'pos':s.calmar>=0.5?'neu':'neg'},
