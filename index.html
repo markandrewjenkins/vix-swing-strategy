@@ -5,11 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>VIX Swing Strategy</title>
-<meta name="description" content="A systematic VIX term-structure swing strategy (short-vol / long-vol ETFs): live signals, full backtest history and risk analytics. A personal research project - not investment advice.">
-<meta property="og:title" content="VIX Swing Strategy - live dashboard">
-<meta property="og:description" content="A systematic VIX term-structure swing strategy: live signals, backtest history and risk analytics. Personal research project - not investment advice.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://markandrewjenkins.github.io/vix-swing-strategy/">
 <link href="https://fonts.googleapis.com/css2?family=Saira:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -412,7 +407,6 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .sig-gauge { display:inline-block; vertical-align:middle; }
 .cur-cell { display:flex; align-items:center; gap:7px; }
 .cur-cell .cur-val { width:64px; text-align:right; flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:0.82rem; }
-.cur-cell .cur-val.prelim, .live-chg.prelim { font-style:italic; }
 .cur-hd { display:inline-block; width:62px; text-align:right; }
 .cur-cell .cur-clk { width:15px; flex:none; text-align:center; }
 .cur-cell .cur-bar { flex:none; }
@@ -1063,6 +1057,8 @@ const abbrev  = v => { if(v==null||isNaN(v))return 'N/A'; const a=Math.abs(v);
 const fmtK    = v => v==null||isNaN(v)?'N/A':'$'+abbrev(v);
 const fmtX    = m => { if(m==null||!isFinite(m)) return 'N/A'; const a=Math.abs(m);
                        return '×'+(a>=100?Math.round(m).toLocaleString('en-US'):a>=10?m.toFixed(1):m.toFixed(2)); };
+const fmtAx   = m => { if(m==null||!isFinite(m)) return ''; if(m>=1) return '×'+Math.round(m).toLocaleString('en-US');
+                       const d=Math.max(1,Math.ceil(-Math.log10(m))); return '×'+m.toFixed(d); };
 const START_EQ= () => (DATA&&DATA.meta&&DATA.meta.start_capital)||100000;
 function tEff(t){ const p=tPnl(t), ea=t.equity_after; const b=(ea!=null&&p!=null)?ea-p:null; return (b&&b>0)?p/b:0; }
 const multOf  = arr => arr.reduce((m,t)=>m*(1+tEff(t)),1);
@@ -1639,7 +1635,6 @@ function renderAnalytics(){
     {l:'Sharpe ratio', v:fmtNum(s.sharpe,2), sub:'Return per unit of total vol', c:s.sharpe>=1?'pos':s.sharpe>=0?'neu':'neg'},
     {l:'Sortino ratio',v:fmtNum(s.sortino,2), sub:'Return per unit of downside vol', c:s.sortino>=1?'pos':s.sortino>=0?'neu':'neg'},
     {l:'Calmar ratio', v:fmtNum(s.calmar,2), sub:'CAGR ÷ |max drawdown|', c:s.calmar>=1?'pos':s.calmar>=0.5?'neu':'neg'},
-    {l:'Excess return vs SPY', v:fmtPct(s.total_return-s.spy_return,0), sub:'Cumulative, not risk-adjusted', c:s.total_return>=s.spy_return?'pos':'neg'},
   ];
   document.getElementById('kpi-strip').innerHTML=kpis.map(k=>
     k.insets
@@ -1682,7 +1677,7 @@ function renderAnalytics(){
              limits:{x:{min:'original',max:'original',minRange:6}} }},
       scales:{
         x:{offset:false,ticks:{color:TICK,maxTicksLimit:12,font:{size:13,family:FONT}},grid:{color:GRID}},
-        y:{type:'logarithmic',position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>{ const l=Math.log10(v); return Math.abs(l-Math.round(l))<1e-9?fmtX(v):''; }},grid:{color:GRID}},
+        y:{type:'logarithmic',position:'left',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>{ const l=Math.log10(v); return Math.abs(l-Math.round(l))<1e-9?fmtAx(v):''; }},grid:{color:GRID}},
         y2:{position:'right',reverse:true,min:-90,max:5,ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>Math.round(v)+'%'},grid:{display:false}},
       }
     }
@@ -1697,7 +1692,7 @@ function renderAnalytics(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>' '+fmtX(c.parsed.y)+' growth multiple'}}},
       scales:{x:{ticks:{color:TICK,font:{size:13,family:FONT}},grid:{display:false}},
-        y:{type:'logarithmic',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>{ const l=Math.log10(v); return Math.abs(l-Math.round(l))<1e-9?fmtX(v):''; }},grid:{color:GRID}}}}
+        y:{type:'logarithmic',ticks:{color:TICK,font:{size:13,family:FONT},callback:v=>{ const l=Math.log10(v); return Math.abs(l-Math.round(l))<1e-9?fmtAx(v):''; }},grid:{color:GRID}}}}
   });
   const hist={};
   aTrades().forEach(t=>{ const b=Math.max(-50,Math.min(100,Math.round(tRet(t)*100/5)*5)); hist[b]=(hist[b]||0)+1; });
@@ -1990,7 +1985,7 @@ function renderRisk(){
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},
       tooltip:{callbacks:{title:c=>'After '+c[0].label+' trades',label:c=>' '+c.dataset.label+': '+fmtX(c.parsed.y/start)}}},
       scales:{ x:{ticks:{color:TICK,maxTicksLimit:12,font:{size:12,family:FONT}},grid:{color:GRID},title:{display:true,text:'Trade #',color:TICK}},
-        y:{type:'logarithmic',ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>{ const l=Math.log10(v/start); return Math.abs(l-Math.round(l))<1e-6?fmtX(v/start):''; }},grid:{color:GRID}} } } });
+        y:{type:'logarithmic',ticks:{color:TICK,font:{size:12,family:FONT},callback:v=>{ const l=Math.log10(v/start); return Math.abs(l-Math.round(l))<1e-6?fmtAx(v/start):''; }},grid:{color:GRID}} } } });
   const fmtR=v=>((v/start-1)>=0?'+':'')+((v/start-1)*100).toLocaleString('en-US',{maximumFractionDigits:0})+'%';
   const probDD=th=>Math.round(100*dds.filter(d=>d<=th).length/SIMS);
   const _yrs=(DATA&&DATA.meta)?((new Date(DATA.meta.end_date)-new Date(DATA.meta.start_date))/(365.25*86400000)):14;
@@ -2481,7 +2476,7 @@ function buildDaily(){
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
   dailySeries=dailyChart.addAreaSeries({lineColor:YELLOW,topColor:'rgba(232,185,79,0.25)',bottomColor:'rgba(232,185,79,0.01)',lineWidth:2,priceScaleId:'right',
     priceLineVisible:true,priceLineColor:'#cdbf95',priceLineWidth:1,priceLineStyle:2,
-    priceFormat:{type:'custom',formatter:v=>fmtX(v/START_EQ())}});
+    priceFormat:{type:'custom',formatter:v=>fmtAx(v/START_EQ())}});
   dailySeries.setData(data); dailySeries.setMarkers(mk);
   const ddS=dailyChart.addHistogramSeries({priceScaleId:'left',color:'rgba(242,86,58,0.34)',base:0,priceLineVisible:false,lastValueVisible:false,
     priceFormat:{type:'custom',formatter:v=>Math.round(v)+'%'},
