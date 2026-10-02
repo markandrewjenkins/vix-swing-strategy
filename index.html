@@ -2468,7 +2468,7 @@ function buildDaily(){
   mk.sort((a,b)=>a.time<b.time?-1:1);
   let _keepRange=_dailyPendRange||null; if(dailyChart){ if(!_keepRange){ try{_keepRange=dailyChart.timeScale().getVisibleLogicalRange();}catch(_){} } try{dailyChart.remove();}catch(_){} dailyChart=null; }
   dailyChart=LC.createChart(el,{ width:el.clientWidth||900, height:el.clientHeight||360,
-    layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
+    layout:{background:{color:'#0c0a07'},textColor:TICK,fontSize:13,fontFamily:FONT},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
     leftPriceScale:{visible:true,borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.10},mode:1},
     rightPriceScale:{visible:true,invertScale:true,borderColor:'#443714',scaleMargins:{top:0.04,bottom:0.04}},
@@ -2487,7 +2487,7 @@ function buildDaily(){
     const na='<b style="color:var(--namut)">N/A</b>';
     const posTxt=m.held?`<b style="color:${m.pos>=0?'var(--teal)':'var(--coral)'}">${(m.pos>=0?'+':'')+(m.pos*100).toFixed(1)}%</b>`:na;
     const dayTxt=m.held?`<b style="color:${m.day>=0?'var(--teal)':'var(--coral)'}">${(m.day>=0?'+':'')+(m.day*100).toFixed(2)}%</b>`:na;
-    return `<b>${d}</b> &nbsp; total <b style="color:${cc}">${(m.cum*100).toFixed(1)}%</b> &nbsp; position ${posTxt} &nbsp; day ${dayTxt} &nbsp; DD <b style="color:var(--coral)">${m.dd.toFixed(1)}%</b> &nbsp; growth ${fmtX(m.eq/START_EQ())}`;};
+    return `<b>${d}</b> &nbsp; growth <b style="color:${cc}">${fmtX(m.eq/START_EQ())}</b> &nbsp; position ${posTxt} &nbsp; day ${dayTxt} &nbsp; DD <b style="color:var(--coral)">${m.dd.toFixed(1)}%</b>`;};
   const _dLockX=()=>{ const t=window._dailyPinned; if(t==null) return; const m=_dailyMap[t];
     if(m){ try{ dailyChart.setCrosshairPosition(m.eq, t, dailySeries); }catch(_){} } };
   if(info) dailyChart.subscribeCrosshairMove(p=>{ if(window._dailyPinned!=null){ _dLockX(); return; }
