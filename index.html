@@ -2470,15 +2470,15 @@ function buildDaily(){
   dailyChart=LC.createChart(el,{ width:el.clientWidth||900, height:el.clientHeight||360,
     layout:{background:{color:'#0c0a07'},textColor:'#cdbf95',fontFamily:"'Saira', sans-serif"},
     grid:{vertLines:{color:GRID},horzLines:{color:GRID}},
-    rightPriceScale:{borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.10},mode:1},
-    leftPriceScale:{visible:true,invertScale:true,borderColor:'#443714',scaleMargins:{top:0.04,bottom:0.04}},
+    leftPriceScale:{visible:true,borderColor:'#443714',scaleMargins:{top:0.10,bottom:0.10},mode:1},
+    rightPriceScale:{visible:true,invertScale:true,borderColor:'#443714',scaleMargins:{top:0.04,bottom:0.04}},
     timeScale:{borderColor:'#443714',rightOffset:6,minBarSpacing:0.02,maxBarSpacing:18},
     crosshair:{mode:(LC.CrosshairMode?LC.CrosshairMode.Normal:1),vertLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'},horzLine:{color:'#6a551f',labelBackgroundColor:'#6a551f'}} });
-  dailySeries=dailyChart.addAreaSeries({lineColor:YELLOW,topColor:'rgba(232,185,79,0.25)',bottomColor:'rgba(232,185,79,0.01)',lineWidth:2,priceScaleId:'right',
+  dailySeries=dailyChart.addAreaSeries({lineColor:YELLOW,topColor:'rgba(232,185,79,0.25)',bottomColor:'rgba(232,185,79,0.01)',lineWidth:2,priceScaleId:'left',
     priceLineVisible:true,priceLineColor:'#cdbf95',priceLineWidth:1,priceLineStyle:2,
     priceFormat:{type:'custom',formatter:v=>fmtAx(v/START_EQ())}});
   dailySeries.setData(data); dailySeries.setMarkers(mk);
-  const ddS=dailyChart.addHistogramSeries({priceScaleId:'left',color:'rgba(242,86,58,0.34)',base:0,priceLineVisible:false,lastValueVisible:false,
+  const ddS=dailyChart.addHistogramSeries({priceScaleId:'right',color:'rgba(242,86,58,0.34)',base:0,priceLineVisible:false,lastValueVisible:false,
     priceFormat:{type:'custom',formatter:v=>Math.round(v)+'%'},
     autoscaleInfoProvider:()=>({priceRange:{minValue:-100,maxValue:0}})});
   ddS.setData(ec.map(b=>({time:b.date,value:+(b.drawdown||0).toFixed(2)})));
@@ -2487,7 +2487,7 @@ function buildDaily(){
     const na='<b style="color:var(--namut)">N/A</b>';
     const posTxt=m.held?`<b style="color:${m.pos>=0?'var(--teal)':'var(--coral)'}">${(m.pos>=0?'+':'')+(m.pos*100).toFixed(1)}%</b>`:na;
     const dayTxt=m.held?`<b style="color:${m.day>=0?'var(--teal)':'var(--coral)'}">${(m.day>=0?'+':'')+(m.day*100).toFixed(2)}%</b>`:na;
-    return `<b>${d}</b> &nbsp; total <b style="color:${cc}">${(m.cum*100).toFixed(1)}%</b> &nbsp; position ${posTxt} &nbsp; day ${dayTxt} &nbsp; DD <b style="color:var(--coral)">${m.dd.toFixed(1)}%</b> &nbsp; equity $${abbrev(m.eq)}`;};
+    return `<b>${d}</b> &nbsp; total <b style="color:${cc}">${(m.cum*100).toFixed(1)}%</b> &nbsp; position ${posTxt} &nbsp; day ${dayTxt} &nbsp; DD <b style="color:var(--coral)">${m.dd.toFixed(1)}%</b> &nbsp; growth ${fmtX(m.eq/START_EQ())}`;};
   const _dLockX=()=>{ const t=window._dailyPinned; if(t==null) return; const m=_dailyMap[t];
     if(m){ try{ dailyChart.setCrosshairPosition(m.eq, t, dailySeries); }catch(_){} } };
   if(info) dailyChart.subscribeCrosshairMove(p=>{ if(window._dailyPinned!=null){ _dLockX(); return; }
