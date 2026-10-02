@@ -674,7 +674,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
       <div class="pb" style="position:relative;height:320px">
         <canvas id="eqChart"></canvas>
         <button id="eq-reset" title="Reset zoom to the full history" onclick="eqResetZoom()" style="position:absolute;top:10px;right:12px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">&#8634; Reset zoom</button>
-        <button id="eq-toend" title="Jump to the most recent bars" onclick="eqToEnd()" style="position:absolute;bottom:40px;right:14px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
+        <button id="eq-toend" title="Jump to the most recent bars" onclick="eqToEnd()" style="display:none;position:absolute;bottom:40px;right:14px;z-index:6;background:rgba(20,17,11,0.88);color:var(--yellow);border:1px solid var(--border2);border-radius:12px;padding:3px 11px;font-family:'Saira',sans-serif;font-size:0.7rem;letter-spacing:0.03em;cursor:pointer">Latest &#8594;</button>
       </div>
     </div>
     <div class="row" style="margin-top:12px">
@@ -1672,8 +1672,8 @@ function renderAnalytics(){
       plugins:{legend:{display:false},tooltip:{
         callbacks:{label:c=>c.dataset.label==='Drawdown'?' DD: '+c.parsed.y.toFixed(1)+'%':' '+c.dataset.label+': '+fmtX(c.parsed.y)}
       },
-      zoom:{ pan:{enabled:true,mode:'x'},
-             zoom:{wheel:{enabled:true,speed:0.09},pinch:{enabled:true},mode:'x'},
+      zoom:{ pan:{enabled:true,mode:'x',onPanComplete:_eqToEndVis},
+             zoom:{wheel:{enabled:true,speed:0.09},pinch:{enabled:true},mode:'x',onZoomComplete:_eqToEndVis},
              limits:{x:{min:'original',max:'original',minRange:6}} }},
       scales:{
         x:{offset:false,ticks:{color:TICK,maxTicksLimit:12,font:{size:13,family:FONT}},grid:{color:GRID}},
@@ -1682,6 +1682,7 @@ function renderAnalytics(){
       }
     }
   });
+  _eqToEndVis();
   buildDaily();
   const gP=multOf(aTrades().filter(t=>tRet(t)>0));
   const gL=multOf(aTrades().filter(t=>tRet(t)<=0));
@@ -2426,19 +2427,24 @@ function dailyToEnd(){ if(!dailyChart||!_dailyDates) return; const N=_dailyDates
   _xTouched=true;
   try{ dailyChart.timeScale().setVisibleLogicalRange({from:Math.max(0,N-BARS),to:N-1+FUT}); }catch(_){} }
 let _zoomReg=false;
-function eqResetZoom(){ try{ Chart.getChart('eqChart').resetZoom(); }catch(_){} }
+function eqResetZoom(){ try{ Chart.getChart('eqChart').resetZoom(); }catch(_){} _eqToEndVis(); }
+function _eqToEndVis(){ const btn=document.getElementById('eq-toend'); if(!btn) return;
+  try{ const c=Chart.getChart('eqChart'); const n=c.data.labels.length;
+    btn.style.display=(c.scales.x.max < n-1-0.5)?'block':'none'; }catch(_){ btn.style.display='none'; } }
 function eqToEnd(){ try{ const c=Chart.getChart('eqChart'); if(!c) return;
   c.resetZoom();
   const n=c.data.labels.length, span=Math.min(n-1,90);
   c.zoomScale('x',{min:Math.max(0,n-1-span),max:n-1},'default');
-}catch(_){} }
+}catch(_){} _eqToEndVis(); }
 function _ensureZoom(){ if(_zoomReg) return; _zoomReg=true;
   const p=window.ChartZoom||window.chartjsPluginZoom;
   if(p&&window.Chart){ try{ Chart.register(p); }catch(_){} }
   const cv=document.getElementById('eqChart');
-  if(cv&&!cv._dblBound){ cv.addEventListener('dblclick',()=>{ try{ Chart.getChart('eqChart').resetZoom(); }catch(_){} }); cv._dblBound=true; } }
+  if(cv&&!cv._dblBound){ cv.addEventListener('dblclick',()=>{ try{ Chart.getChart('eqChart').resetZoom(); }catch(_){} _eqToEndVis(); }); cv._dblBound=true; } }
 function dailyFitAll(){ if(!dailyChart||!_dailyDates) return; const N=_dailyDates.length;
-  try{ dailyChart.timeScale().setVisibleLogicalRange({from:0,to:N-1}); }
+  try{ const ts=dailyChart.timeScale(), W=ts.width();
+    if(W>0){ ts.applyOptions({barSpacing:W/N, rightOffset:0}); ts.scrollToPosition(0,false); }
+    else ts.setVisibleLogicalRange({from:0,to:N-1}); }
   catch(_){ try{ dailyChart.timeScale().fitContent(); }catch(__){} } }
 let _xTouched=false;
 function _markChartGesture(el){ if(!el||el._gestBound) return;
@@ -2513,6 +2519,8 @@ function buildDaily(){
   const _restore = _dailyPendRange || (_xTouched ? _keepRange : null);
   if(_restore){ try{dailyChart.timeScale().setVisibleLogicalRange(_restore);}catch(_){ dailyFitAll(); } }
   else dailyFitAll();
+  if(!_restore){ const _ch=dailyChart;
+    try{ _ch.timeScale().subscribeSizeChange(()=>{ if(_ch===dailyChart && !_xTouched) dailyFitAll(); }); }catch(_){} }
 }
 function scaleMini(){ const mm=document.getElementById('mini-monitor'); if(!mm) return;
   const inner=mm.querySelector('.mini-inner'); if(!inner) return;
