@@ -555,7 +555,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
     <button class="tab" onclick="switchTab('howto')">About</button>
   </div>
 </div>
-<div id="live-strip" title="Live market readings that feed the entry/exit signals. Signals finalise ~5:30 PM ET (when the VIX term structure posts); trades execute the same day ~7-8 PM ET (after hours). Intraday values (incl. pre/post-market) are available for most tickers but are indicative only.">
+<div id="live-strip" title="Live market readings that feed the entry/exit signals. Signals finalize ~5:30 PM ET (when the VIX term structure posts); trades execute the same day ~7-8 PM ET (after hours). Intraday values (incl. pre/post-market) are available for most tickers but are indicative only.">
   <div class="live-main">
     <div class="live-pos-block">
       <span class="live-pos-lbl">Current Position</span>
@@ -2233,7 +2233,7 @@ async function loadLive(){
     if(note) note.textContent = live ? 'Quotes refresh every 5 mins, up to 15 mins delay'
                               : regular ? 'Live feed delay - showing last received quotes'
                               : settle  ? (tsPosted ? 'Quotes refresh every 5 mins, EOD prints now final'
-                                                    : 'Quotes refresh every 5 mins, awaiting final EOD prints')
+                                                    : 'Quotes refresh every 5 mins, awaiting EOD prints')
                               : premkt  ? 'Quotes refresh every 5 mins where available'
                               : 'Market closed - showing last close';
     if(delay) delay.style.display = (live||regular||settle) ? '' : 'none';
@@ -3144,7 +3144,7 @@ function renderSignalMonitor(histBar){
   } else {
     const off = (L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
     const _clk = `<span class="sig-info" style="color:var(--teal)">&#9201;</span>`;
-    const note = `Signals finalise once the CBOE end-of-day VIX term structure posts (~<b>5:30pm&nbsp;ET</b>) and the day's close is confirmed; the decision locks in by ~<b>7pm&nbsp;ET</b> and trades the <b>same day in after-hours</b> (~7&ndash;8pm&nbsp;ET; the backtest uses the 4pm close as the fill). If a position is open, it is evaluated against the <b>exit</b> indicators. If any of the 6 exit indicators is triggered, the position is closed the same evening &mdash; except that a short-vol Neg-Vol, MOVE/VIX or Rollover exit is <b>held</b> while the short-vol entry conditions are still met. Hover over the ${_clk} to the right of the Current values for its refresh timing, and hover over the bar to the right of the ${_clk} to view more details on the current value of the indicator and its positioning against the entry / exit criteria.`;
+    const note = `Signals finalize once the CBOE end-of-day VIX term structure posts (~<b>5:30pm&nbsp;ET</b>) and the day's close is confirmed; the decision locks in by ~<b>7pm&nbsp;ET</b> and trades the <b>same day in after-hours</b> (~7&ndash;8pm&nbsp;ET; the backtest uses the 4pm close as the fill). If a position is open, it is evaluated against the <b>exit</b> indicators. If any of the 6 exit indicators is triggered, the position is closed the same evening &mdash; except that a short-vol Neg-Vol, MOVE/VIX or Rollover exit is <b>held</b> while the short-vol entry conditions are still met. Hover over the ${_clk} to the right of the Current values for its refresh timing, and hover over the bar to the right of the ${_clk} to view more details on the current value of the indicator and its positioning against the entry / exit criteria.`;
     html =
         `<div class="sig-proj-row1">`
       +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
