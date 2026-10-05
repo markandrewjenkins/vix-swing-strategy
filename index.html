@@ -529,6 +529,51 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
   .mini-mon { display: none !important; }
   .ph-live { flex-wrap: wrap; gap: 6px 16px; }
 }
+.m-bar { display:none; }
+body.mob .hdr { padding:6px 12px !important; gap:6px !important; flex-wrap:wrap; }
+body.mob .hdr > div:first-child { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; width:100%; }
+body.mob .hdr-title { font-size:0.95rem !important; letter-spacing:0.05em; margin:0 !important; }
+body.mob .m-bar { display:flex; align-items:center; gap:10px; margin-left:auto; }
+body.mob #m-pos { font-weight:700; font-size:0.92rem; white-space:nowrap; }
+body.mob #m-pos .live-chg { font-size:0.76rem; margin-left:5px; }
+body.mob #m-menu { background:transparent; border:1px solid var(--border2); color:var(--yellow); border-radius:8px;
+  font-size:1.05rem; line-height:1; padding:4px 9px; cursor:pointer; }
+body.mob .hdr:not(.m-open) .hdr-metarow, body.mob .hdr:not(.m-open) .tabs { display:none !important; }
+body.mob .hdr.m-open .hdr-metarow { width:100%; }
+body.mob .hdr.m-open .tabs { width:100%; gap:6px; }
+body.mob #live-strip { position:relative; padding:5px 34px 5px 12px !important; cursor:pointer; }
+body.mob #live-strip::after { content:'\25BE'; position:absolute; right:13px; top:5px; color:var(--yellow); font-size:0.9rem; }
+body.mob #live-strip.m-exp::after { content:'\25B4'; }
+body.mob #live-strip .live-pos-block, body.mob #live-strip .live-vdiv { display:none !important; }
+body.mob #live-strip:not(.m-exp) .live-main { flex-direction:row !important; }
+body.mob #live-strip:not(.m-exp) .live-row:not(:first-child) { display:none !important; }
+body.mob #live-strip:not(.m-exp) .live-row:first-child { flex-wrap:nowrap !important; gap:12px !important; overflow:hidden; }
+body.mob #live-strip:not(.m-exp) .live-row:first-child > .live-item:not(.live-status):nth-child(n+3) { display:none !important; }
+body.mob #live-strip:not(.m-exp) .live-status { flex-basis:auto !important; width:auto !important; margin-left:auto !important; }
+body.mob #live-strip:not(.m-exp) .live-status > :not(.live-badge) { display:none !important; }
+body.mob #live-strip:not(.m-exp) .live-ext { display:none !important; }
+body.mob #replay-bar, body.mob #cdl-info, body.mob #cdl-fs, body.mob .mkt-sessbar { display:none !important; }
+body.mob #live-panel .ph-live { padding-top:6px; padding-bottom:6px; }
+body.mob-p #mini-monitor { display:block !important; top:auto; left:0; right:0; bottom:0; max-height:68%;
+  overflow-y:auto; pointer-events:auto; z-index:7; }
+body.mob-p #mini-monitor .mini-inner { position:relative; width:auto; transform:none !important;
+  border-radius:14px 14px 0 0; font-size:0.74rem; padding:6px 12px 8px; }
+body.mob-p #mini-monitor .mini-inner::before { content:''; display:block; width:30px; height:3px; border-radius:2px;
+  background:var(--border2); margin:0 auto 5px; }
+body.mob-p #mini-monitor .mini-hd { cursor:pointer; }
+body.mob-p #mini-monitor.mini-collapsed .mini-body { display:block; }
+body.mob-p #mini-monitor.mini-collapsed .mini-body > :not(.mini-pos):not(.mini-combo) { display:none; }
+body.mob-p #cdl-toend { bottom:92px !important; }
+body.mob-p #candle-chart { height:calc(100% - 84px) !important; }   
+body.mob #mkt-countdown { display:none !important; }
+body.mob-l #candle-chart { width:60% !important; }
+body.mob-l #mini-monitor { display:block !important; left:60%; right:0; top:0; bottom:0; overflow-y:auto;
+  pointer-events:auto; border-left:1px solid var(--border2); }
+body.mob-l #mini-monitor .mini-inner { position:static; width:auto; transform:none !important; border:none;
+  border-radius:0; min-height:100%; font-size:0.7rem; }
+body.mob-l #mini-monitor.mini-collapsed .mini-body { display:block; }
+body.mob-l #mini-monitor .mini-exp { display:none; }
+body.mob-l #cdl-toend { right:calc(40% + 66px) !important; }
 </style>
 </head>
 <body>
@@ -536,6 +581,7 @@ table.sig-mon tr.sig-divider td { color:var(--dim); font-size:0.6rem; text-trans
 <div class="hdr">
   <div>
     <div class="hdr-title">VIX SWING STRATEGY</div>
+    <div class="m-bar"><span id="m-pos"></span><button id="m-menu" onclick="mMenu()" aria-label="Menu" title="Menu">&#9776;</button></div>
     <div class="hdr-metarow">
       <span class="hdr-meta" id="hdr-meta">Loading...</span>
       <span class="hdr-meta" title="NOTE: SVIX/UVIX only launched in 2022, so prior results involving either of these two ETFs are simulated based on SVXY/UVXY trade returns, then leverage-scaled">Toggle Vol ETF Pair:</span>
@@ -2523,6 +2569,7 @@ function buildDaily(){
     try{ _ch.timeScale().subscribeSizeChange(()=>{ if(_ch===dailyChart && !_xTouched) dailyFitAll(); }); }catch(_){} }
 }
 function scaleMini(){ const mm=document.getElementById('mini-monitor'); if(!mm) return;
+  if(document.body.classList.contains('mob')){ const _ni=mm.querySelector('.mini-inner'); if(_ni) _ni.style.transform='none'; return; }
   const inner=mm.querySelector('.mini-inner'); if(!inner) return;
   if(mm.classList.contains('mini-collapsed')){ inner.style.transform='none'; return; }
   inner.style.transform='none';
@@ -2532,7 +2579,7 @@ function scaleMini(){ const mm=document.getElementById('mini-monitor'); if(!mm) 
   inner.style.transform='scale('+s.toFixed(4)+')'; }
 function miniToggle(){ const mm=document.getElementById('mini-monitor'); if(!mm) return;
   const c=mm.classList.toggle('mini-collapsed');
-  try{ localStorage.setItem('miniCollapsed', c?'1':'0'); }catch(_){}
+  try{ localStorage.setItem(_miniKey(), c?'1':'0'); }catch(_){}
   const b=mm.querySelector('.mini-exp'); if(b) b.innerHTML = c?'&#11122;':'&#11121;';
   scaleMini();
 }
@@ -3266,7 +3313,7 @@ function renderSignalMonitor(histBar){
     mh+=mRow('Sizing', sSize, b.high_vol_regime?'High':'Norm', mSig('NA'), inPos);
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
     const _mm=document.getElementById('mini-monitor');
-    let _miniColl=false; try{ _miniColl=localStorage.getItem('miniCollapsed')==='1'; }catch(_){}
+    let _miniColl=false; try{ const _mv=localStorage.getItem(_miniKey()); _miniColl=(_mv==null)?_miniDefault():_mv==='1'; }catch(_){}
     _mm.classList.toggle('mini-collapsed', _miniColl);
     _mm.innerHTML='<div class="mini-inner"><div class="mini-hd"><span>Live signals'+((hist&&!_miniColl)?' &middot; '+b.date:'')+'</span>'
       +'<button class="mini-exp" title="Expand / collapse" onclick="miniToggle()">'+(_miniColl?'&#11122;':'&#11121;')+'</button></div>'
@@ -3286,6 +3333,55 @@ function monitorHover(time){
 load().then(loadLive).catch(()=>{});
 setInterval(loadLive, 60000);
 updateMarket(); setInterval(updateMarket, 1000);
+</script>
+<script>
+(function(){
+  const mqP=matchMedia('(max-width: 640px)');
+  const mqL=matchMedia('(orientation: landscape) and (max-height: 500px) and (max-width: 1000px)');
+  const B=document.body;
+  window._miniKey=()=>B.classList.contains('mob')?'miniCollapsedM':'miniCollapsed';
+  window._miniDefault=()=>B.classList.contains('mob-p');
+  let origH=null;
+  function fit(){
+    const wrap=document.getElementById('cdl-wrap'), el=document.getElementById('candle-chart'); if(!wrap||!el) return;
+    if(origH===null) origH=wrap.style.height||'';
+    if(B.classList.contains('mob')){
+      const tab=document.getElementById('tab-summary'); if(tab&&tab.style.display==='none') return;
+      const sc=(document.scrollingElement?document.scrollingElement.scrollTop:0)+(B.scrollTop||0);
+      const top=wrap.getBoundingClientRect().top+sc;
+      const vh=window.visualViewport?window.visualViewport.height:window.innerHeight;
+      wrap.style.setProperty('height',Math.max(240,Math.round(vh-top-4))+'px','important');
+    } else wrap.style.setProperty('height',origH,'');
+    try{ if(typeof sumMain!=='undefined'&&sumMain&&el.clientWidth) sumMain.applyOptions({width:el.clientWidth,height:el.clientHeight}); }catch(_){}
+    try{ scaleMini(); }catch(_){}
+  }
+  function apply(){
+    const L=mqL.matches, P=!L&&mqP.matches, was=B.className;
+    B.classList.toggle('mob',L||P); B.classList.toggle('mob-p',P); B.classList.toggle('mob-l',L);
+    if(!(L||P)){ const hd=document.querySelector('.hdr'); if(hd) hd.classList.remove('m-open');
+      const ls=document.getElementById('live-strip'); if(ls) ls.classList.remove('m-exp'); }
+    if(B.className!==was){ try{ if(window._sigMonReady) renderSignalMonitor(); }catch(_){} }
+    setTimeout(fit,40);
+  }
+  window.mMenu=()=>{ const hd=document.querySelector('.hdr'); if(hd) hd.classList.toggle('m-open'); };
+  const ls=document.getElementById('live-strip');
+  if(ls) ls.addEventListener('click',e=>{ if(!B.classList.contains('mob')||e.target.closest('button,a,input,select')) return;
+    ls.classList.toggle('m-exp'); });
+  document.addEventListener('click',e=>{ if(!B.classList.contains('mob-p')) return;
+    if(e.target.closest('#mini-monitor .mini-hd')&&!e.target.closest('.mini-exp')) miniToggle(); });
+  function mirror(){ const p=document.getElementById('lv-pos'), q=document.getElementById('lv-pospnl'), m=document.getElementById('m-pos');
+    if(!p||!m) return;
+    m.innerHTML='<span class="'+p.className+'">'+p.textContent+'</span>'+(q&&q.textContent?'<span class="'+q.className+'">'+q.textContent+'</span>':''); }
+  ['lv-pos','lv-pospnl'].forEach(id=>{ const n=document.getElementById(id);
+    if(n) new MutationObserver(mirror).observe(n,{childList:true,characterData:true,subtree:true,attributes:true}); });
+  const st=window.switchTab;
+  if(typeof st==='function') window.switchTab=function(n){ st.apply(this,arguments);
+    const hd=document.querySelector('.hdr'); if(hd) hd.classList.remove('m-open'); if(n==='summary') setTimeout(fit,80); };
+  [mqP,mqL].forEach(m=>{ try{ m.addEventListener('change',apply); }catch(_){ m.addListener(apply); } });
+  let rt=null; window.addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(fit,120); });
+  apply(); mirror();
+  let n=0; const iv=setInterval(()=>{ n++; if((typeof sumMain!=='undefined'&&sumMain)||n>60){ clearInterval(iv); fit(); setTimeout(fit,600); } },250);
+})();
 </script>
 </body>
 </html>
