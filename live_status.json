@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-10-16T21:25:19+00:00",
+  "generated_utc": "2026-10-16T21:30:24+00:00",
   "market": {
     "vix_spot": 19.98,
     "vix1m_used": 19.98,
@@ -11,10 +11,10 @@
       "vix9d_date": "2026-10-15",
       "vix9d_chg": -0.042495,
       "vix9d_ref": 13.97,
-      "vix1m": 16.87,
-      "vix1m_date": "2026-10-14",
-      "vix1m_chg": 0.104781,
-      "vix1m_ref": 16.87,
+      "vix1m": 16.46,
+      "vix1m_date": "2026-10-15",
+      "vix1m_chg": -0.024303,
+      "vix1m_ref": 16.46,
       "vix3m": 18.49,
       "vix3m_date": "2026-10-15",
       "vix3m_chg": -0.015966,
@@ -35,8 +35,8 @@
     "quotes": {
       "vix": {
         "price": 19.98,
-        "prev_close": 16.87,
-        "change_pct": 0.184351,
+        "prev_close": 16.46,
+        "change_pct": 0.213852,
         "session": "regular",
         "asof_date": "2026-10-16",
         "regular_price": 19.98,
@@ -119,10 +119,10 @@
         "asof_date": "2026-10-16",
         "regular_price": 7659.44,
         "regular_change": -0.010927,
-        "ext_price": 7666.57,
-        "ext_change": 0.000931,
+        "ext_price": 7665.57,
+        "ext_change": 0.0008,
         "reg_time": "2026-10-16T20:15:00+00:00",
-        "time": "2026-10-16T21:25:14+00:00"
+        "time": "2026-10-16T21:30:26+00:00"
       },
       "svxy": {
         "price": 62.06,
@@ -145,10 +145,10 @@
         "asof_date": "2026-10-16",
         "regular_price": 18.4826,
         "regular_change": 0.122198,
-        "ext_price": 18.46,
-        "ext_change": -0.001223,
+        "ext_price": 18.5,
+        "ext_change": 0.000941,
         "reg_time": "2026-10-16T20:00:00+00:00",
-        "time": "2026-10-16T21:25:22+00:00"
+        "time": "2026-10-16T21:29:42+00:00"
       },
       "svix": {
         "price": 27.0,
@@ -161,7 +161,7 @@
         "ext_price": 27.15,
         "ext_change": 0.005556,
         "reg_time": "2026-10-16T20:00:00+00:00",
-        "time": "2026-10-16T20:59:57+00:00"
+        "time": "2026-10-16T20:55:00+00:00"
       },
       "uvix": {
         "price": 40.0,
@@ -171,10 +171,10 @@
         "asof_date": "2026-10-16",
         "regular_price": 40.0,
         "regular_change": 0.161167,
-        "ext_price": 39.83,
-        "ext_change": -0.00425,
+        "ext_price": 39.87,
+        "ext_change": -0.00325,
         "reg_time": "2026-10-16T20:00:00+00:00",
-        "time": "2026-10-16T21:22:40+00:00"
+        "time": "2026-10-16T21:28:06+00:00"
       },
       "tqqq": {
         "price": 68.03,
@@ -184,10 +184,10 @@
         "asof_date": "2026-10-16",
         "regular_price": 68.03,
         "regular_change": -0.078058,
-        "ext_price": 68.2899,
-        "ext_change": 0.00382,
+        "ext_price": 68.28,
+        "ext_change": 0.003675,
         "reg_time": "2026-10-16T20:00:00+00:00",
-        "time": "2026-10-16T21:25:12+00:00"
+        "time": "2026-10-16T21:30:24+00:00"
       },
       "sqqq": {
         "price": 39.0187,
@@ -197,10 +197,10 @@
         "asof_date": "2026-10-16",
         "regular_price": 39.0187,
         "regular_change": 0.079057,
-        "ext_price": 38.84,
-        "ext_change": -0.00458,
+        "ext_price": 38.85,
+        "ext_change": -0.004324,
         "reg_time": "2026-10-16T20:00:00+00:00",
-        "time": "2026-10-16T21:25:16+00:00"
+        "time": "2026-10-16T21:30:26+00:00"
       },
       "spy": {
         "price": 762.49,
@@ -210,10 +210,10 @@
         "asof_date": "2026-10-16",
         "regular_price": 762.49,
         "regular_change": -0.012178,
-        "ext_price": 763.2,
-        "ext_change": 0.000931,
+        "ext_price": 763.1,
+        "ext_change": 0.0008,
         "reg_time": "2026-10-16T20:00:00+00:00",
-        "time": "2026-10-16T21:25:14+00:00"
+        "time": "2026-10-16T21:30:26+00:00"
       }
     }
   },
@@ -263,7 +263,7 @@
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
   },
-  "cboe_refreshed": false,
+  "cboe_refreshed": true,
   "official": {
     "date": "2026-10-15",
     "position": "LONG_VOL_SELLER",
