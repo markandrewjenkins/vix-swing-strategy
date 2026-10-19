@@ -630,6 +630,20 @@ body.mob table.sig-mon .cur-cell { gap:8px; }
 body.mob table.sig-mon .cur-cell .cur-val { width:auto; overflow:visible; text-align:left; font-size:0.86rem; }
 body.mob #daily-reset, body.mob #eq-reset { left:62px !important; right:auto !important; top:6px !important;
   font-size:0.66rem !important; padding:2px 8px !important; }
+#m-tip { position:absolute; z-index:1000; max-width:min(330px, calc(100vw - 24px)); padding:10px 36px 10px 12px;
+  background:var(--panel); color:var(--text); border:1px solid var(--border2); border-radius:10px;
+  box-shadow:0 10px 30px -10px rgba(0,0,0,0.55); font-size:0.8rem; line-height:1.45; white-space:pre-line;
+  overflow-wrap:anywhere; }
+#m-tip .m-tip-x { position:absolute; top:4px; right:4px; width:28px; height:28px; border:none; border-radius:7px;
+  background:transparent; color:var(--dim); font-size:1.05rem; line-height:28px; text-align:center; cursor:pointer; padding:0; }
+#m-tip .m-tip-x:active { background:rgba(127,127,127,0.18); }
+body.mob .m-tip-on { outline:1px dashed var(--border2); outline-offset:2px; border-radius:3px; }
+body.mob #m-menu { display:inline-flex; align-items:center; justify-content:center; width:36px; height:28px;
+  padding:0 !important; font-size:0 !important; line-height:0 !important; }
+body.mob #m-menu::before { content:''; display:block; width:16px; height:12px;
+  background:linear-gradient(currentColor 0 0) top/100% 2px no-repeat,
+             linear-gradient(currentColor 0 0) center/100% 2px no-repeat,
+             linear-gradient(currentColor 0 0) bottom/100% 2px no-repeat; }
 </style>
 </head>
 <body>
@@ -2958,7 +2972,7 @@ function renderSignalMonitor(histBar){
         dR=_domain('ratio_1m_3m',[P.k8,P.k9]), dM=_domain('move_vix_ratio',[_k9.k22,_k9.k21]);
   const fPP=v=>(v*100).toFixed(0)+'%', fN0=v=>(+v).toFixed(0), fN1=v=>(+v).toFixed(1), fN2=v=>(+v).toFixed(2);
   const egauge=[
-    {lo:dC.lo,hi:dC.hi,z:[[dC.lo,0,'r'],[0,_v3,'n'],[_v3,dC.hi,'t']],v:contango,fmt:fPP,tip:`backwardation → bear · short-vol needs a positive, rising curve (or a very steep one) · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}${hist?(b.cont_bull?' (confirmed)':' (not confirmed)'):''}`},
+    {lo:dC.lo,hi:dC.hi,z:[[dC.lo,0,'r'],[0,P.k0,'n'],[P.k0,_v3,_contBull?'t':'n'],[_v3,dC.hi,'t']],v:contango,fmt:fPP,tip:`backwardation → bear · short-vol needs a positive, rising curve (or a very steep one); the middle band turns teal while the curve is rising · now ${contango!=null?(contango*100).toFixed(1)+'%':'—'}${hist?(b.cont_bull?' (confirmed)':' (not confirmed)'):''}`},
     {lo:dV.lo,hi:dV.hi,z:[[dV.lo,P.k3,'r'],[P.k3,P.k2,'n'],[P.k2,dV.hi,'t']],v:vdelta,fmt:fN1,tip:`near-term fear gauge · now ${vdelta!=null?vdelta.toFixed(2):'—'}`},
     {lo:d9.lo,hi:d9.hi,z:[[d9.lo,P.k4,'r'],[P.k4,P.k5,'t'],[P.k5,d9.hi,'r']],v:vix9d,fmt:fN0,tip:`short-vol needs a calm-zone reading · now ${vix9d!=null?vix9d.toFixed(2):'—'}`},
     {lo:d1.lo,hi:d1.hi,z:[[d1.lo,P.k6,'r'],[P.k6,P.k7,'t'],[P.k7,d1.hi,'r']],v:vix1m,fmt:fN0,tip:`calm-zone reading (feeds the long-vol regime) · now ${vix1m!=null?vix1m.toFixed(2):'—'}`},
@@ -3443,6 +3457,36 @@ updateMarket(); setInterval(updateMarket, 1000);
   [mqP,mqL].forEach(m=>{ try{ m.addEventListener('change',apply); }catch(_){ m.addListener(apply); } });
   let rt=null; const re=()=>{ clearTimeout(rt); rt=setTimeout(apply,120); };
   window.addEventListener('resize',re); window.addEventListener('orientationchange',re);
+  let tipEl=null, tipFor=null;
+  function hideTip(){ if(tipEl){ tipEl.remove(); tipEl=null; } if(tipFor){ tipFor.classList.remove('m-tip-on'); tipFor=null; } }
+  function showTip(el,txt){
+    hideTip(); tipFor=el; el.classList.add('m-tip-on');
+    tipEl=document.createElement('div'); tipEl.id='m-tip'; tipEl.setAttribute('role','dialog');
+    const t=document.createElement('div'); t.textContent=txt; tipEl.appendChild(t);
+    const x=document.createElement('button'); x.className='m-tip-x'; x.setAttribute('aria-label','Close');
+    x.innerHTML='&#10005;'; x.addEventListener('click',ev=>{ ev.stopPropagation(); hideTip(); }); tipEl.appendChild(x);
+    document.body.appendChild(tipEl);
+    const r=el.getBoundingClientRect(), vw=document.documentElement.clientWidth, vh=window.innerHeight;
+    const w=tipEl.offsetWidth, hh=tipEl.offsetHeight;
+    let left=Math.min(Math.max(12, r.left+r.width/2-w/2), vw-12-w);
+    let top=(r.bottom+8+hh<=vh-8 || r.top-8-hh<8) ? r.bottom+8 : r.top-8-hh;
+    tipEl.style.left=(left+window.scrollX)+'px'; tipEl.style.top=(Math.max(8,top)+window.scrollY)+'px';
+  }
+  document.addEventListener('click',e=>{
+    if(!B.classList.contains('mob')) return;
+    if(e.target.closest('#m-tip')) return;
+    const el=e.target.closest('[title]');
+    const ls=document.getElementById('live-strip');
+    const skip=!el || !el.getAttribute('title')
+      || el===ls || el.closest('button,a,input,select,textarea,label,.mini-hd,.tabs')
+      || el.querySelector('canvas') || el.getBoundingClientRect().height>220
+      || (ls && ls.contains(el) && !ls.classList.contains('m-exp'));
+    if(skip){ if(tipEl) hideTip(); return; }
+    e.preventDefault(); e.stopPropagation();
+    if(tipFor===el){ hideTip(); return; }
+    showTip(el, el.getAttribute('title'));
+  }, true);
+  window.addEventListener('orientationchange',()=>hideTip());
   apply(); mirror();
   let n=0; const iv=setInterval(()=>{ n++; if((typeof sumMain!=='undefined'&&sumMain)||n>60){ clearInterval(iv); fit(); setTimeout(fit,600); } },250);
 })();
