@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-10-26T20:30:26+00:00",
+  "generated_utc": "2026-10-26T20:35:23+00:00",
   "market": {
     "vix_spot": 18.39,
     "vix1m_used": 18.39,
@@ -104,14 +104,14 @@
         "time": "2026-10-26T20:00:00+00:00"
       },
       "move": {
-        "price": 102.2474,
+        "price": 102.1914,
         "prev_close": 103.3183,
-        "change_pct": -0.010365,
+        "change_pct": -0.010907,
         "session": "regular",
         "asof_date": "2026-10-26",
         "prev_date": "2026-10-23",
-        "regular_price": 102.2474,
-        "regular_change": -0.010365,
+        "regular_price": 102.1914,
+        "regular_change": -0.010907,
         "ext_price": null,
         "ext_change": null,
         "reg_time": "2026-10-26T20:00:00+00:00",
@@ -126,10 +126,10 @@
         "prev_date": "2026-10-23",
         "regular_price": 7676.77,
         "regular_change": 0.007055,
-        "ext_price": 7677.37,
-        "ext_change": 7.8e-05,
+        "ext_price": 7676.87,
+        "ext_change": 1.3e-05,
         "reg_time": "2026-10-26T20:00:00+00:00",
-        "time": "2026-10-26T20:30:21+00:00"
+        "time": "2026-10-26T20:35:19+00:00"
       },
       "svxy": {
         "price": 62.27,
@@ -143,7 +143,7 @@
         "ext_price": 62.3,
         "ext_change": 0.000482,
         "reg_time": "2026-10-26T20:00:00+00:00",
-        "time": "2026-10-26T20:15:11+00:00"
+        "time": "2026-10-26T20:17:40+00:00"
       },
       "uvxy": {
         "price": 18.1724,
@@ -154,10 +154,10 @@
         "prev_date": "2026-10-23",
         "regular_price": 18.1724,
         "regular_change": -0.02977,
-        "ext_price": 18.15,
-        "ext_change": -0.001233,
+        "ext_price": 18.13,
+        "ext_change": -0.002333,
         "reg_time": "2026-10-26T20:00:00+00:00",
-        "time": "2026-10-26T20:13:40+00:00"
+        "time": "2026-10-26T20:19:52+00:00"
       },
       "svix": {
         "price": 27.06,
@@ -168,10 +168,10 @@
         "prev_date": "2026-10-23",
         "regular_price": 27.06,
         "regular_change": 0.026828,
-        "ext_price": 27.01,
-        "ext_change": -0.001848,
+        "ext_price": 27.09,
+        "ext_change": 0.001109,
         "reg_time": "2026-10-26T20:00:00+00:00",
-        "time": "2026-10-26T20:14:59+00:00"
+        "time": "2026-10-26T20:19:20+00:00"
       },
       "uvix": {
         "price": 38.88,
@@ -196,10 +196,10 @@
         "prev_date": "2026-10-23",
         "regular_price": 68.462,
         "regular_change": 0.03105,
-        "ext_price": 68.58,
-        "ext_change": 0.001724,
+        "ext_price": 68.638,
+        "ext_change": 0.002571,
         "reg_time": "2026-10-26T20:00:00+00:00",
-        "time": "2026-10-26T20:30:13+00:00"
+        "time": "2026-10-26T20:35:11+00:00"
       },
       "sqqq": {
         "price": 38.38,
@@ -210,10 +210,10 @@
         "prev_date": "2026-10-23",
         "regular_price": 38.38,
         "regular_change": -0.031053,
-        "ext_price": 38.3201,
-        "ext_change": -0.001561,
+        "ext_price": 38.29,
+        "ext_change": -0.002345,
         "reg_time": "2026-10-26T20:00:00+00:00",
-        "time": "2026-10-26T20:29:28+00:00"
+        "time": "2026-10-26T20:35:15+00:00"
       },
       "spy": {
         "price": 765.24,
@@ -224,10 +224,10 @@
         "prev_date": "2026-10-23",
         "regular_price": 765.24,
         "regular_change": 0.006701,
-        "ext_price": 765.3,
-        "ext_change": 7.8e-05,
+        "ext_price": 765.25,
+        "ext_change": 1.3e-05,
         "reg_time": "2026-10-26T20:00:00+00:00",
-        "time": "2026-10-26T20:30:21+00:00"
+        "time": "2026-10-26T20:35:19+00:00"
       }
     }
   },
@@ -271,8 +271,8 @@
       "expected": "Live VIX1M \u00f7 VIX3M (both Yahoo intraday)."
     },
     "move_vix_ratio": {
-      "value": 5.5599,
-      "changed_utc": "2026-10-26T20:30:26+00:00",
+      "value": 5.5569,
+      "changed_utc": "2026-10-26T20:35:23+00:00",
       "cadence": "live",
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
