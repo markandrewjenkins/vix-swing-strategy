@@ -2965,10 +2965,10 @@ function renderSignalMonitor(histBar){
     ['Contango (VIX3M / VIX1M)','Term-structure carry; short-vol needs a positive, rising curve (or a very steep one).',
       'Steep enough &amp; rising (or very steep)','Backwardation', pct(contango,1),
       _contBull?'SVXY':(contango!=null&&contango<0?'UVXY':'NEU')],
-    ['VDelta (VIX1M &minus; VIX9D)','Front-end fear gauge. Deeply negative = acute near-term fear.',
+    ['VDelta (VIX1M &minus; VIX9D)','Front-end fear gauge: short-vol needs it positive; deeply negative (acute near-term fear) supports long vol.',
       'Positive','Deeply negative', num(vdelta,2),
       vdelta>P.k2?'SVXY':vdelta<=P.k3?'UVXY':'NEU'],
-    ['VIX9D Level','9-day implied vol. In-zone = calm enough to sell vol.',
+    ['VIX9D Level','9-day implied vol: short-vol needs it inside its calm zone; outside the zone supports long vol.',
       'In calm zone','Complacent or elevated', num(vix9d,2),
       (hist&&b.bull_9d!=null) ? (b.bull_9d?'SVXY':'UVXY')
         : (vix9d!=null&&vix9d>=P.k4&&vix9d<P.k5)?'SVXY':(vix9d!=null?'UVXY':'NEU')],
@@ -2976,7 +2976,7 @@ function renderSignalMonitor(histBar){
       'In calm zone (not required)','Elevated', num(vix1m,2),
       (hist&&b.bull_1m!=null) ? (b.bull_1m?'SVXY':'UVXY')
         : (vix1m!=null&&vix1m>=P.k6&&vix1m<P.k7)?'SVXY':(vix1m!=null?'UVXY':'NEU')],
-    ['VIX1M / VIX3M Ratio','Slope of the near curve.',
+    ['VIX1M / VIX3M Ratio','Slope of the near curve: short-vol needs it upward-sloping; inverted supports long vol. Also feeds the rollover exit.',
       'Upward-sloping (contango)','Inverted (backwardation)', num(ratio13,2),
       ratio13<P.k8?'SVXY':(ratio13>=P.k9?'UVXY':'NEU')],
   ];
@@ -3116,13 +3116,13 @@ function renderSignalMonitor(histBar){
     ['Take Profit','Closed once the unrealised gain hits the profit target', 'Reaches take-profit zone','', pnlCur, false],
     ['Stop Loss','Closed once the unrealised loss hits the max (long-vol hard stop)', '','Reaches stop-loss zone', pnlCur, false],
     ['Trailing Stop','Closed after giving back too much from the running peak (SVXY)', '','Gain falls a set amount below its peak', pnlCur, false],
-    ['Time Stop','Closed after the maximum holding period', 'Held to max horizon','', daysHeldCur, false],
-    ['Neg-Vol (OBV)','Same OBV divergence as the Vol-follow entry signal; closes short-vol when the spread turns negative while the trade is in profit.',
+    ['Time Stop','Short-vol only: closed once the maximum holding period passes, unless the trade is up by at least a minimum gain', 'Held to max horizon','', daysHeldCur, false],
+    ['Neg-Vol (OBV)','Same OBV divergence as the Vol-follow entry signal; closes short-vol when the spread turns negative while the trade is in profit; held while the short-vol entry is still valid.',
       'Spread ≥ 0, or not in profit → hold','Spread &lt; 0 while in profit → exit', (b.obv_div!=null?b.obv_div.toFixed(1):dimc('N/A')), carryTrig],
-    ['MOVE / VIX','Cross-asset stress overlay (bond vs equity vol)',
+    ['MOVE / VIX','Cross-asset stress overlay (bond vs equity vol): high closes short-vol (held while the short-vol entry is still valid); low closes long-vol',
       'Low cross-asset stress','High cross-asset stress',
       num(movevix,2)+(moveSig==='high'?' <span class="neg">HIGH</span>':moveSig==='low'?' <span class="pos">LOW</span>':''), moveTrig],
-    ['Term-Structure Rollover','Near curve flips against the position (front ratios invert while levels hold)',
+    ['Term-Structure Rollover','Near curve flips against the position (front ratios invert while levels hold); a short-vol rollover exit is held while the short-vol entry is still valid',
       'Curve in contango','Curve inverted', num(ratio13,2), ratioTrig],
   ];
   const EXIDX=[0,1,3,4,5,6];
@@ -3381,7 +3381,9 @@ function renderSignalMonitor(histBar){
       return '<span style="color:var(--namut)">N/A</span>';
     };
     const stripTags=h=>(''+h).replace(/<[^>]*>/g,'');
-    const mRow=(name,spec,valHtml,sigHtml,dull)=>`<div class="mini-row"><span class="mini-name">${name}</span>`
+    const _tips={}; let _tipSec=null;
+    const mSub=(title,key,cls)=>{ _tipSec=key; _tips[key]=[]; return `<div class="mini-sub${cls?' '+cls:''}">${title} @@TIP:${key}@@</div>`; };
+    const mRow=(name,spec,valHtml,sigHtml,dull)=>(_tipSec&&_tips[_tipSec].push(name), '')+`<div class="mini-row"><span class="mini-name">${name}</span>`
       +`<span class="mini-val" style="color:${dull?'var(--dimwhite)':'var(--white)'}">${valHtml}</span><span class="mini-bar">${spec?gaugeMini({...spec,dull:spec.dull||dull}):''}</span>`
       +`<span class="mini-sig">${sigHtml}</span></div>`;
     const eNames=['Contango','VDelta','VIX9D','VIX1M','VIX1M/3M'];
@@ -3392,9 +3394,9 @@ function renderSignalMonitor(histBar){
       const col=k==='sv'?'var(--teal)':k==='uv'?'var(--coral)':'var(--cashc)';
       return `<span style="color:${labCol}">${lab}</span> <span style="color:${col}">${txt}</span>`;};
     const _ms=(t,c)=>`<span style="color:${c}">${t}</span>`;
-    const eTip=[...rows,overrideRows[0],...compEntry].map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
-    const xTip=EXIDX.map(i=>stripTags(exitRules[i][0])+': '+_ds(exitRules[i][1])).join('\n');
-    const zTip=compSize.map(r=>stripTags(r[0])+': '+_ds(r[1])).join('\n');
+    const _mDesc={ 'Spike/Crush':overrideRows[0][1], 'Spike Type':compEntry[0][1], 'BB-Trend':compEntry[1][1],
+      'Vol-follow':compEntry[2][1], 'UVXY gate':compEntry[3][1], 'Cool-off':compEntry[4][1], 'Sizing':compSize[0][1] };
+    eNames.forEach((n,i)=>{ _mDesc[n]=rows[i][1]; }); EXIDX.forEach(i=>{ _mDesc[xNames[i]]=exitRules[i][1]; });
     const help=t=>`<span class="mini-help" title="${(''+t).replace(/"/g,'&quot;')}">&#9432;</span>`;
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${_await?'<span style="color:var(--white)">Projected</span> <span style="color:var(--dim)">Awaiting prints</span>':posCell('Projected',proj,'var(--white)')}</div>`;
     const _cmbo = inPos
@@ -3403,7 +3405,7 @@ function renderSignalMonitor(histBar){
     const _cmboDim = (!inPos && ovrActive) ? ' style="opacity:0.5"' : '';
     mh+=`<div class="mini-combo"><span${_cmboDim}>${_cmbo}</span></div>`;
     mh+=`<div class="mini-why">${explain}</div>`;
-    mh+=`<div class="mini-sub">Entry indicators ${help(eTip)}</div>`;
+    mh+=mSub('Entry indicators','e');
     rows.forEach((r,i)=> mh+=mRow(eNames[i], egauge[i], r[4], mSig(r[5],_dullTerm(i)), _dullTerm(i)));
     mh+=mRow('Spike/Crush', scSpec, isNaN(scVal)?'—':(scVal>=0?'+':'')+(scVal*100).toFixed(1)+'%', mSig(overrideRows[0][5]), inPos);
     mh+=mRow('Spike Type', sSpk, b.vix_fade?'Fade':(b.vix_sustained?'Sust':'N/A'), mSig(b.vix_fade?'SVXY':'NA'), inPos);
@@ -3411,10 +3413,12 @@ function renderSignalMonitor(histBar){
     mh+=mRow('Vol-follow', sVF, _ov!=null?_ov.toFixed(1):'N/A', mSig(_volFollow?'UVXY':'NA'), inPos);
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos);
     mh+=mRow('Cool-off', sCd, _cdBlock?(_cdLeft+' left'):'Clear', mSig(_cdBlock?'CASH':'NA'), inPos);
-    mh+=`<div class="mini-sub">Exit indicators ${help(xTip)}</div>`;
+    mh+=mSub('Exit indicators','x');
     EXIDX.forEach(i=>{ const r=exitRules[i]; mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos); });
-    mh+=`<div class="mini-sub">Position sizing ${help(zTip)}</div>`;
+    mh+=mSub('Position sizing','z');
     mh+=mRow('Sizing', sSize, b.high_vol_regime?'High':'Norm', mSig('NA'), inPos);
+    _tipSec=null;
+    mh=mh.replace(/@@TIP:(\w+)@@/g,(m,k)=>help((_tips[k]||[]).map(n=>n+': '+_ds(stripTags(''+(_mDesc[n]||'')))).join('\n')));
     mh+=`<div class="mini-note"><b>NOTE:</b> Vol ETF-related signals derived from SVXY / UVXY only</div>`;
     const _mm=document.getElementById('mini-monitor');
     let _miniColl=false; try{ const _mv=localStorage.getItem(_miniKey()); _miniColl=(_mv==null)?_miniDefault():_mv==='1'; }catch(_){}
