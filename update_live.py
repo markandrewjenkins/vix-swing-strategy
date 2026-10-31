@@ -177,12 +177,14 @@ def yahoo_quote(symbol: str, prepost: bool = False) -> dict:
         res  = data["chart"]["result"][0]
         ts   = res.get("timestamp") or []
         cl   = (((res.get("indicators") or {}).get("quote") or [{}])[0].get("close")) or []
+        hl   = (((res.get("indicators") or {}).get("quote") or [{}])[0].get("high")) or []
 
         # Indices get a 15-minute settle grace: VIX3M/VIX9D publish 09:30-16:15 and
         # VIX 03:15-16:15, so their post-4pm prints are the closing settle, not
         # after-hours trading. ETFs genuinely trade from 16:00, so no grace.
         grace = 15 if symbol.startswith("^") else 0
         reg_close, pre_last, post_last, reg_time = {}, {}, {}, {}
+        reg_high = {}   # regular-session high per day (the post-spike re-entry rule reads VIX's)
         last_t = last_date = last_tod = None
         for i, c in enumerate(cl):
             if c is None or i >= len(ts):
@@ -192,6 +194,8 @@ def yahoo_quote(symbol: str, prepost: bool = False) -> dict:
             last_t, last_date, last_tod = t, dstr, tod
             if _RTH_OPEN <= tod <= _RTH_CLOSE + grace:
                 reg_close[dstr] = c; reg_time[dstr] = t
+                hv = hl[i] if i < len(hl) and hl[i] is not None else c
+                reg_high[dstr] = max(reg_high.get(dstr, hv), hv)
             elif tod < _RTH_OPEN:
                 pre_last[dstr] = c
             else:
@@ -237,6 +241,7 @@ def yahoo_quote(symbol: str, prepost: bool = False) -> dict:
         return {
             "price": r4(price), "prev_close": r4(prev), "change_pct": r6(chg),
             "session": session, "asof_date": asof, "prev_date": prev_d,
+            "day_high": r4(reg_high.get(cur_d)),
             "regular_price": r4(price), "regular_change": r6(chg),
             "ext_price": r4(ext_px), "ext_change": r6(ext_chg),
             "reg_time": (datetime.fromtimestamp(reg_time.get(asof), tz=timezone.utc).isoformat()

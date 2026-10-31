@@ -1072,7 +1072,7 @@ const FLAVOR_ON = false;
   }
   if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
 })();
-const _k9=(s=>{const b=atob(s);let o='';for(let i=0;i<b.length;i++)o+=String.fromCharCode(b.charCodeAt(i)^((i*7+13)&255));return JSON.parse(o);})('djZwEgsKBxB1f2B2QwNeVEe0paOtlZ6Cl9fx6Ovo8dXf2NlpOjItMxcCBwltaiRif15aQVewq6z+qYGQgomR9uH2sNTLys/QNSAxcRYKFQQPanN+ewtfTE9MrbOiqrOExo2Z+Pj+5+fTwNGRMDgtLC0KHwAOcn9idzdSW1NCT6i8p62SmJyV1fT+8eDM2MHGzzM6PjtLFh0XBnd6fXo0V1lWQbKnoKOpk5uLluOj/uP/3tvcyTk2OCcwAUEADh18fXpqUVpGW1zuvaS4m5iBgJHmoOPhwt3e2882JjNzLh8PDg9zZXI8bFVOSU63pK39r5WJiIjx6+y+7tHIy8rTJGYmKAATAwYQdn1/eApaW1RHsL68oJOLjN6O9ujr6PHS2sHXIGIiITwfHB0OcmRtPW9TSUhK/Q==');
+const _k9=(s=>{const b=atob(s);let o='';for(let i=0;i<b.length;i++)o+=String.fromCharCode(b.charCodeAt(i)^((i*7+13)&255));return JSON.parse(o);})('djZwEgsKBxB1f2B2QwNeVEe0paOtlZ6Cl9fx6Ovo8dXf2NlpOjItMxcCBwltaiRif15aQVewq6z+qYGQgomR9uH2sNTLys/QNSAxcRYKFQQPanN+ewtfTE9MrbOiqrOExo2Z+Pj+5+fTwNGRMDgtLC0KHwAOcn9idzdSW1NCT6i8p62SmJyV1fT+8eDM2MHGzzM6PjtLFh0XBnd6fXo0V1lWQbKnoKOpk5uLluOj/uP/3tvcyTk2OCcwAUEADh18fXpqUVpGW1zuvaS4m5iBgJHmoOPhwt3e2882JjNzLh8PDg9zZXI8bFVOSU63pK39r5WJiIjx6+y+7tHIy8rTJGYmKAATAwYQdn1/eApaW1RHsL68oJOLjN6O9ujr6PHS2sHXIGIiITwfHB0OcmRtPW9TSUhKrKXlp6SBkIGWjvPh9rDQ0NLNzDYgMXESGA0MCXRncDJTVkxPT7Oms/OslI+Oi+z65fv8jt/A2Ds5Oms=');
 let DATA=null;
 let BLEND_TRADES=null, BLEND_EQ=null, BLEND_STATS=null;
 let OHLC=null, CANDLES=null, candleSeries=null, sumMain=null, LIVE=null, MARKERS=null, POSBYDATE=null, ALT_SVIX=null, ALT_UVIX=null, TQQQ_OHLC=null;
@@ -2867,6 +2867,14 @@ function renderSignalMonitor(histBar){
   const _cdLeft = Math.max(0, _k9.k27 - (_evalIdx - _cdLossIdx));
   const _cdBlock = _cdLeft > 0;
   const _cdTxt = _cdBlock ? (_cdLeft+' session'+(_cdLeft>1?'s':'')+' left') : 'Clear';
+  const _vq = _mq.vix||{};
+  const _srLive = !hist && !!_vq.asof_date && _vq.asof_date>_lastBarDate && _vq.day_high!=null && _vq.prev_close>0;
+  const _srSpike = _srLive ? Math.max(_vq.day_high, _vq.price||0)/_vq.prev_close-1 : (b.sr_spike!=null?b.sr_spike:null);
+  const _srCrash = _srSpike!=null && vix1m!=null && vix1m>=_k9.k31 && _srSpike>=_k9.k32;
+  const _srCond = _srLive ? (_srSpike>=_k9.k28 && vix1m!=null && vix1m>=_k9.k29 && vix1m<_k9.k30 && !_srCrash) : !!b.sr_cond;
+  const _srArm = _srCond && !_cdBlock;
+  const _srState = _srSpike==null ? 'N/A' : _srCond ? (_cdBlock?'Cool-off':'Armed')
+    : _srSpike<_k9.k28 ? 'Small spike' : _srCrash ? 'Crash regime' : (vix1m!=null && vix1m>=_k9.k30) ? 'VIX too high' : 'VIX too low';
   const P=_k9;
   const GBRIGHT = true;
   const _sigMap = { LONG_SVXY:['CASH','LONG_VOL_SELLER'], LONG_UVXY:['CASH','LONG_VOL'],
@@ -3058,11 +3066,13 @@ function renderSignalMonitor(histBar){
     const _c4=_svIdx.filter(i=>core[i]==='SVXY').length;
     if(svxyN===SVN-1){ _blkIdx = (_c4===4 && !b.bb_buy) ? 5 : _svIdx.find(i=>core[i]!=='SVXY'); _blkName=_eNames6[_blkIdx]; }
     else if(uvxy4===4 && _gateBlock){ _blkIdx=-1; _blkName='UVXY gate'; }
+    if(_srArm && !(uvxy4===4 && !_gateBlock)){ _blkIdx=null; _blkName=null; }
   }
-  if(!inPos && _cdBlock && (svxyN===SVN || ovrSV) && !(uvxy4===4 && !_gateBlock)){ _blkIdx=-2; _blkName='Re-entry cool-off'; }
+  if(!inPos && _cdBlock && (svxyN===SVN || ovrSV || _srCond) && !(uvxy4===4 && !_gateBlock)){ _blkIdx=-2; _blkName='Re-entry cool-off'; }
   const _blocked = _blkName!=null;
-  const _dullTerm = (i)=> inPos || (!inPos&&ovrActive);
-  const _dullBB   = inPos || (!inPos&&ovrActive);
+  const _srPath = !inPos && !ovrActive && _srArm && svxyN<SVN && !(uvxy4===4 && !_gateBlock);
+  const _dullTerm = (i)=> inPos || (!inPos&&(ovrActive||_srPath));
+  const _dullBB   = inPos || (!inPos&&(ovrActive||_srPath));
   const regime = core;
   const regimeBull = regime.length>0 && _svIdx.every(i=>regime[i]==='SVXY');
   let proj;
@@ -3143,11 +3153,15 @@ function renderSignalMonitor(histBar){
     const tmT=inPos&&isSV&&daysHeldN!=null&&daysHeldN>=TM&&openpnl!=null&&openpnl<_k9.k14;
     return [tpT,slT,trT,tmT,carryTrig,moveTrig,ratioTrig];
   })();
-  const _softIdx=[4,5,6].filter(i=>_exTrig[i] || (hist && b.exit_held && [carryTrig,moveTrig,ratioTrig][i-4]));
+  const _lastB = DATA.bar_history[DATA.bar_history.length-1];
+  const _srHoldLeft = hist ? (b.sr_trade ? (b.sr_hold_left||0) : 0)
+    : ((_lastB.sr_trade && _lastB.position==='LONG_VOL_SELLER') ? Math.max(0,(_lastB.sr_hold_left||0)-1) : 0);
+  const _softIdx=[4,5,6].filter(i=>_exTrig[i] || (hist && (b.exit_held||b.sr_held) && [carryTrig,moveTrig,ratioTrig][i-4]));
   const _svEntryValid = (svxyN===SVN) || ovrSV;
   const _uvWanted = (uvxy4===4 && !_gateBlock) || ovrUV;
-  const _held = hist ? !!b.exit_held
-    : (inPos && isSV && _softIdx.length>0 && !_exTrig[0] && !_exTrig[3] && _svEntryValid && !_uvWanted);
+  const _srHeld = hist ? !!b.sr_held : (inPos && isSV && _srHoldLeft>0 && _softIdx.length>0 && !_exTrig[0]);
+  const _held = _srHeld || (hist ? !!b.exit_held
+    : (inPos && isSV && _softIdx.length>0 && !_exTrig[0] && !_exTrig[3] && _svEntryValid && !_uvWanted));
   const _heldIdx = _held ? _softIdx : [];
   if(!hist && _held) _heldIdx.forEach(i=>{ _exTrig[i]=false; });
   exitRules.forEach((r,i)=>{ r[5]=_exTrig[i]; });
@@ -3159,7 +3173,7 @@ function renderSignalMonitor(histBar){
   else if(!inPos && ovrSV) proj=_cdBlock?'CASH':'SVXY';
   else if(!inPos && ovrUV) proj='UVXY';
   else if(inPos) proj = anyExit ? 'CASH' : posInstr(curPos);
-  else proj = (uvxy4===4 && !_gateBlock) ? 'UVXY' : (svxyN===SVN && !_cdBlock ? 'SVXY' : 'CASH');
+  else proj = (uvxy4===4 && !_gateBlock) ? 'UVXY' : ((svxyN===SVN || _srArm) && !_cdBlock ? 'SVXY' : 'CASH');
   const exitSpec=(i)=>{
     const st = exState(i);
     const off = st==='na';
@@ -3228,11 +3242,12 @@ function renderSignalMonitor(histBar){
     _why = `<b style="color:${TRIMC}">&#9660; position trimmed</b> &mdash; position recovered, add-on leg sold &rarr; back to <b style="color:${TRIMC}">${aMode()?svSizeName(1.0):'100%'}</b>`;
   } else if(inPos){
     if(_pk==='cash') _why = `holding ${isUV?'long vol':'short vol'} &rarr; <b style="color:var(--cashc)">exit</b> &mdash; ${_firedExits.length>1?_firedExits.length+' exit rules fired':'an exit rule fired'}`;
+    else if(_srHeld) _why = `<b style="color:var(--teal)">holding short vol</b> &mdash; <b style="color:var(--amber)">exit held</b>: post-spike hold${_srHoldLeft?' ('+_srHoldLeft+' left)':''}`;
     else if(_held) _why = `<b style="color:var(--teal)">holding short vol</b> &mdash; <b style="color:var(--amber)">exit held</b>: the short-vol entry is still valid`;
     else _why = `<b style="color:${isUV?'var(--coral)':'var(--teal)'}">holding ${isUV?'long vol':'short vol'}</b> &mdash; no exit triggered; entry signals don't apply while in a position`;
-  } else if(_pk==='sv') _why = svxyN===SVN ? `all 5 short-vol signals aligned &rarr; <b style="color:var(--teal)">SVXY</b>` : `spike-fade entry &rarr; <b style="color:var(--teal)">SVXY</b> (buy the vol dip)`;
+  } else if(_pk==='sv') _why = svxyN===SVN ? `all 5 short-vol signals aligned &rarr; <b style="color:var(--teal)">SVXY</b>` : ovrSV ? `spike-fade entry &rarr; <b style="color:var(--teal)">SVXY</b> (buy the vol dip)` : `<b style="color:var(--teal)">post-spike re-entry</b> &rarr; <b style="color:var(--teal)">SVXY</b> (hold ${_k9.k33} sessions)`;
   else if(_pk==='uv') _why = (uvxy4<4 && crush) ? `<b style="color:var(--coral)">crush override</b> &rarr; UVXY` : (ovrUV ? `<b style="color:var(--coral)">vol-follow override</b> &rarr; UVXY` : `full bear regime (4/4) &rarr; <b style="color:var(--coral)">UVXY</b>`);
-  else if(_blkIdx===-2) _why = `${ovrSV?'spike-fade override':'all 5 short-vol signals aligned'}, but the <b style="color:var(--cashc)">re-entry cool-off</b> holds it back (${_cdTxt}) &rarr; <b style="color:var(--cashc)">cash</b>`;
+  else if(_blkIdx===-2) _why = `${ovrSV?'spike-fade override':svxyN===SVN?'all 5 short-vol signals aligned':'post-spike re-entry armed'}, but the <b style="color:var(--cashc)">re-entry cool-off</b> holds it back (${_cdTxt}) &rarr; <b style="color:var(--cashc)">cash</b>`;
   else if(_blocked) _why = _blkIdx===-1
     ? `bear regime ready (4/4) but the <b style="color:var(--cashc)">UVXY gate</b> blocks it &rarr; <b style="color:var(--cashc)">cash</b>`
     : `short-vol one signal short &mdash; <b style="color:var(--cashc)">${_blkName}</b> holds it back &rarr; <b style="color:var(--cashc)">cash</b>`;
@@ -3247,32 +3262,36 @@ function renderSignalMonitor(histBar){
   } else if(inPos && _pk==='cash'){
     const exTxt = _firedExits.length>1 ? ('the <b>'+_firedExits.join('</b> + <b>')+'</b> exit rules fired together') : ('the <b>'+(_firedExits[0]||'an exit')+'</b> rule fired');
     explain=`<b>Exiting ${_instTxt}</b> ${hist?'that evening':'tonight'} in after-hours: ${exTxt}. Six exit checks run each evening; any one closes the whole position at the same-day after-hours print. Entry signals are context-only while in a trade.`;
+  } else if(inPos && _srHeld){
+    explain=`<b>Holding ${_instTxt} &mdash; post-spike hold.</b> ${_heldTxt} fired, but this trade was opened by the post-spike re-entry, which holds for ${_k9.k33} sessions${_srHoldLeft?' ('+_srHoldLeft+' left)':''} &mdash; after a spike the rebound tends to take days, so routine exits are ignored until then. Take-profit always fires.`;
   } else if(inPos && _held){
     explain=`<b>Holding ${_instTxt} &mdash; exit held.</b> ${_heldTxt} fired, but the short-vol entry conditions are still met ${hist?'that':'this'} evening, so the exit is suppressed &mdash; the strategy won't sell into a bar where its own logic would buy. Take-profit and the time stop always fire.`;
   } else if(inPos){
-    explain=`<b>Holding ${_instTxt}.</b> None of the six exit rules (TP, stop, time, neg-vol, MOVE/VIX, rollover) fired, so the position carries to the next session. Entry signals below are context-only while in a trade.`;
+    explain=`<b>Holding ${_instTxt}.</b> None of the six exit rules (TP, stop, time, neg-vol, MOVE/VIX, rollover) fired, so the position carries to the next session.${(isSV&&_srHoldLeft)?` Post-spike hold: ${_srHoldLeft} session${_srHoldLeft>1?'s':''} left, only take-profit can close it before then.`:' Entry signals below are context-only while in a trade.'}`;
   } else if(ovrSV && _pk==='sv'){
     explain=`<b>Entering SVXY (short vol)</b> via the <b>spike-fade override</b>: VIX spiked then faded into the close, so the panic is faded by selling vol. A standalone path — it skips the full term-structure alignment, so the routine signals are dulled.`;
   } else if(ovrUV && _pk==='uv' && uvxy4<4){
     explain=`<b>Entering UVXY (long vol)</b> via the <b>${crush?'crush':'vol-follow'} override</b>: a standalone long-vol trigger that skips the four-signal bear regime. The routine signals are dulled because this path alone decides the entry.`;
+  } else if(_pk==='sv' && svxyN<SVN && !ovrSV){
+    explain=`<b>Entering SVXY (short vol)</b> via the <b>post-spike re-entry</b>: VIX spiked ${_srSpike!=null?'+'+(_srSpike*100).toFixed(0)+'% ':''}intraday ${hist?'and closed':'and is'} in its elevated-but-not-crash band, where the rebound has historically played out over days. A standalone path (the routine signals are dulled); it holds ${_k9.k33} sessions unless take-profit hits.`;
   } else if(_pk==='sv'){
     explain=`<b>Entering SVXY (short vol):</b> all five short-vol conditions agree. A short-vol entry is strict — it needs contango, VDelta, the VIX9D zone and the 1M/3M ratio plus BB-trend at once, which filters half-formed setups. All five line up, so it sells vol into contango.`;
   } else if(_pk==='uv'){
     explain=`<b>Entering UVXY (long vol):</b> the full four-signal bear regime is in place — acute near-term fear with the front of the curve inverted.`;
   } else if(_blkIdx===-2){
-    explain=`<b>Cash — short-vol on cool-off.</b> ${ovrSV?'The spike-fade override fired':'All five short-vol conditions agree'}, but after a losing short-vol exit (${_cdLossDate}) the strategy sits out a short cool-off before re-entering, to avoid re-shorting vol into chop. ${_cdTxt} &mdash; the entry is allowed again after that.`;
+    explain=`<b>Cash — short-vol on cool-off.</b> ${ovrSV?'The spike-fade override fired':svxyN===SVN?'All five short-vol conditions agree':'The post-spike re-entry is armed'}, but after a losing short-vol exit (${_cdLossDate}) the strategy sits out a short cool-off before re-entering, to avoid re-shorting vol into chop. ${_cdTxt} &mdash; the entry is allowed again after that.`;
   } else if(_blocked && _blkIdx===-1){
     explain=`<b>Cash — long-vol blocked.</b> The bear regime is complete, but the <b>UVXY gate</b> vetoes it (VIX9D in its exhaustion zone, or very low cross-asset stress) — the bear signals are ready but held back; only the gate decides here.`;
   } else if(_blocked){
     explain=`<b>Cash — short-vol blocked.</b> Four of five conditions agree, but <b>${_blkName}</b> isn't confirmed and a short-vol entry needs the full set — so it's held back by this one indicator.`;
   } else {
-    explain=`<b>Cash.</b> Short-vol needs all five aligned (${svxyN}/${SVN} now) and long-vol the full bear regime (${uvxy4}/4). Partial, mixed readings aren't enough — each side must hit its complete set before a trade is taken.`;
+    explain=`<b>Cash.</b> Short-vol needs all five aligned (${svxyN}/${SVN} now) or a post-spike setup (${_srState.toLowerCase()}), and long-vol the full bear regime (${uvxy4}/4). Partial, mixed readings aren't enough — each side must hit its complete set before a trade is taken.`;
   }
   const decisionLogic =
       `<div class="sig-logic"><span class="lbl">How it combines</span>`
     + `<span class="lg-track"${ovrActive?' style="opacity:0.42"':''}>Short-vol ${_pips(svxyN,SVN,'var(--teal)')} <b>${svxyN}/${SVN}</b></span>`
     + `${DOT}<span class="lg-track"${ovrActive?' style="opacity:0.42"':''}>Long-vol ${_pips(uvxy4,4,'var(--coral)')} <b>${uvxy4}/4</b></span>`
-    + `${DOT}<span class="lg-track">Override <b style="color:${ovrActive?ovrColor:'var(--namut)'}">${spike?'SPIKE':b.vix_fade?'FADE':crush?'CRUSH':(b.neg_vol&&b.bear_9d&&b.bear_1m)?'VOL-FOLLOW':'none'}</b></span></div>`
+    + `${DOT}<span class="lg-track">Override <b style="color:${ovrActive?ovrColor:_srPath?'var(--teal)':'var(--namut)'}">${_srPath&&!spike&&!b.vix_fade?'POST-SPIKE':spike?'SPIKE':b.vix_fade?'FADE':crush?'CRUSH':(b.neg_vol&&b.bear_9d&&b.bear_1m)?'VOL-FOLLOW':'none'}</b></span></div>`
     + `<div class="sig-logic-why">${_why}</div>`
     + `<div class="sig-explain">${explain}</div>`;
   const lastTxt = (L&&L.generated_utc)?toEtClock(L.generated_utc)+' ET':(hist?b.date:'—');
@@ -3338,6 +3357,9 @@ function renderSignalMonitor(histBar){
   const _cdEl = Math.min(_k9.k27+0.5, Math.max(0, _evalIdx-_cdLossIdx));
   const sCd={lo:0,hi:_k9.k27+1,z:[[0,_k9.k27,'n'],[_k9.k27,_k9.k27+1,'t']],v:_cdEl,fmt:fN0,
     tip:`sessions since the last losing short-vol exit${_cdLossDate?' ('+_cdLossDate+')':''} · new short-vol entries wait out a short cool-off · ${_cdBlock?_cdTxt:'clear'}`};
+  const _srEl = _srSpike==null ? null : Math.max(0, Math.min(0.6, _srSpike));
+  const sSr={lo:0,hi:0.6,z:[[0,_k9.k28,'n'],[_k9.k28,0.6,_srCond?'t':'n']],v:_srEl,fmt:fPP,
+    tip:`VIX intraday high vs the prior close · needs a big enough spike AND VIX ${hist?'closing':'at the close'} in an elevated, non-crash band · now ${_srSpike!=null?'+'+(_srSpike*100).toFixed(0)+'%':'—'}, VIX ${vix1m!=null?vix1m.toFixed(2):'—'} · ${_srState}`};
   const compEntry=[
     ['Spike Type','Intraday spike character: Faded = spiked intraday then closed back (standalone SVXY entry); Sustained = spiked &amp; held (blocks SVXY, not a UVXY buy).','Faded → buy the vol dip (SVXY)','Sustained → caution, blocks SVXY',
       b.vix_fade?'Faded':(b.vix_sustained?'Sustained':'N/A'), gFull(sSpk), b.vix_fade?'SVXY':'NA'],
@@ -3349,6 +3371,8 @@ function renderSignalMonitor(histBar){
       _gated?'Blocked':'Clear', gFull(sGate), 'NA'],
     ['Re-entry cool-off','After a losing short-vol exit the strategy sits out a short cool-off before any new short-vol entry (every entry path, spike-fade included), to avoid re-shorting vol into chop.','Clear → short-vol entry allowed','Active → blocks SVXY (cash)',
       _cdTxt, gFull(sCd), _cdBlock?'CASH':'NA'],
+    ['Post-spike re-entry','Standalone short-vol entry: on a day VIX spikes sharply intraday and closes in an elevated (but not crash) band, buy SVXY at the close and hold for a set number of sessions (only take-profit exits early). Mean reversion after a spike tends to take days, not hours. Respects the cool-off.','Armed → SVXY at the close, multi-day hold','',
+      (_srSpike!=null?'+'+(_srSpike*100).toFixed(0)+'% · ':'')+_srState, gFull(sSr), _srArm?'SVXY':(_srCond?'CASH':'NA')],
   ];
   const _dsz = _psNow;
   const _dscState = (_dsz==null||!isFinite(_dsz)||_dsz<=0) ? 'Flat'
@@ -3395,7 +3419,7 @@ function renderSignalMonitor(histBar){
       return `<span style="color:${labCol}">${lab}</span> <span style="color:${col}">${txt}</span>`;};
     const _ms=(t,c)=>`<span style="color:${c}">${t}</span>`;
     const _mDesc={ 'Spike/Crush':overrideRows[0][1], 'Spike Type':compEntry[0][1], 'BB-Trend':compEntry[1][1],
-      'Vol-follow':compEntry[2][1], 'UVXY gate':compEntry[3][1], 'Cool-off':compEntry[4][1], 'Sizing':compSize[0][1] };
+      'Vol-follow':compEntry[2][1], 'UVXY gate':compEntry[3][1], 'Cool-off':compEntry[4][1], 'Post-spike':compEntry[5][1], 'Sizing':compSize[0][1] };
     eNames.forEach((n,i)=>{ _mDesc[n]=rows[i][1]; }); EXIDX.forEach(i=>{ _mDesc[xNames[i]]=exitRules[i][1]; });
     const help=t=>`<span class="mini-help" title="${(''+t).replace(/"/g,'&quot;')}">&#9432;</span>`;
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${_await?'<span style="color:var(--white)">Projected</span> <span style="color:var(--dim)">Awaiting prints</span>':posCell('Projected',proj,'var(--white)')}</div>`;
@@ -3413,6 +3437,7 @@ function renderSignalMonitor(histBar){
     mh+=mRow('Vol-follow', sVF, _ov!=null?_ov.toFixed(1):'N/A', mSig(_volFollow?'UVXY':'NA'), inPos);
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos);
     mh+=mRow('Cool-off', sCd, _cdBlock?(_cdLeft+' left'):'Clear', mSig(_cdBlock?'CASH':'NA'), inPos);
+    mh+=mRow('Post-spike', sSr, _srSpike!=null?'+'+(_srSpike*100).toFixed(0)+'%':'N/A', mSig(_srArm?'SVXY':(_srCond?'CASH':'NA')), inPos);
     mh+=mSub('Exit indicators','x');
     EXIDX.forEach(i=>{ const r=exitRules[i]; mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos); });
     mh+=mSub('Position sizing','z');
