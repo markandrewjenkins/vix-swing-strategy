@@ -3118,7 +3118,7 @@ function renderSignalMonitor(histBar){
   };
   const stat = i => { const s=exState(i);
     if(s==='exit') return `<span style="color:var(--cashc);font-weight:700">Exit</span>`;
-    if(s==='held') return `<span style="color:var(--amber);font-weight:700" title="Exit signal held — the short-vol entry conditions are still met this evening, so the position is kept">Held</span>`;
+    if(s==='held') return `<span style="color:var(--amber);font-weight:700" title="${_srHeld?'Exit signal held — the post-spike hold pauses every exit except Take Profit':'Exit signal held — the short-vol entry conditions are still met this evening, so the position is kept'}">Held</span>`;
     if(s==='hold') return `<span style="color:${holdColor};font-weight:700">Hold</span>`;
     return `<span style="color:var(--namut);font-weight:700">N/A</span>`;
   };
@@ -3156,6 +3156,7 @@ function renderSignalMonitor(histBar){
   const _lastB = DATA.bar_history[DATA.bar_history.length-1];
   const _srHoldLeft = hist ? (b.sr_trade ? (b.sr_hold_left||0) : 0)
     : ((_lastB.sr_trade && _lastB.position==='LONG_VOL_SELLER') ? Math.max(0,(_lastB.sr_hold_left||0)-1) : 0);
+  const _srSusp = i => inPos && isSV && _srHoldLeft>0 && i!==0;
   const _softIdx=[4,5,6].filter(i=>_exTrig[i] || (hist && (b.exit_held||b.sr_held) && [carryTrig,moveTrig,ratioTrig][i-4]));
   const _svEntryValid = (svxyN===SVN) || ovrSV;
   const _uvWanted = (uvxy4===4 && !_gateBlock) || ovrUV;
@@ -3308,7 +3309,7 @@ function renderSignalMonitor(histBar){
   } else {
     const off = (L&&L.official&&L.official.position)?posInstr(L.official.position):'CASH';
     const _clk = `<span class="sig-info" style="color:var(--teal)">&#9201;</span>`;
-    const note = `Signals finalize once the CBOE end-of-day VIX term structure posts (~<b>5:30pm&nbsp;ET</b>) and the day's close is confirmed; the decision locks in by ~<b>7pm&nbsp;ET</b> and trades the <b>same day in after-hours</b> (~7&ndash;8pm&nbsp;ET; the backtest uses the 4pm close as the fill). If a position is open, it is evaluated against the <b>exit</b> indicators. If any of the 6 exit indicators is triggered, the position is closed the same evening &mdash; except that a short-vol Neg-Vol, MOVE/VIX or Rollover exit is <b>held</b> while the short-vol entry conditions are still met. Hover over the ${_clk} to the right of the Current values for its refresh timing, and hover over the bar to the right of the ${_clk} to view more details on the current value of the indicator and its positioning against the entry / exit criteria.`;
+    const note = `Signals finalize once the CBOE end-of-day VIX term structure posts (~<b>5:30pm&nbsp;ET</b>) and the day's close is confirmed; the decision is published by ~<b>6pm&nbsp;ET</b> and trades the <b>same day in after-hours</b> (~6&ndash;8pm&nbsp;ET; the backtest uses the 4pm close as the fill). If a position is open, it is evaluated against the <b>exit</b> indicators. If any of the 6 exit indicators is triggered, the position is closed the same evening &mdash; except that a short-vol Neg-Vol, MOVE/VIX or Rollover exit is <b>held</b> while the short-vol entry conditions are still met. Hover over the ${_clk} to the right of the Current values for its refresh timing, and hover over the bar to the right of the ${_clk} to view more details on the current value of the indicator and its positioning against the entry / exit criteria.`;
     html =
         `<div class="sig-proj-row1">`
       +   `<div><span class="lbl">Current position</span>${chip(off)}</div>`
@@ -3327,9 +3328,9 @@ function renderSignalMonitor(histBar){
     +`<td style="color:var(--teal)">${r[2]}</td><td style="color:var(--coral)">${r[3]}</td>`
     +curCell(r,dull)+`<td>${tag(r[5],dull)}</td></tr>`;
   const exitDivider='<tr class="sig-divider"><td colspan="6">Exit indicators — any one closes an open position (a short-vol Neg-Vol, MOVE/VIX or Rollover exit is held while the short-vol entry conditions still hold)</td></tr>';
-  const exitHtml=EXIDX.map(i=>{ const r=exitRules[i]; return `<tr><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
+  const exitHtml=EXIDX.map(i=>{ const r=exitRules[i]; return `<tr${_srSusp(i)&&!_heldIdx.includes(i)?' style="opacity:0.45" title="Paused during the post-spike hold: only Take Profit can close the trade"':''}><td class="sig-name">${r[0]}</td><td class="sig-desc">${_ds(r[1])}</td>`
     +`<td style="color:var(--teal)">${_bb(r[2],'--teal')}</td><td style="color:var(--coral)">${_bb(r[3],'--coral')}</td>`
-    +curCell(r,!inPos)+`<td>${stat(i)}</td></tr>`; }).join('');
+    +curCell(r,!inPos||_srSusp(i))+`<td>${stat(i)}</td></tr>`; }).join('');
   const entryDivider='<tr class="sig-divider"><td colspan="6">Entry indicators — a short-vol entry needs Contango, VDelta, VIX9D, the 1M/3M ratio and BB-Trend all aligned (VIX1M feeds the long-vol regime). Spike-fade and Vol-follow are separate entry paths, and the UVXY gate can block a long-vol entry.</td></tr>';
   const _na=`<span style="color:var(--namut)">N/A</span>`;
   const _dBB=_domain('bb_trend',[0]), _v7=_k9.k24, _dV=_domain('vix1m',[_v7]), _v6=_k9.k23, _dMA=_domain('vix1m_ma30',[_v6]);
@@ -3371,7 +3372,7 @@ function renderSignalMonitor(histBar){
       _gated?'Blocked':'Clear', gFull(sGate), 'NA'],
     ['Re-entry cool-off','After a losing short-vol exit the strategy sits out a short cool-off before any new short-vol entry (every entry path, spike-fade included), to avoid re-shorting vol into chop.','Clear → short-vol entry allowed','Active → blocks SVXY (cash)',
       _cdTxt, gFull(sCd), _cdBlock?'CASH':'NA'],
-    ['Post-spike re-entry','Standalone short-vol entry: on a day VIX spikes sharply intraday and closes in an elevated (but not crash) band, buy SVXY at the close and hold for a set number of sessions (only take-profit exits early). Mean reversion after a spike tends to take days, not hours. Respects the cool-off.','Armed → SVXY at the close, multi-day hold','',
+    ['Post-spike re-entry','Standalone short-vol entry that also catches spikes which faded before the close: if VIX&rsquo;s intraday HIGH was well above the prior close and VIX still closes in an elevated (but not crash) band, buy SVXY at the close. The trade is then held for a fixed number of sessions: only Take Profit can close it early, and the other exit rules are paused (dimmed). Respects the cool-off.','Armed → SVXY at the close, multi-day hold','',
       (_srSpike!=null?'+'+(_srSpike*100).toFixed(0)+'% · ':'')+_srState, gFull(sSr), _srArm?'SVXY':(_srCond?'CASH':'NA')],
   ];
   const _dsz = _psNow;
@@ -3439,7 +3440,7 @@ function renderSignalMonitor(histBar){
     mh+=mRow('Cool-off', sCd, _cdBlock?(_cdLeft+' left'):'Clear', mSig(_cdBlock?'CASH':'NA'), inPos);
     mh+=mRow('Post-spike', sSr, _srSpike!=null?'+'+(_srSpike*100).toFixed(0)+'%':'N/A', mSig(_srArm?'SVXY':(_srCond?'CASH':'NA')), inPos);
     mh+=mSub('Exit indicators','x');
-    EXIDX.forEach(i=>{ const r=exitRules[i]; mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos); });
+    EXIDX.forEach(i=>{ const r=exitRules[i]; mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos||_srSusp(i)); });
     mh+=mSub('Position sizing','z');
     mh+=mRow('Sizing', sSize, b.high_vol_regime?'High':'Norm', mSig('NA'), inPos);
     _tipSec=null;
