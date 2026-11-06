@@ -775,7 +775,6 @@ body.mob #m-menu::before { content:''; display:block; width:16px; height:12px;
   </div>
   <div id="tab-analytics" style="display:none">
     <div class="kpi-grid" id="kpi-strip"></div>
-    <div style="font-size:0.72rem;color:var(--dim);margin:6px 2px 0;line-height:1.5"><b>Hypothetical, in-sample backtest</b> from a $100k start, before trading costs, slippage and taxes. Growth multiples assume no capacity limit &mdash; real position sizes in these ETFs would be capped by liquidity well before the later figures.</div>
     
     <div class="panel" style="margin-top:12px">
       <div class="ph"><span>Daily P&amp;L (mark-to-market)</span></div>
@@ -3267,9 +3266,9 @@ function renderSignalMonitor(histBar){
     else if(_srHeld) _why = `<b style="color:var(--teal)">holding short vol</b> &mdash; <b style="color:var(--amber)">exit held</b>: post-spike hold${_srHoldLeft?' ('+_srHoldLeft+' left)':''}`;
     else if(_held) _why = `<b style="color:var(--teal)">holding short vol</b> &mdash; <b style="color:var(--amber)">exit held</b>: the short-vol entry is still valid`;
     else _why = `<b style="color:${isUV?'var(--coral)':'var(--teal)'}">holding ${isUV?'long vol':'short vol'}</b> &mdash; no exit triggered; entry signals don't apply while in a position`;
-  } else if(_pk==='sv') _why = svxyN===SVN ? `all 5 short-vol signals aligned &rarr; <b style="color:var(--teal)">SVXY</b>` : ovrSV ? `spike override &rarr; <b style="color:var(--teal)">SVXY</b> (buy the vol dip)` : _elArm && !_srArm ? `<b style="color:var(--teal)">election crush</b> &rarr; <b style="color:var(--teal)">SVXY</b> (hold ${_k9.k33} sessions)` : `<b style="color:var(--teal)">post-spike re-entry</b> &rarr; <b style="color:var(--teal)">SVXY</b> (hold ${_k9.k33} sessions)`;
+  } else if(_pk==='sv') _why = svxyN===SVN ? `all 5 short-vol signals aligned &rarr; <b style="color:var(--teal)">SVXY</b>` : ovrSV ? `spike override &rarr; <b style="color:var(--teal)">SVXY</b> (buy the vol dip)` : _elArm && !_srArm ? `<b style="color:var(--teal)">event crush</b> &rarr; <b style="color:var(--teal)">SVXY</b> (hold ${_k9.k33} sessions)` : `<b style="color:var(--teal)">post-spike re-entry</b> &rarr; <b style="color:var(--teal)">SVXY</b> (hold ${_k9.k33} sessions)`;
   else if(_pk==='uv') _why = (uvxy4<4 && crush) ? `<b style="color:var(--coral)">crush override</b> &rarr; UVXY` : (ovrUV ? `<b style="color:var(--coral)">vol-follow override</b> &rarr; UVXY` : `full bear regime (4/4) &rarr; <b style="color:var(--coral)">UVXY</b>`);
-  else if(_blkIdx===-2) _why = `${ovrSV?'spike override':svxyN===SVN?'all 5 short-vol signals aligned':_elEve&&!_srCond?'election-crush entry armed':'post-spike re-entry armed'}, but the <b style="color:var(--cashc)">re-entry cool-off</b> holds it back (${_cdTxt}) &rarr; <b style="color:var(--cashc)">cash</b>`;
+  else if(_blkIdx===-2) _why = `${ovrSV?'spike override':svxyN===SVN?'all 5 short-vol signals aligned':_elEve&&!_srCond?'event entry armed':'post-spike re-entry armed'}, but the <b style="color:var(--cashc)">re-entry cool-off</b> holds it back (${_cdTxt}) &rarr; <b style="color:var(--cashc)">cash</b>`;
   else if(_blocked) _why = _blkIdx===-1
     ? `bear regime ready (4/4) but the <b style="color:var(--cashc)">UVXY gate</b> blocks it &rarr; <b style="color:var(--cashc)">cash</b>`
     : `short-vol one signal short &mdash; <b style="color:var(--cashc)">${_blkName}</b> holds it back &rarr; <b style="color:var(--cashc)">cash</b>`;
@@ -3285,7 +3284,7 @@ function renderSignalMonitor(histBar){
     const exTxt = _firedExits.length>1 ? ('the <b>'+_firedExits.join('</b> + <b>')+'</b> exit rules fired together') : ('the <b>'+(_firedExits[0]||'an exit')+'</b> rule fired');
     explain=`<b>Exiting ${_instTxt}</b> ${hist?'that evening':'tonight'} in after-hours: ${exTxt}. Six exit checks run each evening; any one closes the whole position at the same-day after-hours print. Entry signals are context-only while in a trade.`;
   } else if(inPos && _srHeld){
-    explain=`<b>Holding ${_instTxt} &mdash; post-spike hold.</b> ${_heldTxt} fired, but this trade was opened by a standalone event entry (post-spike or election), which holds for ${_k9.k33} sessions${_srHoldLeft?' ('+_srHoldLeft+' left)':''} &mdash; after a spike the rebound tends to take days, so routine exits are ignored until then. Take-profit always fires.`;
+    explain=`<b>Holding ${_instTxt} &mdash; post-spike hold.</b> ${_heldTxt} fired, but this trade was opened by a standalone entry (post-spike or event), which holds for ${_k9.k33} sessions${_srHoldLeft?' ('+_srHoldLeft+' left)':''} &mdash; after a spike the rebound tends to take days, so routine exits are ignored until then. Take-profit always fires.`;
   } else if(inPos && _held){
     explain=`<b>Holding ${_instTxt} &mdash; exit held.</b> ${_heldTxt} fired, but the short-vol entry conditions are still met ${hist?'that':'this'} evening, so the exit is suppressed &mdash; the strategy won't sell into a bar where its own logic would buy. Take-profit and the time stop always fire.`;
   } else if(inPos){
@@ -3295,7 +3294,7 @@ function renderSignalMonitor(histBar){
   } else if(ovrUV && _pk==='uv' && uvxy4<4){
     explain=`<b>Entering UVXY (long vol)</b> via the <b>${crush?'crush':'vol-follow'} override</b>: a standalone long-vol trigger that skips the four-signal bear regime. The routine signals are dulled because this path alone decides the entry.`;
   } else if(_pk==='sv' && svxyN<SVN && !ovrSV && _elArm && !_srArm){
-    explain=`<b>Entering SVXY (short vol)</b> via the <b>election crush</b>: ${hist?'that':'tonight'} is the close before a US Election Day. VIX typically carries event premium into the vote and has fallen afterwards in about two-thirds of elections since 1990 (three-quarters since 2012). A standalone path (routine signals dulled); it holds ${_k9.k33} sessions unless take-profit hits.`;
+    explain=`<b>Entering SVXY (short vol)</b> via the <b>event crush</b>: ${hist?'that':'tonight'} is the close before a scheduled high-impact event. Implied volatility tends to build into such events and collapse once they resolve, which has historically favoured short vol over the following sessions. A standalone path (routine signals dulled); it holds ${_k9.k33} sessions unless take-profit hits.`;
   } else if(_pk==='sv' && svxyN<SVN && !ovrSV){
     explain=`<b>Entering SVXY (short vol)</b> via the <b>post-spike re-entry</b>: VIX spiked ${_srSpike!=null?(_srSpike>=0?'+':'')+(_srSpike*100).toFixed(0)+'% ':''}intraday ${hist?'and closed':'and is'} in its elevated-but-not-crash band, where the rebound has historically played out over days. A standalone path (the routine signals are dulled); it holds ${_k9.k33} sessions unless take-profit hits.`;
   } else if(_pk==='sv'){
@@ -3303,7 +3302,7 @@ function renderSignalMonitor(histBar){
   } else if(_pk==='uv'){
     explain=`<b>Entering UVXY (long vol):</b> the full four-signal bear regime is in place — acute near-term fear with the front of the curve inverted.`;
   } else if(_blkIdx===-2){
-    explain=`<b>Cash — short-vol on cool-off.</b> ${ovrSV?'The spike override fired':svxyN===SVN?'All five short-vol conditions agree':_elEve&&!_srCond?'The election-crush entry is armed':'The post-spike re-entry is armed'}, but after a losing short-vol exit (${_cdLossDate}) the strategy sits out a short cool-off before re-entering, to avoid re-shorting vol into chop. ${_cdTxt} &mdash; the entry is allowed again after that.`;
+    explain=`<b>Cash — short-vol on cool-off.</b> ${ovrSV?'The spike override fired':svxyN===SVN?'All five short-vol conditions agree':_elEve&&!_srCond?'The event entry is armed':'The post-spike re-entry is armed'}, but after a losing short-vol exit (${_cdLossDate}) the strategy sits out a short cool-off before re-entering, to avoid re-shorting vol into chop. ${_cdTxt} &mdash; the entry is allowed again after that.`;
   } else if(_blocked && _blkIdx===-1){
     explain=`<b>Cash — long-vol blocked.</b> The bear regime is complete, but the <b>UVXY gate</b> vetoes it (VIX9D in its exhaustion zone, or very low cross-asset stress) — the bear signals are ready but held back; only the gate decides here.`;
   } else if(_blocked){
@@ -3315,7 +3314,7 @@ function renderSignalMonitor(histBar){
       `<div class="sig-logic"><span class="lbl">How it combines</span>`
     + `<span class="lg-track"${ovrActive?' style="opacity:0.42"':''}>Short-vol ${_pips(svxyN,SVN,'var(--teal)')} <b>${svxyN}/${SVN}</b></span>`
     + `${DOT}<span class="lg-track"${ovrActive?' style="opacity:0.42"':''}>Long-vol ${_pips(uvxy4,4,'var(--coral)')} <b>${uvxy4}/4</b></span>`
-    + `${DOT}<span class="lg-track">Override <b style="color:${ovrActive?ovrColor:_srPath?'var(--teal)':'var(--namut)'}">${_srPath&&!spike?(_elPath?'ELECTION':'POST-SPIKE'):spike?'SPIKE':crush?'CRUSH':(b.neg_vol&&b.bear_9d&&b.bear_1m)?'VOL-FOLLOW':'none'}</b></span></div>`
+    + `${DOT}<span class="lg-track">Override <b style="color:${ovrActive?ovrColor:_srPath?'var(--teal)':'var(--namut)'}">${_srPath&&!spike?(_elPath?'EVENT':'POST-SPIKE'):spike?'SPIKE':crush?'CRUSH':(b.neg_vol&&b.bear_9d&&b.bear_1m)?'VOL-FOLLOW':'none'}</b></span></div>`
     + `<div class="sig-logic-why">${_why}</div>`
     + `<div class="sig-explain">${explain}</div>`;
   const lastTxt = (L&&L.generated_utc)?toEtClock(L.generated_utc)+' ET':(hist?b.date:'—');
@@ -3385,7 +3384,7 @@ function renderSignalMonitor(histBar){
   const sSr={lo:0,hi:0.6,z:[[0,_k9.k28,'n'],[_k9.k28,0.6,_srCond?'t':'n']],v:_srEl,fmt:fPP,
     tip:`VIX intraday high vs the prior close · needs a big enough spike AND VIX ${hist?'closing':'at the close'} in an elevated, non-crash band · now ${_srSpike!=null?(_srSpike>=0?'+':'')+(_srSpike*100).toFixed(0)+'%':'—'}, VIX ${vix1m!=null?vix1m.toFixed(2):'—'} · ${_srState}`};
   const sEl={lo:0,hi:1,z:[[0,0.5,'n'],[0.5,1,'t']],v:_elEve?0.75:0.25,nolab:true,
-    tip:`US Election Day eve → buy the post-election vol crush · next eve ${_nextEve} · ${_elEve?(_elArm?'armed tonight':'eve, but blocked (cool-off or crisis)'):'not today'}`};
+    tip:`Scheduled event eve → buy the post-event vol crush · next ${_nextEve} · ${_elEve?(_elArm?'armed tonight':'eve, but blocked (cool-off or crisis)'):'not today'}`};
   const compEntry=[
     ['Sustained spike','VIX spiked intraday and held most of the gain into the close: a caution that blocks short-vol entries that day (it is not a UVXY buy). Spikes that fade are handled by the post-spike re-entry.','Clear → no block','Sustained → blocks SVXY',
       b.vix_sustained?'Sustained':'Clear', gFull(sSpk), b.vix_sustained?'CASH':'NA'],
@@ -3399,8 +3398,8 @@ function renderSignalMonitor(histBar){
       _cdTxt, gFull(sCd), _cdBlock?'CASH':'NA'],
     ['Post-spike re-entry','Standalone short-vol entry that also catches spikes which faded before the close: if VIX&rsquo;s intraday HIGH was well above the prior close and VIX still closes in an elevated (but not crash) band, buy SVXY at the close. The trade is then held for a fixed number of sessions: only Take Profit can close it early, and the other exit rules are paused (dimmed). Respects the cool-off.','Armed → SVXY at the close, multi-day hold','',
       (_srSpike!=null?(_srSpike>=0?'+':'')+(_srSpike*100).toFixed(0)+'% · ':'')+_srState, gFull(sSr), _srArm?'SVXY':(_srCond?'CASH':'NA'), true],
-    ['Election crush','Standalone short-vol entry around US midterm and presidential elections: VIX usually builds event premium into Election Day and is crushed once the result is in. Buys SVXY at the close of the session before Election Day and holds through the crush (same hold as the post-spike rule; only Take Profit exits early). Skipped in a crisis and during the cool-off.','Election eve → SVXY at the close, multi-day hold','',
-      _elEve?'Election eve':'Next: '+_nextEve, gFull(sEl), _elArm?'SVXY':(_elEve?'CASH':'NA')],
+    ['Events','Standalone short-vol entry around selected scheduled high-impact events: implied volatility tends to build into them and collapse once they resolve. Buys SVXY at the close of the session before the event and holds through the crush (same hold as the post-spike rule; only Take Profit exits early). Skipped in a crisis and during the cool-off.','Event eve → SVXY at the close, multi-day hold','',
+      _elEve?'Event eve':'Next: '+_nextEve, gFull(sEl), _elArm?'SVXY':(_elEve?'CASH':'NA')],
   ];
   const _dsz = _psNow;
   const _dscState = (_dsz==null||!isFinite(_dsz)||_dsz<=0) ? 'Flat'
@@ -3447,7 +3446,7 @@ function renderSignalMonitor(histBar){
       return `<span style="color:${labCol}">${lab}</span> <span style="color:${col}">${txt}</span>`;};
     const _ms=(t,c)=>`<span style="color:${c}">${t}</span>`;
     const _mDesc={ 'Spike/Crush':overrideRows[0][1], 'Sustained':compEntry[0][1], 'BB-Trend':compEntry[1][1],
-      'Vol-follow':compEntry[2][1], 'UVXY gate':compEntry[3][1], 'Cool-off':compEntry[4][1], 'Post-spike':compEntry[5][1], 'Election':compEntry[6][1], 'Sizing':compSize[0][1] };
+      'Vol-follow':compEntry[2][1], 'UVXY gate':compEntry[3][1], 'Cool-off':compEntry[4][1], 'Post-spike':compEntry[5][1], 'Events':compEntry[6][1], 'Sizing':compSize[0][1] };
     eNames.forEach((n,i)=>{ _mDesc[n]=rows[i][1]; }); EXIDX.forEach(i=>{ _mDesc[xNames[i]]=exitRules[i][1]; });
     const help=t=>`<span class="mini-help" title="${(''+t).replace(/"/g,'&quot;')}">&#9432;</span>`;
     let mh=`<div class="mini-pos">${posCell('Current',moff,'var(--yellow)')} <span class="sig-proj-arrow">&rarr;</span> ${_await?'<span style="color:var(--white)">Projected</span> <span style="color:var(--dim)">Awaiting prints</span>':posCell('Projected',proj,'var(--white)')}</div>`;
@@ -3466,7 +3465,7 @@ function renderSignalMonitor(histBar){
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos||!(uvxy4===4));
     mh+=mRow('Cool-off', sCd, _cdBlock?(_cdLeft+' left'):'Clear', mSig(_cdBlock?'CASH':'NA'), inPos||!_cdBlock);
     mh+=mRow('Post-spike', sSr, _srSpike!=null?(_srSpike>=0?'+':'')+(_srSpike*100).toFixed(0)+'%':'N/A', mSig(_srArm?'SVXY':(_srCond?'CASH':'NA')), inPos||!_srCond, 'mini-standalone');
-    mh+=mRow('Election', sEl, _elEve?'Eve':'Nov '+_nextEve.slice(2,4), mSig(_elArm?'SVXY':(_elEve?'CASH':'NA')), inPos||!_elEve);
+    mh+=mRow('Events', sEl, _elEve?'Eve':_nextEve.slice(5,7)+'/'+_nextEve.slice(2,4), mSig(_elArm?'SVXY':(_elEve?'CASH':'NA')), inPos||!_elEve);
     mh+=mSub('Exit indicators','x');
     EXIDX.forEach(i=>{ const r=exitRules[i]; mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos||_srSusp(i)||exState(i)==='na'); });
     mh+=mSub('Position sizing','z');
