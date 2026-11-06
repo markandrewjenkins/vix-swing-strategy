@@ -452,10 +452,9 @@ table.sig-mon th:nth-child(6),table.sig-mon td:nth-child(6){ width:9%; }
 .mini-row { display:flex; align-items:center; gap:6px; margin:1px 0; white-space:nowrap; }
 .mini-row.mini-standalone { border-top:1px dashed var(--border2); margin-top:4px; padding-top:4px; }
 table.sig-mon tr.sig-standalone td { border-top:1px dashed var(--border2); }
-.disc-top { font-size:0.68rem; line-height:1.4; color:var(--dim); padding:5px 18px; border-bottom:1px solid var(--border); }
-.disc-top b { color:var(--text); font-weight:600; }
+.disc-pill { display:inline-flex; align-items:center; gap:4px; font-size:0.66rem; color:var(--dim); border:1px solid var(--border2); border-radius:10px; padding:1px 8px; cursor:help; white-space:nowrap; user-select:none; }
+.disc-pill:hover { color:var(--text); border-color:var(--dim); }
 .disc-foot { font-size:0.7rem; line-height:1.5; color:var(--dim); padding:18px 18px 28px; margin-top:18px; border-top:1px solid var(--border); }
-body.mob .disc-top { padding:5px 12px; font-size:0.64rem; }
 .mini-row .mini-name { color:var(--yellow); width:64px; flex:none; }
 .mini-row .mini-val { width:46px; flex:none; text-align:right; color:var(--white); }
 .mini-row .mini-bar { width:72px; flex:none; }
@@ -667,6 +666,7 @@ body.mob #m-menu::before { content:''; display:block; width:16px; height:12px;
         <button id="instr-blend" class="cdl-seg active" onclick="setInstr('blend')">SVIX / UVIX <span style="font-weight:400">(primary)</span></button>
         <button id="instr-real" class="cdl-seg" onclick="setInstr('real')">SVXY / UVXY</button>
       </span>
+      <span class="disc-pill disc-tip" title="Hypothetical performance disclosure: all returns, drawdowns and other statistics shown are simulated by applying the current version of the strategy rules to historical data. The strategy is refined on an ongoing basis and each revision is back-tested over the entire history, so the figures benefit from hindsight, are subject to change without notice, and may differ materially from results achieved by following earlier versions of the strategy. They are not the results of actual trading, may not fully reflect costs, slippage, liquidity, taxes or fills, and are not a guarantee or reliable indication of future performance. Leveraged and inverse volatility ETFs can lose most of their value quickly. For information and educational purposes only; not investment advice or a recommendation to buy or sell any security." aria-label="Performance disclaimer">&#9888; Hypothetical results</span>
     </div>
   </div>
   <div class="tabs">
@@ -679,7 +679,6 @@ body.mob #m-menu::before { content:''; display:block; width:16px; height:12px;
     <button class="tab" onclick="switchTab('howto')">About</button>
   </div>
 </div>
-<div class="disc-top disc-tip" title="Hypothetical performance disclosure: all returns, drawdowns and other statistics shown are simulated by applying the current version of the strategy rules to historical data. The strategy is refined on an ongoing basis and each revision is back-tested over the entire history, so the figures benefit from hindsight, are subject to change without notice, and may differ materially from results achieved by following earlier versions of the strategy. They are not the results of actual trading, may not fully reflect costs, slippage, liquidity, taxes or fills, and are not a guarantee or reliable indication of future performance. Leveraged and inverse volatility ETFs can lose most of their value quickly. For information and educational purposes only; not investment advice or a recommendation to buy or sell any security.">&#9888; Hypothetical, back-tested results of the <b>current</b> strategy rules. The rules are revised over time and every revision is re-tested over the full history, so figures change and reflect hindsight. Not actual trading results; past or simulated performance does not guarantee future results. Not investment advice.</div>
 <div id="live-strip" title="Live market readings that feed the entry/exit signals. Signals finalize ~5:30 PM ET (when the VIX term structure posts); trades execute the same day ~7-8 PM ET (after hours). Intraday values (incl. pre/post-market) are available for most tickers but are indicative only.">
   <div class="live-main">
     <div class="live-pos-block">
