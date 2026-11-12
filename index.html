@@ -761,8 +761,8 @@ body.mob #m-menu::before { content:''; display:block; width:16px; height:12px;
           <span><span class="cdl-cndl up"></span> Up day</span>
           <span><span class="cdl-cndl dn"></span> Down day</span>
           <span title="Trades are decided on the close and filled in that evening's after-hours session, so a marker on a candle means the position was taken at the END of that day, not held during it"><span style="color:#fff3c8">&#9650;</span> Entry (at that day's close)</span>
-          <span title="Dip-escalation: the open short-vol position was increased at that day's close after a drawdown (same trade, not a new entry)"><span style="color:#54d2ef">&#9650;</span> Size added</span>
-          <span title="Recovery trim: the dip add-on was sold at that day's close once the position recovered"><span style="color:#ff6f9c">&#9660;</span> Size trimmed</span>
+          <span title="Dip-escalation: the open short-vol position was increased at that day's close after a drawdown (same trade, not a new entry). The label shows how much was added, e.g. SVIX +⅛ of the account"><span style="color:#54d2ef">&#9650;</span> Size added</span>
+          <span title="Recovery trim: the dip add-on was sold at that day's close once the position recovered. The label shows how much was sold, e.g. SVIX −⅛ of the account"><span style="color:#ff6f9c">&#9660;</span> Size trimmed</span>
           <span><span class="cdl-sw" style="background:var(--teal)"></span> Profit exit</span>
           <span><span class="cdl-sw" style="background:var(--coral)"></span> Loss exit</span>
         </div>
@@ -1135,6 +1135,15 @@ const _v10='2018-02-28';
 function levAt(date, sv){ if(date && date<_v10) return 1.0; const lv=altLeverage(); return sv?(lv.svF||2.0):(lv.uvF||1.33); }
 const VIEW_SIZE={blend:{sv:0.875, uv:2.0, cap:1.0}};
 function viewSize(mode){ return VIEW_SIZE[mode||CHART_MODE]||{sv:1,uv:1,cap:Infinity}; }
+function sizeDeltaLabel(from, to){
+  if(from==null || to==null) return null;
+  if(CHART_MODE==='blend'){
+    const q=Math.round((svFracOf(to)-svFracOf(from))*8)/8; if(!q) return null;
+    const G={0.125:'⅛',0.25:'¼',0.375:'⅜',0.5:'½',0.625:'⅝',0.75:'¾',0.875:'⅞',1:'1'}, a=Math.abs(q);
+    return 'SVIX '+(q>0?'+':'−')+(G[a]||a.toFixed(2)); }
+  const d=Math.round((to-from)*100); if(!d) return null;
+  return svN()+' '+(d>0?'+':'−')+Math.abs(d)+'%';
+}
 function svFracOf(ps, mode){ const v=viewSize(mode); const p=(ps==null||!isFinite(ps)||ps<=0)?1:ps; return Math.min(v.sv*p, v.cap); }
 function engEqRet(t){ const pd=t.pnl_dollar, ea=t.equity_after;
   if(pd==null||ea==null) return (t.pnl_pct||0)*(t.pos_size||1);
@@ -2514,7 +2523,7 @@ function displayMarkers(){
     (t.adj||[]).forEach(ev=>{ if(alt && (sv?svC:uvC)[ev.date]==null) return;
       const add=ev.action==='ADD';
       markers.push({time:ev.date,position:mp,color:add?CYAN:TRIMC,shape:add?'arrowUp':'arrowDown',size:0,
-        text:(add?'▲ ':'▼ ')+(CHART_MODE==='blend'?svSizeName(ev.size_to):Math.round(ev.size_to*100)+'%')}); });
+        text:(add?'▲ ':'▼ ')+(sizeDeltaLabel(ev.size_from,ev.size_to)||(CHART_MODE==='blend'?svSizeName(ev.size_to):Math.round(ev.size_to*100)+'%'))}); });
     });
   const _bh=DATA.bar_history||[]; let _oty=null,_ostart=null;
   for(let i=_bh.length-1;i>=0;i--){ const p=_bh[i].position; if(p&&p!=='CASH'){_oty=p;_ostart=_bh[i].date;} else break; }
@@ -2530,7 +2539,7 @@ function displayMarkers(){
         if(alt && (sv?svC:uvC)[b.date]==null) continue;
         const add=b.signal==='ADD_SVXY';
         markers.push({time:b.date,position:mp,color:add?CYAN:TRIMC,shape:add?'arrowUp':'arrowDown',size:0,
-          text:(add?'▲ ':'▼ ')+(CHART_MODE==='blend'?svSizeName(b.pos_size):Math.round((b.pos_size||1)*100)+'%')}); } }
+          text:(add?'▲ ':'▼ ')+(sizeDeltaLabel(i>0?_bh[i-1].pos_size:null,b.pos_size)||(CHART_MODE==='blend'?svSizeName(b.pos_size):Math.round((b.pos_size||1)*100)+'%'))}); } }
   }
   markers.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return markers;
 }
