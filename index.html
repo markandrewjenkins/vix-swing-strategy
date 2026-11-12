@@ -761,6 +761,8 @@ body.mob #m-menu::before { content:''; display:block; width:16px; height:12px;
           <span><span class="cdl-cndl up"></span> Up day</span>
           <span><span class="cdl-cndl dn"></span> Down day</span>
           <span title="Trades are decided on the close and filled in that evening's after-hours session, so a marker on a candle means the position was taken at the END of that day, not held during it"><span style="color:#fff3c8">&#9650;</span> Entry (at that day's close)</span>
+          <span title="Dip-escalation: the open short-vol position was increased at that day's close after a drawdown (same trade, not a new entry)"><span style="color:#54d2ef">&#9650;</span> Size added</span>
+          <span title="Recovery trim: the dip add-on was sold at that day's close once the position recovered"><span style="color:#ff6f9c">&#9660;</span> Size trimmed</span>
           <span><span class="cdl-sw" style="background:var(--teal)"></span> Profit exit</span>
           <span><span class="cdl-sw" style="background:var(--coral)"></span> Loss exit</span>
         </div>
@@ -2520,7 +2522,7 @@ function displayMarkers(){
   if(_oty && _ostart && _ostart>_lastEx){
     const sv=_oty==='LONG_VOL_SELLER'; const mp=sv?'aboveBar':'belowBar';
     const ok = !alt || ((sv?svC:uvC)[_ostart]!=null);
-    const _osz=(_bh[_bh.length-1]||{}).pos_size;
+    const _osz=((_bh.find(x=>x.date===_ostart))||_bh[_bh.length-1]||{}).pos_size;
     if(ok) markers.push({time:_ostart,position:mp,color:ENTRY,shape:'arrowUp',size:0,
       text:'▲ '+(sv?svSizeName(_osz):uvN())});
     for(let i=_bh.length-1;i>=0 && _bh[i].position===_oty;i--){ const b=_bh[i];
@@ -2892,6 +2894,9 @@ function renderSignalMonitor(histBar){
   const _elEve = hist ? !!b.elec_eve : (+_todayET.slice(0,4)%2===0 && _todayET===_elecEve(+_todayET.slice(0,4)));
   const _nextEve = (()=>{ let y=+_evalDate.slice(0,4); if(y%2) y++; let e=_elecEve(y); if(e<_evalDate){ y+=2; e=_elecEve(y); } return e; })();
   const _elArm = _elEve && !_cdBlock && vix1m!=null && vix1m < _k9.k30;
+  const _MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const _nextEveTxt = `${+_nextEve.slice(8,10)} ${_MON[+_nextEve.slice(5,7)-1]} ${_nextEve.slice(0,4)}`;
+  const _nextEveShort = `${_MON[+_nextEve.slice(5,7)-1]} '${_nextEve.slice(2,4)}`;
   const _srState = _srSpike==null ? 'N/A' : _srCond ? (_cdBlock?'Cool-off':'Armed')
     : _srSpike<_k9.k28 ? 'Small spike' : _srCrash ? 'Crash regime' : (vix1m!=null && vix1m>=_k9.k30) ? 'VIX too high' : 'VIX too low';
   const P=_k9;
@@ -3384,7 +3389,7 @@ function renderSignalMonitor(histBar){
   const sSr={lo:0,hi:0.6,z:[[0,_k9.k28,'n'],[_k9.k28,0.6,_srCond?'t':'n']],v:_srEl,fmt:fPP,
     tip:`VIX intraday high vs the prior close · needs a big enough spike AND VIX ${hist?'closing':'at the close'} in an elevated, non-crash band · now ${_srSpike!=null?(_srSpike>=0?'+':'')+(_srSpike*100).toFixed(0)+'%':'—'}, VIX ${vix1m!=null?vix1m.toFixed(2):'—'} · ${_srState}`};
   const sEl={lo:0,hi:1,z:[[0,0.5,'n'],[0.5,1,'t']],v:_elEve?0.75:0.25,nolab:true,
-    tip:`Scheduled event eve → buy the post-event vol crush · next ${_nextEve} · ${_elEve?(_elArm?'armed tonight':'eve, but blocked (cool-off or crisis)'):'not today'}`};
+    tip:`Scheduled event eve → buy the post-event vol crush · next event eve ${_nextEveTxt} · ${_elEve?(_elArm?'armed tonight':'eve, but blocked (cool-off or crisis)'):'not today'}`};
   const compEntry=[
     ['Sustained spike','VIX spiked intraday and held most of the gain into the close: a caution that blocks short-vol entries that day (it is not a UVXY buy). Spikes that fade are handled by the post-spike re-entry.','Clear → no block','Sustained → blocks SVXY',
       b.vix_sustained?'Sustained':'Clear', gFull(sSpk), b.vix_sustained?'CASH':'NA'],
@@ -3398,8 +3403,8 @@ function renderSignalMonitor(histBar){
       _cdTxt, gFull(sCd), _cdBlock?'CASH':'NA'],
     ['Post-spike re-entry','Standalone short-vol entry that also catches spikes which faded before the close: if VIX&rsquo;s intraday HIGH was well above the prior close and VIX still closes in an elevated (but not crash) band, buy SVXY at the close. The trade is then held for a fixed number of sessions: only Take Profit can close it early, and the other exit rules are paused (dimmed). Respects the cool-off.','Armed → SVXY at the close, multi-day hold','',
       (_srSpike!=null?(_srSpike>=0?'+':'')+(_srSpike*100).toFixed(0)+'% · ':'')+_srState, gFull(sSr), _srArm?'SVXY':(_srCond?'CASH':'NA'), true],
-    ['Events','Standalone short-vol entry around selected scheduled high-impact events: implied volatility tends to build into them and collapse once they resolve. Buys SVXY at the close of the session before the event and holds through the crush (same hold as the post-spike rule; only Take Profit exits early). Skipped in a crisis and during the cool-off.','Event eve → SVXY at the close, multi-day hold','',
-      _elEve?'Event eve':'Next: '+_nextEve, gFull(sEl), _elArm?'SVXY':(_elEve?'CASH':'NA')],
+    ['Events',`Calendar trigger for scheduled high-impact events. What it measures: whether tonight's close is the eve of a qualifying event on the calendar (shown as the date of the next event eve). Why: implied volatility usually carries an event premium into such events and collapses once the outcome is known. What it does: on the eve it buys SVXY at the close and holds up to ${_k9.k33} sessions (only Take Profit exits early); skipped in a crisis or during the cool-off. Expected impact: past event entries averaged about +13% per trade (3 of 4 profitable in the backtest), and VIX was lower ten sessions later after roughly two-thirds of past events since 1990. Rare: about one opportunity every two years.`,'Event eve → SVXY at the close, multi-day hold','',
+      _elEve?'Event eve (tonight)':'Next eve: '+_nextEveTxt, gFull(sEl), _elArm?'SVXY':(_elEve?'CASH':'NA')],
   ];
   const _dsz = _psNow;
   const _dscState = (_dsz==null||!isFinite(_dsz)||_dsz<=0) ? 'Flat'
@@ -3465,7 +3470,7 @@ function renderSignalMonitor(histBar){
     mh+=mRow('UVXY gate', sGate, _gated?'Block':'Clear', mSig('NA'), inPos||!(uvxy4===4));
     mh+=mRow('Cool-off', sCd, _cdBlock?(_cdLeft+' left'):'Clear', mSig(_cdBlock?'CASH':'NA'), inPos||!_cdBlock);
     mh+=mRow('Post-spike', sSr, _srSpike!=null?(_srSpike>=0?'+':'')+(_srSpike*100).toFixed(0)+'%':'N/A', mSig(_srArm?'SVXY':(_srCond?'CASH':'NA')), inPos||!_srCond, 'mini-standalone');
-    mh+=mRow('Events', sEl, _elEve?'Eve':_nextEve.slice(5,7)+'/'+_nextEve.slice(2,4), mSig(_elArm?'SVXY':(_elEve?'CASH':'NA')), inPos||!_elEve);
+    mh+=mRow('Events', sEl, _elEve?'Eve':_nextEveShort, mSig(_elArm?'SVXY':(_elEve?'CASH':'NA')), inPos||!_elEve);
     mh+=mSub('Exit indicators','x');
     EXIDX.forEach(i=>{ const r=exitRules[i]; mh+=mRow(xNames[i], xspec[i], stripTags(r[4])||'—', mStat(i), !inPos||_srSusp(i)||exState(i)==='na'); });
     mh+=mSub('Position sizing','z');
