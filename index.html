@@ -1702,9 +1702,21 @@ function rerenderActive(){
 }
 function _openPosReturn(L, sv, uv, entryDate, realPnl){
   if(!aMode() || !(sv||uv)) return realPnl;
-  try{ const bh=(DATA&&DATA.bar_history)||[]; let adj=false;
-    for(let i=bh.length-1;i>=0 && bh[i].position && bh[i].position!=='CASH';i--)
-      if(bh[i].signal==='ADD_SVXY'||bh[i].signal==='TRIM_SVXY'){ adj=true; break; }
+  try{ const bh=(DATA&&DATA.bar_history)||[]; let adj=false, i0=bh.length-1;
+    for(let i=bh.length-1;i>=0 && bh[i].position && bh[i].position!=='CASH';i--){
+      i0=i; if(bh[i].signal==='ADD_SVXY'||bh[i].signal==='TRIM_SVXY') adj=true; }
+    if(adj && sv){
+      const [svM]=altCloseMaps(); const aq=L&&L.market&&L.market.quotes&&L.market.quotes.svix;
+      let sh=0, cost=0, prev=0, ok=true;
+      for(let i=i0;i<bh.length;i++){ const f=svFracOf(bh[i].pos_size), px=svM[bh[i].date];
+        if(Math.abs(f-prev)<1e-9) continue;
+        if(px==null){ ok=false; break; }
+        if(f>prev){ sh+=(f-prev)/px; cost+=(f-prev); }
+        else { const k=(prev-f)/prev; cost*=1-k; sh*=1-k; }
+        prev=f; }
+      const last=(aq&&aq.price!=null)?aq.price:svM[bh[bh.length-1].date];
+      if(ok && sh>0 && last!=null) return last*sh/cost-1;
+    }
     if(adj && realPnl!=null){ const lv=altLeverage(); return realPnl*(sv?lv.svF:lv.uvF); }
   }catch(_){}
   let alt=null;
