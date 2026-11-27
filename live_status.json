@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-11-27T14:15:26+00:00",
+  "generated_utc": "2026-11-27T14:20:28+00:00",
   "market": {
     "vix_spot": 26.8,
     "vix1m_used": 26.8,
@@ -43,10 +43,10 @@
         "day_high": 27.12,
         "regular_price": 26.8,
         "regular_change": -0.053672,
-        "ext_price": 25.44,
-        "ext_change": -0.050746,
+        "ext_price": 25.59,
+        "ext_change": -0.045149,
         "reg_time": "2026-11-26T16:30:00+00:00",
-        "time": "2026-11-27T14:00:16+00:00"
+        "time": "2026-11-27T14:05:16+00:00"
       },
       "vix9d": {
         "price": 29.61,
@@ -109,15 +109,15 @@
         "time": "2026-11-25T21:00:00+00:00"
       },
       "move": {
-        "price": 96.5111,
+        "price": 95.3059,
         "prev_close": 98.9107,
-        "change_pct": -0.02426,
+        "change_pct": -0.036445,
         "session": "regular",
         "asof_date": "2026-11-25",
         "prev_date": "2026-11-24",
         "day_high": 102.7259,
-        "regular_price": 96.5111,
-        "regular_change": -0.02426,
+        "regular_price": 95.3059,
+        "regular_change": -0.036445,
         "ext_price": null,
         "ext_change": null,
         "reg_time": "2026-11-25T21:00:00+00:00",
@@ -250,7 +250,7 @@
     "backend_slope": 0.022822,
     "vdelta": -2.81,
     "ratio_1m_3m": 1.0194,
-    "move_vix_ratio": 3.6,
+    "move_vix_ratio": 3.56,
     "regime": "backwardation"
   },
   "signal_timing": {
@@ -285,8 +285,8 @@
       "expected": "Live VIX1M \u00f7 VIX3M (both Yahoo intraday)."
     },
     "move_vix_ratio": {
-      "value": 3.6012,
-      "changed_utc": "2026-11-27T14:15:26+00:00",
+      "value": 3.5562,
+      "changed_utc": "2026-11-27T14:20:28+00:00",
       "cadence": "live",
       "expected": "ICE MOVE \u00f7 VIX; refreshes intraday when MOVE is available, combined with the 4pm VIX close at ~7pm."
     }
